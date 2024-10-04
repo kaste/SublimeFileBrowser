@@ -322,6 +322,15 @@ class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
 
         path = self.path
         existing = set(before)
+        window = self.view.window()
+
+        def retarget(a, b):
+            if not window:
+                return
+            view = window.find_open_file(a)
+            if view:
+                view.retarget(b)
+
         while diffs:
             b, a = diffs.pop(0)
 
@@ -354,6 +363,7 @@ class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
                            u'  • disk letter on Windows\n'.format(b, a))
                     sublime.error_message(msg)
                     return
+            retarget(orig, join(path, a))
             existing.remove(b)
             existing.add(a)
 
