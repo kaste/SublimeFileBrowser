@@ -82,8 +82,8 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
     """
     Prompt for a directory to display and display it.
     """
-    def run(self, immediate=False, single_pane=False, project=False, other_group=False):
-        path, goto = self._determine_path()
+    def run(self, immediate=False, single_pane=False, project=False, other_group=False, flat=False):
+        path, goto = self._determine_path(flat=flat)
         if project:
             folders = self.window.folders()
             if len(folders) == 1:
@@ -113,11 +113,14 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
     def _show(self, path):
         show(self.window, path)
 
-    def _determine_path(self):
+    def _determine_path(self, flat=False):
         '''Return (path, fname) so goto=fname to set cursor'''
         # Use the current view's directory if it has one.
         view = self.window.active_view()
         path = view and view.file_name()
+        if path and flat:
+            return os.path.split(path)
+
         folders = self.window.folders()
         if path:
             for f in folders:
