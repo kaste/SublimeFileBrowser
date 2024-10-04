@@ -95,13 +95,18 @@ class DiredHelpCommand(TextCommand):
 
 class DiredShowHelpCommand(TextCommand):
     def run(self, edit):
-        COMMANDS_HELP = sublime.load_resource('Packages/FileBrowser/shortcuts.md') if ST3 else ''
-        if not COMMANDS_HELP:
+        content = sublime.load_resource('Packages/FileBrowser/shortcuts.md') if ST3 else ''
+        if not content:
             dest = dirname(__file__)
             shortcuts = join(dest if dest != '.' else join(sublime.packages_path(), 'FileBrowser'), "shortcuts.md")
-            COMMANDS_HELP = open(shortcuts, "r").read()
+            content = open(shortcuts, "r").read()
+        normed_content = (
+            content
+            .replace('\r\n', '\n')
+            .replace('\r', '\n')
+        )
         self.view.erase(edit, Region(0, self.view.size()))
-        self.view.insert(edit, 0, COMMANDS_HELP)
+        self.view.insert(edit, 0, normed_content)
         self.view.sel().clear()
         self.view.set_read_only(True)
 
