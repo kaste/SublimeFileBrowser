@@ -127,14 +127,7 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
             return os.path.split(path)
 
         # Use the first project folder if there is one.
-        data = self.window.project_data() if ST3 else None
-        if data and 'folders' in data:
-            folders = data['folders']
-            if folders:
-                return (folders[0]['path'], '')
-
-        # Use window folder if possible
-        if len(folders) > 0:
+        if folders:
             return (folders[0], '')
 
         # Use the user's home directory.
