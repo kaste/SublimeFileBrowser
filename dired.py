@@ -126,7 +126,7 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
             for f in folders:
                 # e.g. ['/a', '/aa'], to open '/aa/f' we need '/aa/'
                 if path.startswith(u''.join([f, os.sep])):
-                    return (f, path)
+                    return (f, os.path.relpath(path, f))
             return os.path.split(path)
 
         # Use the first project folder if there is one.
