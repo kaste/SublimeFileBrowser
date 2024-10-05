@@ -101,7 +101,8 @@ class ObservePaths(object):
 
     def dired_event_handler(self, package, event, payload):
         '''receiving args from common.emit_event'''
-        def view_closed(view): self.paths.pop(view, None)
+        def view_closed(view):
+            self.paths.pop(view, None)
 
         def start_refresh(view, path):
             self.paths.update({view: [path.rstrip(os.sep)] if path else []})
@@ -115,9 +116,13 @@ class ObservePaths(object):
             if paths == old_paths:
                 return
 
-            self.paths.update({view: sorted(p for p in
-                              set(old_paths + [p.rstrip(os.sep) for p in paths])
-                              if os.path.exists(p))})
+            self.paths.update({
+                view: sorted(
+                    p
+                    for p in set(old_paths + [p.rstrip(os.sep) for p in paths])
+                    if os.path.exists(p)
+                )
+            })
             rewatch_all()
 
         def fold(view, path):
