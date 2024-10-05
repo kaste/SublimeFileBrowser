@@ -118,13 +118,27 @@ class ObservePaths(object):
             self.paths.update({view: sorted(p for p in
                               set(old_paths + [p.rstrip(os.sep) for p in paths])
                               if os.path.exists(p))})
+            rewatch_all()
+
+        def fold(view, path):
+            path_without_sep = path.rstrip(os.sep)
+            path_with_sep = path_without_sep + os.sep
+            self.paths.update({
+                view: sorted(
+                    p
+                    for p in self.paths.get(view, [])
+                    if (
+                        p != path_without_sep
+                        and not p.startswith(path_with_sep)
+                    )
+                )
+            })
+            rewatch_all()
+
+        def rewatch_all():
             self.observer.unschedule_all()
             for p in reduce(lambda i, j: i + j, self.paths.values()):
                 self.observer.schedule(self.event_handler, p)
-
-        def fold(view, path):
-            p = set(self.paths.get(view, [])) - set([path.rstrip(os.sep)])
-            finish_refresh(view, list(p))
 
         def toggle_watch_all(watch):
             '''watch is boolean or None, global setting dired_autorefresh'''
