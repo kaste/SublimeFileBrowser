@@ -46,11 +46,15 @@ your `Key Bindings - User` file):
 
 You also can use optional arguments to tweak behavior:
 
+* `"immediate": true` — open a dired view immediately without prompting.  If `false` (the default)
+  open an input box to enter the root dir of the dired view.  This input box implements a completion
+  helper on `<tab>` and is prefilled with the directory of the current view's file, unless you also
+  set `project`, see below.
+* `"project": true` — always prefer project's directory(s) rather than path of current view.
 * `"single_pane": true` — always use a single File Browser view, i.e. prefer to reuse existing one
   rather than create a new.
 * `"other_group": "left"` (or `"right`) — open FileBrowser in other group, i.e. like sidebar; if
   you use `"left"` then all other tabs from left group will be moved into the right one.
-* `"project": true` — always prefer project's directory(s) rather than path of current view.
 
 You can mix these arguments as you like (perhaps, even bind several shortcuts for different cases);
 e.g. to completely mimic sidebar, it would be:

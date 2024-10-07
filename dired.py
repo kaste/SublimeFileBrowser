@@ -80,61 +80,98 @@ if not ST3:
 
 class DiredCommand(WindowCommand, DiredBaseCommand):
     """
-    Prompt for a directory to display and display it.
+    Open a dired view.  This is the main entrypoint/constructor.
+
+    If `immediate` is set: open a dired view immediately. Usually highlight the
+    file of the current view, fallback to an open folder or the users home
+    directory as a last resort.  If `project` is also set: set the root
+    directory to the best matching open folder.  Otherwise the root will be
+    the directory of the view's file.  (In other words, you get either a flat,
+    if `project: false`, or nested listing, if it is `true`.)
+
+    If `immediate` is *not* set: open an input box to let the user type in the
+    directory they want.  The input box implements a completion helper using
+    `<tab>` to make this easier.  The input box is typically filled with the
+    name of the directory of the active view's file, or a fallback.  If you
+    set `project`, it is instead pre-filled with the folder attached to the
+    window.  In case there are multiple folders open, the user gets prompted
+    by a quick panel to choose a folder from.  In case there are *no* folders,
+    show some fallbacks.
     """
-    def run(self, immediate=False, single_pane=False, project=False, other_group=False, flat=False):
-        path, goto = self._determine_path(flat=flat)
+    def run(self, immediate=False, project=False, single_pane=False, other_group=False):
+        if immediate:
+            fpath = self._get_current_fpath()
+            if not fpath:
+                path, goto = self._fallback_path(), ''
+
+            elif project:
+                path = self._best_root_for_fpath(fpath)
+                if path:
+                    goto = os.path.relpath(fpath, path)
+                else:
+                    path, goto = os.path.split(fpath)
+
+            else:
+                path, goto = os.path.split(fpath)
+
+            show(self.window, path, goto=goto, single_pane=single_pane, other_group=other_group)
+            return
+
         if project:
             folders = self.window.folders()
             if len(folders) == 1:
                 path = folders[0]
-            elif folders:
-                names = [basename(f) for f in folders]
-                longest_name = max([len(n) for n in names])
-                for i, f in enumerate(folders):
-                    name     = names[i]
-                    offset   = ' ' * (longest_name - len(name) + 1)
-                    names[i] = u'%s%s%s' % (name, offset, self.display_path(f))
-                self.window.show_quick_panel(names, lambda i: self._show_folder(i, path, goto, single_pane, other_group), sublime.MONOSPACE_FONT)
-                return
-        if immediate:
-            show(self.window, path, goto=goto, single_pane=single_pane, other_group=other_group)
-        else:
-            prompt.start('Directory:', self.window, path, self._show)
-
-    def _show_folder(self, index, path, goto, single_pane, other_group):
-        if index != -1:
-            choice = self.window.folders()[index]
-            if path == choice:
-                show(self.window, path, goto=goto, single_pane=single_pane, other_group=other_group)
             else:
-                show(self.window, choice, single_pane=single_pane, other_group=other_group)
+                self._show_folders_panel(folders, single_pane, other_group)
+                return
+        else:
+            fpath = self._get_current_fpath()
+            path = os.path.dirname(fpath) if fpath else self._fallback_path()
 
-    def _show(self, path):
-        show(self.window, path)
+        prompt.start('Directory:', self.window, path, self._show, single_pane, other_group)
 
-    def _determine_path(self, flat=False):
-        '''Return (path, fname) so goto=fname to set cursor'''
-        # Use the current view's directory if it has one.
+    def _get_current_fpath(self):
         view = self.window.active_view()
-        path = view and view.file_name()
-        if path and flat:
-            return os.path.split(path)
+        return view.file_name() if view else None
 
+    def _show_folders_panel(self, folders, single_pane, other_group):
+        if not folders:
+            fpath = self._get_current_fpath()
+            if fpath:
+                folders += [os.path.dirname(fpath)]
+            folders += [os.path.expanduser('~')]
+
+        names = [basename(f) for f in folders]
+        longest_name = max([len(n) for n in names])
+        for i, f in enumerate(folders):
+            name     = names[i]
+            offset   = ' ' * (longest_name - len(name) + 1)
+            names[i] = u'%s%s%s' % (name, offset, self.display_path(f))
+
+        self.window.show_quick_panel(
+            names,
+            lambda i: self._show_folder(i, folders, single_pane, other_group),
+            sublime.MONOSPACE_FONT
+        )
+
+    def _fallback_path(self):
         folders = self.window.folders()
-        if path:
-            for f in folders:
-                # e.g. ['/a', '/aa'], to open '/aa/f' we need '/aa/'
-                if path.startswith(u''.join([f, os.sep])):
-                    return (f, os.path.relpath(path, f))
-            return os.path.split(path)
+        return folders[0] if folders else os.path.expanduser('~')
 
-        # Use the first project folder if there is one.
-        if folders:
-            return (folders[0], '')
+    def _best_root_for_fpath(self, fpath):
+        folders = self.window.folders()
+        for f in folders:
+            # e.g. ['/a', '/aa'], to open '/aa/f' we need '/aa/'
+            if fpath.startswith(u''.join([f, os.sep])):
+                return f
 
-        # Use the user's home directory.
-        return (os.path.expanduser('~'), '')
+    def _show_folder(self, index, folders, single_pane, other_group):
+        if index != -1:
+            path = folders[index]
+            show(self.window, path, single_pane=single_pane, other_group=other_group)
+
+    def _show(self, path, single_pane, other_group):
+        show(self.window, path, single_pane=single_pane, other_group=other_group)
 
 
 class DiredRefreshCommand(TextCommand, DiredBaseCommand):
