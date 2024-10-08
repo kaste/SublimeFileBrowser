@@ -1,5 +1,21 @@
 [
   {
+      "caption": "Preferences: FileBrowser Settings",
+      "command": "edit_settings",
+      "args": {
+          "base_file": "${packages}/FileBrowser/dired.sublime-settings",
+          "default": "// Settings in here override those in \"FileBrowser/dired.sublime-settings\",\n\n{\n\t$0\n}\n"
+      }
+  },
+  {
+      "caption": "Preferences: FileBrowser Key Bindings",
+      "command": "edit_settings",
+      "args": {
+          "base_file": "${packages}/FileBrowser/Default (${platform}).sublime-keymap"
+      }
+  },
+
+  {
     "caption": "Browse Mode...",
     "command": "dired"
   },
