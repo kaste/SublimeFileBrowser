@@ -367,8 +367,7 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
     def write(self, edit, fileslist):
         '''apply changes to view'''
         self.view.set_read_only(False)
-        self.view.erase(edit, Region(0, self.view.size()))
-        self.view.insert(edit, 0, '\n'.join(fileslist))
+        self.view.replace(edit, Region(0, self.view.size()), '\n'.join(fileslist))
         self.view.set_read_only(True)
 
         fileregion = self.fileregion()
