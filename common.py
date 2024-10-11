@@ -73,10 +73,14 @@ def set_proper_scheme(view):
     else:
         dired_settings = sublime.load_settings('dired.sublime-settings')
 
-    if view.settings().get('color_scheme') == dired_settings.get('color_scheme'):
+    color_scheme = dired_settings.get('color_scheme')
+    if view.settings().get('color_scheme') == color_scheme:
         return
 
-    view.settings().set('color_scheme', dired_settings.get('color_scheme'))
+    if color_scheme:
+        view.settings().set('color_scheme', color_scheme)
+    else:
+        view.settings().erase('color_scheme')
 
 
 def calc_width(view):
