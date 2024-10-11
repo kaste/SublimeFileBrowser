@@ -571,8 +571,6 @@ class CallVCS(DiredBaseCommand):
     def __init__(self, view, path):
         self.view = view
         self.vcs_state = dict(path=path)
-        self.view.erase_regions('M')
-        self.view.erase_regions('?')
         for vcs in ['git', 'hg']:
             self.start(vcs)
         self.watch_threads()
@@ -584,6 +582,9 @@ class CallVCS(DiredBaseCommand):
             return
         if 'changed_items' in self.vcs_state:
             self.vcs_colorized(self.vcs_state['changed_items'])
+        else:
+            self.view.erase_regions('M')
+            self.view.erase_regions('?')
 
     def start(self, vcs):
         '''launch threads'''
