@@ -196,7 +196,7 @@ class ReportEvent(FileSystemEventHandler):
             # DirCreatedEvent
             # FileDeletedEvent
             # DirDeletedEvent
-            print('Ignore DirModified:', event.key)
+            # print('Ignore DirModified:', event.key)
             return
 
         src_path = event.src_path
