@@ -620,7 +620,7 @@ class CallVCS(DiredBaseCommand):
 
     def get_output(self, vcs, command):
         '''call a vsc, getting its output if any'''
-        args = {'git_status': ['status', '--untracked-files=all', '-z'],
+        args = {'git_status': ['--no-optional-locks', 'status', '--untracked-files=all', '-z'],
                 'git_root':   ['rev-parse', '--show-toplevel'],
                 'hg_status':  ['status'],
                 'hg_root':    ['root']}
