@@ -242,8 +242,8 @@ class DiredBaseCommand:
         if 'indent' in scope:
             name_point = self.view.extract_scope(line.a).b
         else:
-            name_point = line.a + (2 if not 'parent_dir' in scope else 0)
-        return name_point
+            name_point = line.a
+        return name_point + (2 if 'parent_dir' not in scope else 0)
 
     def show_parent(self):
         return self.view.settings().get('dired_show_parent', False)
