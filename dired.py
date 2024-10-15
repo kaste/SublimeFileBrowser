@@ -5,7 +5,8 @@
 from __future__ import print_function
 import sublime
 from sublime import Region
-from sublime_plugin import WindowCommand, TextCommand
+from sublime_plugin import EventListener, WindowCommand, TextCommand
+from collections import defaultdict
 import os
 from os.path import basename, dirname, isdir, exists, join
 
@@ -515,10 +516,27 @@ class DiredPreviewCommand(DiredSelect):
             window = self.view.window()
             dired_view = self.view
             self.focus_other_group(window)
-            window.open_file(fqn, sublime.TRANSIENT)
-            window.focus_view(dired_view)
+            other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
+            when_loaded(other_view, lambda: window.focus_view(dired_view))
         else:
             sublime.status_message(u'File does not exist (%s)' % (basename(fqn.rstrip(os.sep)) or fqn))
+
+
+views_yet_to_get_loaded = defaultdict(list)
+
+
+def when_loaded(view, handler):
+    if view.is_loading():
+        views_yet_to_get_loaded[view.id()].append(handler)
+    else:
+        handler()
+
+
+class PreviewViewHandler(EventListener):
+    def on_load(self, view):
+        callbacks = views_yet_to_get_loaded.pop(view.id(), [])
+        for fn in callbacks:
+            sublime.set_timeout(fn)
 
 
 class DiredExpand(TextCommand, DiredBaseCommand):
