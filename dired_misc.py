@@ -33,6 +33,12 @@ else:  # ST2 imports
     sublime_plugin.ViewEventListener = object
 
 
+STARTUPINFO = None
+if sys.platform == "win32":
+    STARTUPINFO = subprocess.STARTUPINFO()
+    STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+
 def convert_size(size):
     if not size:
         return '0 B'
@@ -656,20 +662,27 @@ class CallVCS(DiredBaseCommand):
                 'hg_status':  ['status'],
                 'hg_root':    ['root']}
         sep = {'hg': '\n', 'git': '\x00' if ST3 else '\00'}
-        status, root, shell = '', '', True if NT else False
         path = self.vcs_state['path']
         try:
-            p = subprocess.Popen([command] + args['%s_status' % vcs], stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=path, shell=shell)
+            p = subprocess.Popen(
+                [command] + args['%s_status' % vcs],
+                stdout=subprocess.PIPE,
+                cwd=path,
+                startupinfo=STARTUPINFO)
             status = p.communicate()[0]
             status = str(status, 'utf-8').split(sep[vcs]) if ST3 else status.split(sep[vcs])
-            p = subprocess.Popen([command] + args['%s_root' % vcs], stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=path, shell=shell)
+            p = subprocess.Popen(
+                [command] + args['%s_root' % vcs],
+                stdout=subprocess.PIPE,
+                cwd=path,
+                startupinfo=STARTUPINFO)
             root = p.communicate()[0].decode('utf-8').strip('\n')
             if NT:
                 root = root.replace("/", "\\")
-        except:
-            # on Windows exception is not being raised if cwd is not None and shell=True
-            self.vcs_state.update({vcs: False})
-        return (status, root)
+        except Exception:
+            return (None, None)
+        else:
+            return (status, root)
 
     def set_value(self, vcs, root, item):
         '''return tuple (fullpath, status)'''
