@@ -11,6 +11,7 @@ from sublime_plugin import TextCommand, EventListener
 import glob
 from itertools import chain
 import math
+import operator as op
 import os
 import subprocess
 import sys
@@ -557,6 +558,37 @@ class DiredMoveOpenOrNewFileToRightGroup(EventListener):
 
     def on_load(self, view):
         self.on_new(view)
+
+
+class DiredContextProvider(EventListener):
+    def on_query_context(self, view, key, operator, operand, match_all):
+        if key == "dired_simple_selection":
+            if operator not in (sublime.OP_EQUAL, sublime.OP_NOT_EQUAL):
+                print(
+                    "Context '{key}' only supports operator 'equal' and 'not_equal'."
+                    .format(key=key)
+                )
+                return False
+
+            if operand not in (True, False):
+                print(
+                    "Context '{key}' only supports operand 'true' and 'false'."
+                    .format(key=key)
+                )
+                return False
+
+            return (op.eq if operator == sublime.OP_EQUAL else op.ne)(
+                (
+                    (all if match_all else any)(
+                        not s.empty() and len(view.lines(s)) == 1
+                        for s in view.sel()
+                    )
+                ),
+                operand
+            )
+
+        return None
+
 
 
 # TOOLS #############################################################

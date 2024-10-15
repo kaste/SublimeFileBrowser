@@ -18,7 +18,8 @@
     "command": "dired_copy_files",
     "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
-        { "key": "setting.dired_rename_mode", "operand": false }
+        { "key": "setting.dired_rename_mode", "operand": false },
+        { "key": "dired_simple_selection", "operand": false, "match_all": true }
     ]
   },
   {
