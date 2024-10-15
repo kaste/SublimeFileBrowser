@@ -638,7 +638,7 @@ class CallVCS(DiredBaseCommand):
 
     def expand_command(self, vcs, command):
         '''check if user got wildcards or envvars in custom command'''
-        if any(c for c in '~*?[]$%' if c in command) and not isfile(command):
+        if any(c in command for c in '~*?[]$%') and not isfile(command):
             match = glob.glob(os.path.expandvars(os.path.expanduser(command)))
             if match:
                 return match[0]
