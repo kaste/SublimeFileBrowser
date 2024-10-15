@@ -515,8 +515,14 @@ class DiredPreviewCommand(DiredSelect):
                 self.view.run_command('dired_file_properties', {'fqn': fqn})
             window = self.view.window()
             dired_view = self.view
-            self.focus_other_group(window)
-            other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
+            group = self._other_group(window, window.active_group())
+            open_views = window.views_in_group(group)
+            other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=group)
+            if other_view not in open_views:
+                other_view.settings().set("dired_preview_view", True)
+            for v in window.views_in_group(group):
+                if v != other_view and v.settings().get("dired_preview_view"):
+                    v.close()
             when_loaded(other_view, lambda: window.focus_view(dired_view))
         else:
             sublime.status_message(u'File does not exist (%s)' % (basename(fqn.rstrip(os.sep)) or fqn))
@@ -537,6 +543,10 @@ class PreviewViewHandler(EventListener):
         callbacks = views_yet_to_get_loaded.pop(view.id(), [])
         for fn in callbacks:
             sublime.set_timeout(fn)
+
+    def on_modified_async(self, view):
+        if view.settings().get("dired_preview_view"):
+            view.settings().erase("dired_preview_view")
 
 
 class DiredExpand(TextCommand, DiredBaseCommand):
