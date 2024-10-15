@@ -9,6 +9,7 @@ import sublime, sublime_plugin
 from sublime import Region
 from sublime_plugin import TextCommand, EventListener
 import glob
+from itertools import chain
 import math
 import os
 import subprocess
@@ -654,18 +655,30 @@ class CallVCS(DiredBaseCommand):
         offset = 1 if not colorblind else 0
         for fn in changed_items.keys():
             full_fn = normpath(fn)
-            r = files_regions.get(full_fn, 0)
-            if r:
-                icon   = self._get_name_point(r) - 2
-                r      = Region(icon, icon + offset)
-                status = changed_items[fn]
-                if status == 'M':
-                    modified.append(r)
-                elif status == '?':
-                    untracked.append(r)
+            for p in chain([full_fn], paths_upwards(full_fn)):
+                r = files_regions.get(p, 0)
+                if r:
+                    icon   = self._get_name_point(r) - 2
+                    r      = Region(icon, icon + offset)
+                    status = changed_items[fn]
+                    if status == 'M':
+                        modified.append(r)
+                    elif status == '?':
+                        untracked.append(r)
+                    break
+
         if colorblind:
             self.view.add_regions('M', modified, 'item.colorblind.dired', '', MARK_OPTIONS | sublime.DRAW_EMPTY_AS_OVERWRITE)
             self.view.add_regions('?', untracked, 'item.colorblind.dired', '', MARK_OPTIONS | sublime.DRAW_EMPTY)
         else:
             self.view.add_regions('M', modified, 'item.modified.dired', '', MARK_OPTIONS)
             self.view.add_regions('?', untracked, 'item.untracked.dired', '', MARK_OPTIONS)
+
+
+def paths_upwards(path):
+    while True:
+        next_path = os.path.dirname(path)
+        if next_path == '/' or next_path == path:
+            return
+        yield next_path + os.sep
+        path = next_path
