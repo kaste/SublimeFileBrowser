@@ -632,6 +632,8 @@ class CallVCS(DiredBaseCommand):
             status = str(status, 'utf-8').split(sep[vcs]) if ST3 else status.split(sep[vcs])
             p = subprocess.Popen([command] + args['%s_root' % vcs], stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=path, shell=shell)
             root = p.communicate()[0].decode('utf-8').strip('\n')
+            if NT:
+                root = root.replace("/", "\\")
         except:
             # on Windows exception is not being raised if cwd is not None and shell=True
             self.vcs_state.update({vcs: False})
