@@ -516,14 +516,27 @@ class DiredPreviewCommand(DiredSelect):
             window = self.view.window()
             dired_view = self.view
             group = self._other_group(window, window.active_group())
-            open_views = window.views_in_group(group)
-            other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=group)
-            if other_view not in open_views:
-                other_view.settings().set("dired_preview_view", True)
-            for v in window.views_in_group(group):
-                if v != other_view and v.settings().get("dired_preview_view"):
-                    v.close()
-            when_loaded(other_view, lambda: window.focus_view(dired_view))
+            other_view = window.active_view_in_group(group)
+            if (
+                other_view
+                and other_view.file_name() == fqn
+                and other_view.settings().get("dired_preview_view")
+            ):
+                # We need to focus even when we close, otherwise Sublime
+                # magically opens an empty/new view.  `set_timeout` for the
+                # same reason.  TODO: Investigate in safe-mode.
+                window.focus_view(other_view)
+                other_view.close()
+                sublime.set_timeout(lambda: window.focus_view(dired_view))
+            else:
+                open_views = window.views_in_group(group)
+                other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=group)
+                if other_view not in open_views:
+                    other_view.settings().set("dired_preview_view", True)
+                for v in open_views:
+                    if v != other_view and v.settings().get("dired_preview_view"):
+                        v.close()
+                when_loaded(other_view, lambda: window.focus_view(dired_view))
         else:
             sublime.status_message(u'File does not exist (%s)' % (basename(fqn.rstrip(os.sep)) or fqn))
 
