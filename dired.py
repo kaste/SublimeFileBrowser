@@ -579,7 +579,7 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         self.view.settings().set('dired_index', self.index)
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
-        self.view.run_command('dired_call_vcs', {'path': self.path})
+        self.view.run_command("dired_draw_vcs_marker")
         emit_event(u'finish_refresh', (self.view.id(), [filename]), view=self.view)
 
     def try_to_fold(self, marked):
@@ -644,6 +644,7 @@ class DiredFold(TextCommand, DiredBaseCommand):
 
         self.restore_marks(self.marked)
         self.restore_sels(self.seled)
+        self.view.run_command("dired_draw_vcs_marker")
 
     def fold(self, edit, line):
         '''line is a Region, on which folding is supposed to happen (or not)'''

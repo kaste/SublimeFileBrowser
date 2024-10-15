@@ -564,6 +564,7 @@ class DiredMoveOpenOrNewFileToRightGroup(EventListener):
 class DiredCallVcs(TextCommand):
     '''Command allows to call it from other module(s)'''
     def run(self, edit, path):
+        self.view.run_command("dired_draw_vcs_marker")
         CallVCS(self.view, path)
 
 
@@ -581,11 +582,8 @@ class CallVCS(DiredBaseCommand):
         if not all(vcs in self.vcs_state for vcs in ['git', 'hg']):
             sublime.set_timeout(self.watch_threads, 100)
             return
-        if 'changed_items' in self.vcs_state:
-            self.vcs_colorized(self.vcs_state['changed_items'])
-        else:
-            self.view.erase_regions('M')
-            self.view.erase_regions('?')
+        self.view.settings().set("vcs_changed_items", self.vcs_state.get('changed_items'))
+        self.view.run_command("dired_draw_vcs_marker")
 
     def start(self, vcs):
         '''launch threads'''
@@ -645,10 +643,17 @@ class CallVCS(DiredBaseCommand):
         filename = (item[2:] if ST3 else unicode(item[2:], 'utf-8'))
         return (join(root, filename), item[0])
 
-    def vcs_colorized(self, changed_items):
-        '''called on main thread'''
+
+class DiredDrawVcsMarkerCommand(TextCommand, DiredBaseCommand):
+    def run(self, edit):
         if not self.view.settings().has('dired_index'):
             return  # view was closed
+        changed_items = self.view.settings().get("vcs_changed_items")
+        if not changed_items:
+            self.view.erase_regions('M')
+            self.view.erase_regions('?')
+            return
+
         modified, untracked = [], []
         files_regions = dict((f, r) for f, r in zip(self.get_all(), self.view.split_by_newlines(Region(0, self.view.size()))))
         colorblind = self.view.settings().get('vcs_color_blind', False)
