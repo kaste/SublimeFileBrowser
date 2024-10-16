@@ -519,19 +519,19 @@ class DiredHideEmptyGroup(EventListener):
         views_window[view.id()] = window
 
     def on_close(self, view):
-        w = views_window.pop(view.id(), None)
-        if not w:
+        window = views_window.pop(view.id(), None)
+        if not window:
             return
 
         emit_event(u'view_closed', view.id())
         # check if closed view was a single one in group
         if ST3:
-            single = not w.views_in_group(0) or not w.views_in_group(1)
+            single = not window.views_in_group(0) or not window.views_in_group(1)
         else:
-            single = ([view.id()] == [v.id() for v in w.views_in_group(0)] or
-                      [view.id()] == [v.id() for v in w.views_in_group(1)])
-        if w.num_groups() == 2 and single:
-            w.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
+            single = ([view.id()] == [v.id() for v in window.views_in_group(0)] or
+                      [view.id()] == [v.id() for v in window.views_in_group(1)])
+        if window.num_groups() == 2 and single:
+            window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
 
 def is_any_dired_in_group(window, group):
