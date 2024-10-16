@@ -550,6 +550,7 @@ class DiredPreviewCommand(DiredSelect):
 
 
 views_yet_to_get_loaded = defaultdict(list)
+preview_to_get_closed = {}
 
 
 def when_loaded(view, handler):
@@ -568,6 +569,23 @@ class PreviewViewHandler(EventListener):
     def on_modified_async(self, view):
         if view.settings().get("dired_preview_view"):
             view.settings().erase("dired_preview_view")
+
+    def on_pre_close(self, view):
+        window = view.window()
+        if (
+            window
+            and view.settings().get("dired_preview_view")
+        ):
+            group, _ = window.get_view_index(view)
+            preview_to_get_closed[view.id()] = (window, group)
+
+    def on_close(self, view):
+        window, group = preview_to_get_closed.pop(view.id(), (None, None))
+        if (window, group) == (None, None):
+            return
+
+        if window.num_groups() == 2 and len(window.views_in_group(group)) == 0:
+            window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
 
 class DiredExpand(TextCommand, DiredBaseCommand):
