@@ -469,7 +469,7 @@ class DiredSelect(TextCommand, DiredBaseCommand):
         if isdir(fqn):
             show(window, fqn, ignore_existing=new_view)
         elif exists(fqn):  # ignore 'item <error>'
-            self.last_created_view = window.open_file(fqn)
+            self.last_created_view = window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
         else:
             sublime.status_message(u'File does not exist (%s)' % (basename(fqn.rstrip(os.sep)) or fqn))
 
