@@ -540,8 +540,7 @@ class DiredPreviewCommand(DiredSelect):
             else:
                 open_views = window.views_in_group(group)
                 other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=group)
-                if other_view not in open_views:
-                    other_view.settings().set("dired_preview_view", True)
+                other_view.settings().set("dired_preview_view", True)
                 for v in open_views:
                     if v != other_view and v.settings().get("dired_preview_view"):
                         v.close()
