@@ -249,6 +249,7 @@ class DiredRenameCancelCommand(TextCommand, DiredBaseCommand):
         emit_event(u'watch_view', self.view.id(), plugin=u'FileBrowserWFS')
         self.view.settings().erase('rename')
         self.view.settings().set('dired_rename_mode', False)
+        self.view.erase_regions('rename')
         self.view.run_command('dired_refresh')
 
 
