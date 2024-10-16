@@ -506,13 +506,24 @@ class DiredHijackNewWindow(EventListener):
         hijack_window()
 
 
-class DiredHideEmptyGroup(EventListener):
-    def on_close(self, view):
-        if not 'dired' in view.scope_name(0):
-            return
-        emit_event(u'view_closed', view.id())
+views_window = {}
 
-        w = sublime.active_window()
+
+class DiredHideEmptyGroup(EventListener):
+    def on_pre_close(self, view):
+        window = view.window()
+        if not window:
+            return
+        if 'dired' not in view.scope_name(0):
+            return
+        views_window[view.id()] = window
+
+    def on_close(self, view):
+        w = views_window.pop(view.id(), None)
+        if not w:
+            return
+
+        emit_event(u'view_closed', view.id())
         # check if closed view was a single one in group
         if ST3:
             single = not w.views_in_group(0) or not w.views_in_group(1)
