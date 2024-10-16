@@ -524,6 +524,7 @@ class DiredPreviewCommand(DiredSelect):
                 self.view.run_command('dired_file_properties', {'fqn': fqn})
             window = self.view.window()
             dired_view = self.view
+            will_create_preview_group = window.num_groups() == 1
             group = self._other_group(window, window.active_group())
             other_view = window.active_view_in_group(group)
             if (
@@ -539,8 +540,18 @@ class DiredPreviewCommand(DiredSelect):
                 sublime.set_timeout(lambda: window.focus_view(dired_view))
             else:
                 open_views = window.views_in_group(group)
+                close_empty_preview_group = (
+                    will_create_preview_group
+                    or (
+                        open_views and all(
+                            other_view.settings().get("dired_preview_view")
+                            for other_view in open_views
+                        )
+                    )
+                )
                 other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=group)
                 other_view.settings().set("dired_preview_view", True)
+                other_view.settings().set("dired_close_empty_preview_pane", close_empty_preview_group)
                 for v in open_views:
                     if v != other_view and v.settings().get("dired_preview_view"):
                         v.close()
@@ -574,7 +585,7 @@ class PreviewViewHandler(EventListener):
         window = view.window()
         if (
             window
-            and view.settings().get("dired_preview_view")
+            and view.settings().get("dired_close_empty_preview_pane")
         ):
             group, _ = window.get_view_index(view)
             preview_to_get_closed[view.id()] = (window, group)
