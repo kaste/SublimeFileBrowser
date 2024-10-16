@@ -84,10 +84,10 @@ class DiredFindInFilesCommand(TextCommand, DiredBaseCommand):
 class DiredHelpCommand(TextCommand):
     def run(self, edit):
         view = self.view.window().new_file()
-        view.settings().add_on_change('color_scheme', lambda: set_proper_scheme(view))
         view.set_name("Browse: shortcuts")
         view.set_scratch(True)
         view.settings().set('rulers', [])
+        view.settings().set('color_scheme', 'Packages/FileBrowser/dired.hidden-tmTheme')
         view.settings().set('syntax', 'Packages/FileBrowser/dired-help' + SYNTAX_EXTENSION)
         view.settings().set('margin', 16)
         view.settings().set('line_numbers', False)
