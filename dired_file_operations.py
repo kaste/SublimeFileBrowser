@@ -229,7 +229,14 @@ class DiredRenameCommand(TextCommand, DiredBaseCommand):
 
         self.set_ui_in_rename_mode(edit)
 
-        self.view.set_status("__FileBrowser__", u" 𝌆 [enter: Apply changes] [escape: Discard changes] %s" % (u'¡¡¡DO NOT RENAME DISKS!!! you can rename their children though ' if path == 'ThisPC\\' else ''))
+        self.view.set_status(
+            "__FileBrowser__",
+            u" 𝌆 [enter: Apply changes] [escape: Discard changes]"
+            + (
+                ' ¡¡¡DO NOT RENAME DISKS!!! you can rename their children though'
+                if path == 'ThisPC\\' else ''
+            )
+        )
 
         # Mark the original filename lines so we can make sure they are in the same place.
         r = self.fileregion()
