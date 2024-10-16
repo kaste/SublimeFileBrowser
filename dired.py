@@ -441,6 +441,15 @@ class DiredSelect(TextCommand, DiredBaseCommand):
         dired_view = self.view
         if other_group:
             self.focus_other_group(window)
+        else:
+            groups = window.num_groups()
+            if groups > 1:
+                dired_group = window.active_group()
+                group = get_group(groups, dired_group)
+                for other_view in window.views_in_group(group):
+                    if other_view.settings().get("dired_preview_view"):
+                        other_view.close()
+                window.focus_view(dired_view)
 
         self.last_created_view = None
         for fqn in filenames:
