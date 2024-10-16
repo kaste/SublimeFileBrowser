@@ -520,8 +520,7 @@ class DiredHideEmptyGroup(EventListener):
             single = ([view.id()] == [v.id() for v in w.views_in_group(0)] or
                       [view.id()] == [v.id() for v in w.views_in_group(1)])
         if w.num_groups() == 2 and single:
-            # without timeout ST may crash
-            sublime.set_timeout(lambda: w.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]}), 300)
+            w.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
 
 def is_any_dired_in_group(window, group):
