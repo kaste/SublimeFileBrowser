@@ -506,30 +506,31 @@ class DiredHijackNewWindow(EventListener):
         hijack_window()
 
 
-views_window = {}
+dired_to_get_closed = {}
 
 
 class DiredHideEmptyGroup(EventListener):
     def on_pre_close(self, view):
         window = view.window()
-        if not window:
-            return
-        if 'dired' not in view.scope_name(0):
-            return
-        views_window[view.id()] = window
+        if (
+            window
+            and 'dired' in view.scope_name(0)
+        ):
+            group, _ = window.get_view_index(view)
+            dired_to_get_closed[view.id()] = (window, group)
+
 
     def on_close(self, view):
-        window = views_window.pop(view.id(), None)
-        if not window:
+        window, group = dired_to_get_closed.pop(view.id(), (None, None))
+        if (window, group) == (None, None):
             return
 
         emit_event(u'view_closed', view.id())
-        # check if closed view was a single one in group
+        # check if closed view was the last one in its group
         if ST3:
-            single = not window.views_in_group(0) or not window.views_in_group(1)
+            single = not window.views_in_group(group)
         else:
-            single = ([view.id()] == [v.id() for v in window.views_in_group(0)] or
-                      [view.id()] == [v.id() for v in window.views_in_group(1)])
+            single = [view.id()] == [v.id() for v in window.views_in_group(group)]
         if window.num_groups() == 2 and single:
             window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
