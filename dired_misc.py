@@ -22,12 +22,12 @@ from datetime import datetime
 ST3 = int(sublime.version()) >= 3000
 
 if ST3:
-    from .common import DiredBaseCommand, set_proper_scheme, hijack_window, emit_event, NT, OSX, PARENT_SYM, sort_nicely
+    from .common import DiredBaseCommand, set_proper_scheme, hijack_window, get_group, emit_event, NT, OSX, PARENT_SYM, sort_nicely
     MARK_OPTIONS = sublime.DRAW_NO_OUTLINE
     SYNTAX_EXTENSION = '.sublime-syntax'
 else:  # ST2 imports
     import locale
-    from common import DiredBaseCommand, set_proper_scheme, hijack_window, emit_event, NT, OSX, PARENT_SYM, sort_nicely
+    from common import DiredBaseCommand, set_proper_scheme, hijack_window, get_group, emit_event, NT, OSX, PARENT_SYM, sort_nicely
     MARK_OPTIONS = 0
     SYNTAX_EXTENSION = '.hidden-tmLanguage'
     sublime_plugin.ViewEventListener = object
@@ -519,6 +519,10 @@ class DiredHideEmptyGroup(EventListener):
             group, _ = window.get_view_index(view)
             dired_to_get_closed[view.id()] = (window, group)
 
+            other_group = get_group(window.num_groups(), group)
+            for other_view in window.views_in_group(other_group):
+                if other_view.settings().get("dired_preview_view"):
+                    other_view.close()
 
     def on_close(self, view):
         window, group = dired_to_get_closed.pop(view.id(), (None, None))
