@@ -388,6 +388,17 @@ And, regardless of global setting, can be toggled per view via context menu.
 
 ## Tweaking Look and Feel
 
+#### Important (color) scopes
+
+We use a few special scopes for highlighting.  Typically your color scheme
+will not have them defined, and then they appear just black and white.  These
+scopes are `item.modified.dired` and `item.untracked.dired` for the (git/hg) file
+statuses.  `item.colorblind.dired` is used in "colorblind"-mode.
+
+Marked (`[m]ark/[u]nmark`) files are highlighted using `dired.marked`.
+
+Customize your color scheme as usual for Sublime Text.
+
 #### Customizing UI Elements
 If you don't like `⠤` symbol and want to hide it (then you should use keyboard binding `backspace`
 to go to parent directory) you can do it in your user settings file (`Preferences` →
@@ -407,15 +418,6 @@ If you want to see full path in tab title and thus in window title if tab is foc
 
 ```json
 { "dired_show_full_path": true }
-```
-
-#### Changing color scheme
-If you don't like colors used in FileBrowser just copy
-[this file](https://github.com/aziz/SublimeFileBrowser/blob/master/dired.hidden-tmTheme)
-to your User directory, change colors and paste the code below in your user settings file:
-
-``` json
-{ "color_scheme": "Path to your custom color scheme file. e.g. Packages/User/custom_dired.hidden-tmTheme" }
 ```
 
 #### Changing font
