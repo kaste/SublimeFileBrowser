@@ -332,12 +332,15 @@ such patterns:
 ```
 
 ### VCS integration
-In case `git status`(or `hg status`) returns a colorable output in current directory, the modified
-and untracked files will be designated by orange and green icons respectively.
-You can use setting `"vcs_color_blind": true` — untracked files will get vertical line on left side
-of their icons, modified files will get horizontal line under their icons.
-If Git (or HG) is not presented in your `PATH` you may set `git_path` (resp `hg_path`) setting (see
-example in default settings file).
+
+We integrate with `git` (and optionally with `hg`) and highlight changed or new files.
+You can turn this off by setting `git_path` to `false`.  For `hg` you must opt-in as it
+is rarely used these days.  Just set `hg_path` to `hg` or an absolute path to its executable
+in case it's not on `PATH`.
+
+You can use `"vcs_color_blind": true` to get a different kind of highlighting.
+
+See further below which scopes we use here.
 
 
 ### Hijacking a new empty window

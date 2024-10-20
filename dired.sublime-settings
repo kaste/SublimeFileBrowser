@@ -28,16 +28,16 @@
   // Path to git executable.
   // Wildcards are supported, e.g. if you use GitHub for Windows it would be:
   //     "git_path": "~/Appdata/Local/GitHub/PortableGit_*/cmd/git.exe"
-  // To disable git integration set to empty string:
-  //     "git_path": ""
+  // To disable git integration set it to false:
+  //     "git_path": false
   "git_path": "git",
 
-  // Path to hg executable.
-  // Wildcards are supported, e.g. if you use TortoiseHg it would be:
+  // Enable hg support, typically:
+  //     "hg_path": "hg",
+  // Can be also a path to an hg executable, wildcards are supported,
+  // e.g. if you use TortoiseHg it would be:
   //     "hg_path": "%ProgramFiles%/TortoiseHg/hg.exe"
-  // To disable hg integration set to empty string:
-  //     "hg_path": ""
-  "hg_path": "hg",
+  "hg_path": false,
 
   // true: the default, pressing Enter on a directory uses the current view.
   // false: a new view is created.

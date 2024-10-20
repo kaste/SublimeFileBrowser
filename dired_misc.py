@@ -627,8 +627,8 @@ class CallVCS(DiredBaseCommand):
 
     def start(self, vcs):
         '''launch threads'''
-        command = self.view.settings().get('%s_path' % vcs, '')
-        if command:  # user can set empty string to disable integration with vcs
+        command = self.view.settings().get('%s_path' % vcs, False)
+        if command:
             vars(self)['%s_thread' % vcs] = threading.Thread(target=self.check, args=(vcs, command))
             vars(self)['%s_thread' % vcs].start()
         else:
