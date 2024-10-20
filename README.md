@@ -292,7 +292,7 @@ You can change `f3` in the above code to your custom keyboard shortcut.
 Jump List View can be browsed using the <kbd>up</kbd>/<kbd>down</kbd> or <kbd>j</kbd>/<kbd>k</kbd>.
 Pressing <kbd>enter</kbd> on a jump point will open it in a new window with a Browse Mode view as sidebar or what was configured with `dired_open_on_jump`. Empty windows will be reused if `dired_smart_jump` is set to `true` in your user settings.
 
-##### Jump List in a new empty window e.g. Hijacking (ST3 only)
+##### Jump List in a new empty window e.g. Hijacking
 You can also configure FileBrower to automatically open *Jump List View*  in new empty windows.
 That is when you run the `new_window` command (through menu or using shortcuts) or when SublimeText
 starts and there's no previous windows open.
@@ -340,12 +340,12 @@ If Git (or HG) is not presented in your `PATH` you may set `git_path` (resp `hg_
 example in default settings file).
 
 
-### Hijacking a new empty window (ST3 only)
+### Hijacking a new empty window
 **FileBrowser** can hijack new empty windows and show you a *Browse Mode* or *Jump List View*. That
 is when you run the `new_window` command (through menu or using shortcuts) or when SublimeText
 starts and there's no previous windows open.
 
-This feature is only available for ST3 and is disabled by default. You can activate it by setting
+This feature is disabled by default. You can activate it by setting
 `dired_hijack_new_window` to `"jump_list"` or `"dired"` in your user settings file (`Preferences` →
 `Package Settings` → `FileBrowser` → `Settings — User`).
 

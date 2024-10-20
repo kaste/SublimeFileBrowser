@@ -18,8 +18,11 @@ then, finally,
 That is why this module must be loaded first, but its presence is checked in the other module.
 '''
 
-from __future__ import print_function
-import sublime, os, datetime
+import datetime
+from functools import reduce
+import os
+
+import sublime
 
 try:  # unavailable dependencies shall not break basic functionality
     import package_events
@@ -29,13 +32,7 @@ except ImportError:
     Observer = None
     FileSystemEventHandler = object
 
-ST3 = int(sublime.version()) >= 3000
-
-if ST3:
-    from functools import reduce
-    from .common import emit_event
-else:  # ST2 imports
-    from common import emit_event
+from .common import emit_event
 
 
 def plugin_loaded():
@@ -51,8 +48,8 @@ def plugin_unloaded():
         return
     if observer is not None:
         observer.observer.stop()
-        package_events.unlisten(u'FileBrowser', observer.dired_event_handler)
-        package_events.unlisten(u'FileBrowserWFS', observer.event_handler.update_paths)
+        package_events.unlisten('FileBrowser', observer.dired_event_handler)
+        package_events.unlisten('FileBrowserWFS', observer.event_handler.update_paths)
         observer.observer.join()
     del observer
     print('BOOM!!1 done...\n')
@@ -97,7 +94,7 @@ class ObservePaths(object):
         self.event_handler = ReportEvent()
         self.paths = {}
         self.observer.start()
-        package_events.listen(u'FileBrowser', self.dired_event_handler)
+        package_events.listen('FileBrowser', self.dired_event_handler)
 
     def dired_event_handler(self, package, event, payload):
         '''receiving args from common.emit_event'''
@@ -161,7 +158,7 @@ class ObservePaths(object):
             'toggle_watch_all': lambda: toggle_watch_all(payload)
         }
         case[event]()
-        emit_event(u'', self.paths, plugin=u'FileBrowserWFS')
+        emit_event('', self.paths, plugin='FileBrowserWFS')
 
 
 class ReportEvent(FileSystemEventHandler):
@@ -169,13 +166,13 @@ class ReportEvent(FileSystemEventHandler):
         self.paths = {}
         self.ignore_views = set()
         self.scheduled_views = {}
-        package_events.listen(u'FileBrowserWFS', self.update_paths)
+        package_events.listen('FileBrowserWFS', self.update_paths)
 
     def update_paths(self, package, event, payload):
-        if event == u'ignore_view':
+        if event == 'ignore_view':
             self.ignore_views.update([payload])
             return
-        elif event == u'watch_view':
+        elif event == 'watch_view':
             self.ignore_views -= set([payload])
             return
         self.paths = payload
@@ -227,8 +224,3 @@ class ReportEvent(FileSystemEventHandler):
             sublime.set_timeout(lambda: refresh(views), 1)
         sublime.set_timeout(self.schedule_refresh, SCHEDULE_REFRESH)
         return
-
-
-if not ST3:
-    plugin_loaded()
-    unload_handler = plugin_unloaded

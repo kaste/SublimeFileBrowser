@@ -2,26 +2,21 @@
 
 '''Main module; launch and navigation related stuff'''
 
-from __future__ import print_function
-import sublime
-from sublime import Region
-from sublime_plugin import EventListener, WindowCommand, TextCommand
 from collections import defaultdict
 import os
 from os.path import basename, dirname, isdir, exists, join
+import sys
 
-ST3 = int(sublime.version()) >= 3000
+import sublime
+from sublime import Region
+from sublime_plugin import EventListener, WindowCommand, TextCommand
 
-if ST3:
-    from .common import DiredBaseCommand, print, set_proper_scheme, calc_width, get_group, hijack_window, emit_event, NT, PARENT_SYM
-    from . import prompt
-    from .show import show
-    from .jumping import jump_names
-else:  # ST2 imports
-    from common import DiredBaseCommand, print, set_proper_scheme, calc_width, get_group, hijack_window, emit_event, NT, PARENT_SYM
-    import prompt
-    from show import show
-    from jumping import jump_names
+from .common import (
+    DiredBaseCommand, set_proper_scheme, calc_width, get_group, hijack_window, emit_event,
+    NT, PARENT_SYM)
+from . import prompt
+from .show import show
+from .jumping import jump_names
 
 
 def reuse_view():
@@ -32,51 +27,33 @@ def plugin_loaded():
     if len(sublime.windows()) == 1 and len(sublime.windows()[0].views()) == 0:
         hijack_window()
 
-    window = sublime.active_window()
-    if not ST3:
-        global recursive_plugin_loaded
-        # recursion limit is 1000 generally, so it will try to refresh for 100*1000 ms (100 s)
-        # if no active_window in 100 s, then no refresh
-        # if view still loading, refresh fail because view cant be edited
-        if not window or any(view.is_loading() for view in window.views()):
-            recursive_plugin_loaded += 1
-            try:
-                return sublime.set_timeout(plugin_loaded, 100)
-            except RuntimeError:
-                print('\ndired.plugin_loaded run recursively %d time(s); and failed to refresh\n' % recursive_plugin_loaded)
-                return
-
     for w in sublime.windows():
         for v in w.views():
             if v.settings() and v.settings().get("dired_path"):
-                # reset sels because dired_index not exists yet, so we cant restore sels
+                # reset sels because dired_index not exists yet, so we can't restore sels
                 v.run_command("dired_refresh", {"reset_sels": True})
 
-    import sys
-    dfsobserver = '%s0_dired_fs_observer' % ('FileBrowser.' if ST3 else '')
-    if dfsobserver not in sys.modules or sys.modules[dfsobserver].Observer is None:
+    dfsobserver = 'FileBrowser.0_dired_fs_observer'
+    if dfsobserver not in sys.modules or sys.modules[dfsobserver].Observer is None:  # noqa: E501
         return sublime.error_message(
-            u'FileBrowser:\n\n'
-            u'watchdog module is not importable, hence we cannot know about '
-            u'changes on file system, and auto-refresh will not work.\n\n'
-            u'Despite that, FileBrowser is fully usable without auto-refresh, '
-            u'you can just ignore this message and manually refresh view with r key.\n\n'
-            u'But if you want working auto-refresh:\n'
-            u' • if you install manually, then look at Readme how to install it,\n'
-            u' • if you install via Package Control, report an issue.')
+            'FileBrowser:\n\n'
+            'watchdog module is not importable, hence we cannot know about '
+            'changes on file system, and auto-refresh will not work.\n\n'
+            'Despite that, FileBrowser is fully usable without auto-refresh, '
+            'you can just ignore this message and manually refresh view with r key.\n\n'
+            'But if you want working auto-refresh:\n'
+            ' • if you install manually, then look at Readme how to install it,\n'
+            ' • if you install via Package Control, report an issue.')
 
-    sublime.load_settings('dired.sublime-settings').add_on_change('dired_autorefresh', lambda: emit_event(u'toggle_watch_all', sublime.load_settings('dired.sublime-settings').get('dired_autorefresh', None)))
-    # if not ST3:
-    #     print('\ndired.plugin_loaded run recursively %d time(s); and call refresh command\n'%recursive_plugin_loaded)
+    settings = sublime.load_settings('dired.sublime-settings')
+    settings.add_on_change(
+        'dired_autorefresh',
+        lambda: emit_event('toggle_watch_all', settings.get('dired_autorefresh', None))
+    )
 
 
 def plugin_unloaded():
     sublime.load_settings('dired.sublime-settings').clear_on_change('dired_autorefresh')
-
-if not ST3:
-    unload_handler = plugin_unloaded
-    recursive_plugin_loaded = 1
-    plugin_loaded()
 
 
 class DiredCommand(WindowCommand, DiredBaseCommand):
@@ -147,7 +124,7 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
         for i, f in enumerate(folders):
             name     = names[i]
             offset   = ' ' * (longest_name - len(name) + 1)
-            names[i] = u'%s%s%s' % (name, offset, self.display_path(f))
+            names[i] = '%s%s%s' % (name, offset, self.display_path(f))
 
         self.window.show_quick_panel(
             names,
@@ -163,7 +140,7 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
         folders = self.window.folders()
         for f in folders:
             # e.g. ['/a', '/aa'], to open '/aa/f' we need '/aa/'
-            if fpath.startswith(u''.join([f, os.sep])):
+            if fpath.startswith(''.join([f, os.sep])):
                 return f
 
     def _show_folder(self, index, folders, single_pane, other_group):
@@ -182,8 +159,8 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
     self.index is a representation of view lines
                list contains full path of each item in a view, except
                header ['', ''] and parent_dir [PARENT_SYM]
-    self.index shall be updated according to view modifications (refresh, expand single directory, fold)
-                    and stored in view settings as 'dired_index'
+    self.index shall be updated according to view modifications (refresh,
+    expand single directory, fold) and stored in view settings as 'dired_index'
 
     The main reason for index is access speed to item path because we can
         self.index[self.view.rowcol(region.a)[0]]
@@ -196,7 +173,7 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
             Optional filename to put the cursor on; used only from "dired_up"
 
         to_expand
-            List of relative paths for direcories which shall be expanded
+            List of relative paths for directories which shall be expanded
 
         toggle
             If true, marked/selected directories shall switch state,
@@ -205,7 +182,8 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
         reset_sels
             If True, previous selections & marks shan’t be restored
         """
-        # after restart ST, callback seems to disappear, so reset callback on each refresh for more reliability
+        # after restart ST, callback seems to disappear, so reset callback on each refresh
+        # for more reliability
         self.view.settings().clear_on_change('color_scheme')
         self.view.settings().add_on_change('color_scheme', lambda: set_proper_scheme(self.view))
 
@@ -214,13 +192,20 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
         if path == 'ThisPC\\':
             path, names = '', self.get_disks()
         if path and not exists(path):
-            if sublime.ok_cancel_dialog(u'FileBrowser:\n\nDirectory does not exist:\n\n\t%s\n\nTry to go up?' % path, u'Go'):
+            if sublime.ok_cancel_dialog(
+                (
+                    'FileBrowser:\n\n'
+                    'Directory does not exist:\n\n'
+                    '\t{0}\n\nTry to go up?'.format(path)
+                ),
+                'Go'
+            ):
                 self.view.run_command('dired_up')
             return
 
-        emit_event(u'start_refresh', (self.view.id(), path), view=self.view)
+        emit_event('start_refresh', (self.view.id(), path), view=self.view)
 
-        self.expanded = expanded = self.view.find_all(u'^\s*▾') if not reset_sels else []
+        self.expanded = expanded = self.view.find_all(r'^\s*▾') if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
         self.goto = goto
         if os.sep in goto:
@@ -238,7 +223,11 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
             else:
                 self.marked, self.sels = None, None
             self.re_populate_view(edit, path, names, expanded, to_expand, toggle)
-        emit_event(u'finish_refresh', (self.view.id(), self.expanded + ([path] if path else [])), view=self.view)
+        emit_event(
+            'finish_refresh',
+            (self.view.id(), self.expanded + ([path] if path else [])),
+            view=self.view
+        )
 
     def expand_goto(self, to_expand):
         '''e.g. self.goto = "a/b/c/d/", then to put cursor onto d, it should be
@@ -286,8 +275,11 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
         if error:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)
-            self.view.insert(edit, self.view.line(self.view.sel()[0]).b,
-                             u'\t<%s>' % error)
+            self.view.insert(
+                edit,
+                self.view.line(self.view.sel()[0]).b,
+                '\t<%s>' % error
+            )
             self.view.set_read_only(True)
         else:
             self.continue_populate(edit, path, items)
@@ -304,19 +296,19 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
     def traverse_tree(self, root, path, indent, tree, expanded):
         '''Recursively build list of filenames for self.re_populate_view'''
         if not path:  # special case for ThisPC, path is empty string
-            items = [u'%s\\' % d for d in tree]
+            items = ['%s\\' % d for d in tree]
             tree  = []
 
         else:
             if indent:  # this happens during recursive call, i.e. path in expanded
                 # basename return funny results for c:\\ so it is tricky
                 bname = os.path.basename(os.path.abspath(path)) or path.rstrip(os.sep)
-                tree.append(u'%s▾ %s%s' % (indent[:-1], bname.rstrip(os.sep), os.sep))
-                self.index.append(u'%s' % path)
+                tree.append('%s▾ %s%s' % (indent[:-1], bname.rstrip(os.sep), os.sep))
+                self.index.append('%s' % path)
 
             items, error = self.try_listing_directory(path)
             if error:
-                tree[~0] += u'\t<%s>' % error
+                tree[~0] += '\t<%s>' % error
                 return
             if not items:
                 if path == root:
@@ -329,16 +321,16 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
         index_files = []
         for f in items:
             new_path = join(path, f)
-            dir_path = u'%s%s' % (new_path.rstrip(os.sep), os.sep)
+            dir_path = '%s%s' % (new_path.rstrip(os.sep), os.sep)
             check = isdir(new_path)
             if check and dir_path in expanded:
                 self.traverse_tree(root, dir_path, indent + '\t', tree, expanded)
             elif check:
                 self.index.append(dir_path)
-                tree.append(u'%s▸ %s%s' % (indent, f.rstrip(os.sep), os.sep))
+                tree.append('%s▸ %s%s' % (indent, f.rstrip(os.sep), os.sep))
             else:
                 index_files.append(new_path)
-                files.append(u'%s≡ %s' % (indent, f))
+                files.append('%s≡ %s' % (indent, f))
 
         self.index += index_files
         tree += files
@@ -346,22 +338,23 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
 
     def set_title(self, path):
         '''Update name of tab and return tuple of two elements
-            text    list of two unicode obj (will be inserted before filenames in view) or empty list
+            text    list of two unicode obj (will be inserted before filenames
+                    in view) or empty list
             header  boolean, value of dired_header setting
             '''
         header  = self.view.settings().get('dired_header', False)
         name    = jump_names().get(path or self.path)
-        caption = u"{0} → {1}".format(name, path) if name else path or self.path
-        text    = [caption, len(caption)*(u'—')] if header else []
+        caption = "{0} → {1}".format(name, path) if name else path or self.path
+        text    = [caption, len(caption) * '—'] if header else []
         icon    = self.view.name()[:2]
         if not path:
-            title = u'%s%s' % (icon, name or 'This PC')
+            title = '%s%s' % (icon, name or 'This PC')
         else:
             norm_path = path.rstrip(os.sep)
             if self.view.settings().get('dired_show_full_path', False):
-                title = u'%s%s (%s)' % (icon, name or basename(norm_path), norm_path)
+                title = '%s%s (%s)' % (icon, name or basename(norm_path), norm_path)
             else:
-                title = u'%s%s' % (icon, name or basename(norm_path))
+                title = '%s%s' % (icon, name or basename(norm_path))
         self.view.set_name(title)
         return (text, header)
 
@@ -480,7 +473,9 @@ class DiredSelect(TextCommand, DiredBaseCommand):
         elif exists(fqn):  # ignore 'item <error>'
             self.last_created_view = window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
         else:
-            sublime.status_message(u'File does not exist (%s)' % (basename(fqn.rstrip(os.sep)) or fqn))
+            sublime.status_message(
+                'File does not exist ({0})'.format((basename(fqn.rstrip(os.sep)) or fqn))
+            )
 
     def focus_other_group(self, window):
         '''call it when preview open in other group'''
@@ -497,7 +492,11 @@ class DiredSelect(TextCommand, DiredBaseCommand):
         groups = w.num_groups()
         if groups == 1:
             width = calc_width(self.view)
-            w.set_layout({"cols": [0.0, width, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1], [1, 0, 2, 1]]})
+            w.set_layout({
+                "cols": [0.0, width, 1.0],
+                "rows": [0.0, 1.0],
+                "cells": [[0, 0, 1, 1], [1, 0, 2, 1]]
+            })
         group = get_group(groups, nag)
         return group
 
@@ -509,19 +508,17 @@ class DiredPreviewCommand(DiredSelect):
         filenames = self.get_selected(full=True)
 
         if not filenames:
-            return sublime.status_message(u'Nothing to preview')
+            return sublime.status_message('Nothing to preview')
 
         fqn = filenames[0]
 
         if isdir(fqn) or fqn == PARENT_SYM:
-            if not ST3:
-                return sublime.status_message(u'No preview for directories')
             self.view.run_command('dired_preview_directory', {'fqn': fqn})
             return
 
         if exists(fqn):
-            if ST3:
-                self.view.run_command('dired_file_properties', {'fqn': fqn})
+            self.view.run_command('dired_file_properties', {'fqn': fqn})
+
             window = self.view.window()
             dired_view = self.view
             will_create_preview_group = window.num_groups() == 1
@@ -551,13 +548,15 @@ class DiredPreviewCommand(DiredSelect):
                 )
                 other_view = window.open_file(fqn, sublime.FORCE_GROUP, group=group)
                 other_view.settings().set("dired_preview_view", True)
-                other_view.settings().set("dired_close_empty_preview_pane", close_empty_preview_group)
+                other_view.settings().set(
+                    "dired_close_empty_preview_pane", close_empty_preview_group)
                 for v in open_views:
                     if v != other_view and v.settings().get("dired_preview_view"):
                         v.close()
                 when_loaded(other_view, lambda: window.focus_view(dired_view))
         else:
-            sublime.status_message(u'File does not exist (%s)' % (basename(fqn.rstrip(os.sep)) or fqn))
+            sublime.status_message(
+                'File does not exist ({0})'.format(basename(fqn.rstrip(os.sep)) or fqn))
 
 
 views_yet_to_get_loaded = defaultdict(list)
@@ -638,17 +637,17 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         # number of next line to make slicing work properly
         self.number_line = 1 + self.view.rowcol(line.a)[0]
         # line may have inline error msg after os.sep
-        root = self.view.substr(line).split(os.sep)[0].replace(u'▸', u'▾', 1) + os.sep
+        root = self.view.substr(line).split(os.sep)[0].replace('▸', '▾', 1) + os.sep
 
         items, error = self.try_listing_directory(filename)
         if error:
-            replacement = [u'%s\t<%s>' % (root, error)]
+            replacement = ['%s\t<%s>' % (root, error)]
         elif items:
             replacement = [root] + self.prepare_filelist(items, '', filename, '\t')
             dired_count = self.view.settings().get('dired_count', 0)
             self.view.settings().set('dired_count', dired_count + len(items))
         else:  # expanding empty folder, so notify that it is empty
-            replacement = [u'%s\t<empty>' % root]
+            replacement = ['%s\t<empty>' % root]
 
         self.view.set_read_only(False)
         self.view.replace(edit, line, '\n'.join(replacement))
@@ -658,13 +657,13 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
-        emit_event(u'finish_refresh', (self.view.id(), [filename]), view=self.view)
+        emit_event('finish_refresh', (self.view.id(), [filename]), view=self.view)
 
     def try_to_fold(self, marked):
         line = self.view.line(self.view.get_regions('marked')[0] if marked else
                               list(self.view.sel())[0])
         content = self.view.substr(line).lstrip()[0]
-        if content == u'▾':
+        if content == '▾':
             self.view.run_command('dired_fold')
             return True
         else:
@@ -672,7 +671,7 @@ class DiredExpand(TextCommand, DiredBaseCommand):
 
 
 class DiredFold(TextCommand, DiredBaseCommand):
-    u'''
+    '''
     This command used to fold/erase/shrink (whatever you like to call it) content
     of some [sub]directory (within current directory, see self.path).
     There are two cases when this command would be fired:
@@ -805,10 +804,10 @@ class DiredFold(TextCommand, DiredBaseCommand):
         icon_region = Region(name_point - 2, name_point - 1)
 
         v.set_read_only(False)
-        v.replace(edit, icon_region, u'▸')
+        v.replace(edit, icon_region, '▸')
         v.erase(edit, indented_region)
         v.set_read_only(True)
-        emit_event(u'fold', (self.view.id(), self.index[start_line - 1]), view=self.view)
+        emit_event('fold', (self.view.id(), self.index[start_line - 1]), view=self.view)
 
 
 class DiredUpCommand(TextCommand, DiredBaseCommand):
@@ -915,28 +914,21 @@ class DiredToggleHiddenFilesCommand(TextCommand):
         self.view.run_command('dired_refresh')
 
 
-# MOUSE INTERATIONS #################################################
+# MOUSE INTERACTIONS #################################################
 
-def dired_mouse(view, args):
-    s = view.settings()
-    if s.get("dired_path") and not s.get("dired_rename_mode"):
-        if 'directory' in view.scope_name(view.sel()[0].a):
-            command = ("dired_expand", {"toggle": True})
+class DiredDoubleclickCommand(TextCommand, DiredBaseCommand):
+    def run_(self, _, args):
+        view = self.view
+        s = view.settings()
+        if s.get("dired_path") and not s.get("dired_rename_mode"):
+            if 'directory' in view.scope_name(view.sel()[0].a):
+                command = ("dired_expand", {"toggle": True})
+            else:
+                command = ("dired_select", {"other_group": True})
+            view.run_command(*command)
         else:
-            command = ("dired_select", {"other_group": True})
-        view.run_command(*command)
-    else:
-        system_command = args["command"] if "command" in args else None
-        if system_command:
-            system_args = dict({"event": args["event"]}.items())
-            system_args.update(dict(args["args"].items()))
-            view.run_command(system_command, system_args)
-
-if ST3:
-    class DiredDoubleclickCommand(TextCommand, DiredBaseCommand):
-        def run_(self, view, args):
-            dired_mouse(self.view, args)
-else:
-    class DiredDoubleclickCommand(TextCommand, DiredBaseCommand):
-        def run_(self, args):
-            dired_mouse(self.view, args)
+            system_command = args["command"] if "command" in args else None
+            if system_command:
+                system_args = dict({"event": args["event"]}.items())
+                system_args.update(dict(args["args"].items()))
+                view.run_command(system_command, system_args)

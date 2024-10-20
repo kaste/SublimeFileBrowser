@@ -1,20 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sublime
-from sublime import Region
-from sublime_plugin import TextCommand, WindowCommand
 import os
 from os.path import join, expanduser
 
-ST3 = int(sublime.version()) >= 3000
-NT  = sublime.platform() == 'windows'
+import sublime
+from sublime import Region
+from sublime_plugin import TextCommand, WindowCommand
 
-if ST3:
-    from .common import DiredBaseCommand
-else:
-    from common import DiredBaseCommand
+from .common import DiredBaseCommand
 
+NT = sublime.platform() == 'windows'
 map_window_to_ctx = {}
 
 
@@ -22,7 +18,7 @@ def start(msg, window, path, callback, *args):
     """
     Starts the prompting process.
     """
-    if not(path.endswith(os.sep) or path == os.sep):
+    if not (path.endswith(os.sep) or path == os.sep):
         path += os.sep
     path = expanduser(path)
     map_window_to_ctx[window.id()] = PromptContext(msg, path, callback, *args)
@@ -31,7 +27,7 @@ def start(msg, window, path, callback, *args):
 
 def isdir(u):
     '''alas, this is really silly'''
-    if NT and any(v for v in (u'\\', u'/') if v == u):
+    if NT and any(v for v in ('\\', '/') if v == u):
         return False
     else:
         return os.path.isdir(u)
@@ -39,7 +35,7 @@ def isdir(u):
 
 def valid(value):
     if not isdir(value):
-        sublime.error_message(u'FileBrowser:\n\nDirectory doesn’t exist:\n%s' % value)
+        sublime.error_message('FileBrowser:\n\nDirectory doesn’t exist:\n%s' % value)
         return False
     else:
         return True
@@ -48,7 +44,9 @@ def valid(value):
 class PromptContext:
     def __init__(self, msg, path, callback, *args):
         self.msg = msg
-        self.path = path  # The path we are completing. This is updated as the user types, so it will be an invalid path at times.
+        # The path we are completing. This is updated as the user types, so it will be an
+        # invalid path at times.
+        self.path = path
         self.callback = callback
         self.args = args
 
@@ -98,16 +96,12 @@ class DiredCompleteCommand(TextCommand, DiredBaseCommand):
             return self.w.show_quick_panel(completions, self.on_done)
 
     def on_done(self, i):
-        if i < 0: return
-        content = join(self._path, self.completions[i]) + os.sep
-        if ST3:
-            ctx = map_window_to_ctx.get(self.w.id())
-            ctx.path = content
-            self.w.run_command('dired_prompt')
+        if i < 0:
             return
-        else:
-            self.fill_prompt(content)
-            self.w.focus_view(self.view)
+        content = join(self._path, self.completions[i]) + os.sep
+        ctx = map_window_to_ctx.get(self.w.id())
+        ctx.path = content
+        self.w.run_command('dired_prompt')
 
     def fill_prompt(self, new_content):
         self.view.replace(self.edit, self.prompt_region, new_content)
@@ -124,10 +118,21 @@ class DiredCompleteCommand(TextCommand, DiredBaseCommand):
     def get_completions(self, path, prefix):
         '''return tuple (completion(list, may be empty), error(boolean))'''
         # self.view is prompt, so get settings of active view in active window
-        self.show_hidden = sublime.active_window().active_view().settings().get('dired_show_hidden_files', True)
+        self.show_hidden = (
+            sublime
+            .active_window()
+            .active_view()
+            .settings()
+            .get('dired_show_hidden_files', True)
+        )
         dirs, error = self.try_listing_only_dirs(path)
         if error:
-            sublime.error_message(u'FileBrowser:\n\n Content is unavailable\n\n\t%s\n\n\t%s' % (path, error))
+            sublime.error_message(
+                'FileBrowser:\n\n'
+                ' Content is unavailable\n\n'
+                '\t{0}\n\n\t{1}'
+                .format(path, error)
+            )
             return ([], True)
         completions = [n for n in dirs if n.upper().startswith(prefix.upper())]
         return (completions, False)

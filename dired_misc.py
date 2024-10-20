@@ -4,10 +4,6 @@
     Suppose these things are useful, but not essential.
 '''
 
-from __future__ import print_function
-import sublime, sublime_plugin
-from sublime import Region
-from sublime_plugin import TextCommand, EventListener
 import glob
 from itertools import chain
 import math
@@ -16,22 +12,21 @@ import os
 import subprocess
 import sys
 import threading
-from os.path import dirname, isfile, isdir, exists, join, normpath, getsize, getctime, getatime, getmtime
+from os.path import (
+    dirname, isfile, isdir, exists, join, normpath,
+    getsize, getctime, getatime, getmtime)
 from datetime import datetime
 
-ST3 = int(sublime.version()) >= 3000
+import sublime
+import sublime_plugin
+from sublime import Region
+from sublime_plugin import TextCommand, EventListener
 
-if ST3:
-    from .common import DiredBaseCommand, set_proper_scheme, hijack_window, get_group, emit_event, NT, OSX, PARENT_SYM, sort_nicely
-    MARK_OPTIONS = sublime.DRAW_NO_OUTLINE
-    SYNTAX_EXTENSION = '.sublime-syntax'
-else:  # ST2 imports
-    import locale
-    from common import DiredBaseCommand, set_proper_scheme, hijack_window, get_group, emit_event, NT, OSX, PARENT_SYM, sort_nicely
-    MARK_OPTIONS = 0
-    SYNTAX_EXTENSION = '.hidden-tmLanguage'
-    sublime_plugin.ViewEventListener = object
+from .common import (
+    DiredBaseCommand, hijack_window, get_group, emit_event,
+    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely)
 
+SYNTAX_EXTENSION = '.sublime-syntax'
 
 STARTUPINFO = None
 if sys.platform == "win32":
@@ -103,11 +98,12 @@ class DiredHelpCommand(TextCommand):
 
 class DiredShowHelpCommand(TextCommand):
     def run(self, edit):
-        content = sublime.load_resource('Packages/FileBrowser/shortcuts.md') if ST3 else ''
+        content = sublime.load_resource('Packages/FileBrowser/shortcuts.md')
         if not content:
-            dest = dirname(__file__)
-            shortcuts = join(dest if dest != '.' else join(sublime.packages_path(), 'FileBrowser'), "shortcuts.md")
-            content = open(shortcuts, "r").read()
+            window = self.view.window()
+            window.status_message("Could not load 'Packages/FileBrowser/shortcuts.md'.")
+            return
+
         normed_content = (
             content
             .replace('\r\n', '\n')
@@ -123,8 +119,6 @@ class DiredShowHelpCommand(TextCommand):
 
 class DiredToggleProjectFolder(TextCommand, DiredBaseCommand):
     def run(self, edit):
-        if not ST3:
-            return sublime.status_message('This feature is available only in Sublime Text 3')
         path = self.path.rstrip(os.sep)
         data = self.view.window().project_data() or {}
         data['folders'] = data.get('folders', {})
@@ -138,10 +132,12 @@ class DiredToggleProjectFolder(TextCommand, DiredBaseCommand):
 
 class DiredOnlyOneProjectFolder(TextCommand, DiredBaseCommand):
     def run(self, edit):
-        if not ST3:
-            return sublime.status_message('This feature is available only in Sublime Text 3')
         path = self.path.rstrip(os.sep)
-        msg = u"Set '{0}' as only one project folder (will remove all other folders from project)?".format(path)
+        msg = (
+            "Set '{0}' as only one project folder "
+            "(will remove all other folders from project)?"
+            .format(path)
+        )
         if sublime.ok_cancel_dialog(msg):
             data = self.view.window().project_data() or {'folders': {}}
             data['folders'] = [{'path': path}]
@@ -190,11 +186,9 @@ class DiredOpenExternalCommand(TextCommand, DiredBaseCommand):
         p, f  = os.path.split(fname.rstrip(os.sep))
 
         if not exists(fname):
-            return sublime.status_message(u'Directory doesn’t exist “%s”' % path)
+            return sublime.status_message('Directory doesn’t exist “%s”' % path)
 
         if NT and path == 'ThisPC\\':
-            if not ST3:
-                fname = fname.encode(locale.getpreferredencoding(False))
             return subprocess.Popen('explorer /select,"%s"' % fname)
 
         if files:
@@ -214,10 +208,7 @@ class DiredOpenInNewWindowCommand(TextCommand, DiredBaseCommand):
         if not files:
             return sublime.status_message('Nothing chosen')
 
-        if ST3:
-            self.launch_ST3(files)
-        else:
-            self.launch_ST2(files)
+        self.open_in_subl(files)
 
         def run_on_new_window():
             settings = sublime.load_settings('dired.sublime-settings')
@@ -232,45 +223,14 @@ class DiredOpenInNewWindowCommand(TextCommand, DiredBaseCommand):
                 sublime.active_window().run_command("dired", options)
 
         sublime.set_timeout(run_on_new_window, 200)
-        if not ST3 and not NT:
-            sublime.set_timeout(lambda: sublime.active_window().run_command("toggle_side_bar"), 200)
 
-    def launch_ST3(self, files):
+    def open_in_subl(self, files):
         executable_path = sublime.executable_path()
         if OSX:
-            app_path = executable_path[:executable_path.rfind(".app/")+5]
-            executable_path = app_path+"Contents/SharedSupport/bin/subl"
+            app_path = executable_path[:executable_path.rfind(".app/") + 5]
+            executable_path = app_path + "Contents/SharedSupport/bin/subl"
         items = [executable_path, "-n"] + files
         subprocess.Popen(items, cwd=None if NT else self.path)
-
-    def launch_ST2(self, files):
-        items = ["-n"] + files
-        cwd = None if NT else self.path
-        shell = False
-        if NT:
-            # 9200 means win8
-            shell = True if sys.getwindowsversion()[2] < 9200 else False
-            items = [i.encode(locale.getpreferredencoding(False)) if sys.getwindowsversion()[2] == 9200 else i for i in items]
-
-        def app_path():
-            if OSX:
-                app_path = subprocess.Popen(["osascript", "-e" "tell application \"System Events\" to POSIX path of (file of process \"Sublime Text 2\" as alias)"], stdout=subprocess.PIPE).communicate()[0].rstrip()
-                subl_path = "{0}/Contents/SharedSupport/bin/subl".format(app_path)
-            else:
-                subl_path = 'sublime_text'
-            yield subl_path
-
-        fail = False
-        for c in ['subl', 'sublime', app_path()]:
-            try:
-                subprocess.Popen(list(c) + items, cwd=cwd, shell=shell)
-            except:
-                fail = True
-            else:
-                fail = False
-
-        if fail:
-            sublime.status_message('Cannot open a new window')
 
 
 class DiredToggleAutoRefresh(TextCommand):
@@ -281,11 +241,11 @@ class DiredToggleAutoRefresh(TextCommand):
         return self.is_enabled()
 
     def description(self):
-        msg = u'auto-refresh for this view'
+        msg = 'auto-refresh for this view'
         if self.view.settings().get('dired_autorefresh', True):
-            return u'Disable ' + msg
+            return 'Disable ' + msg
         else:
-            return u'Enable ' + msg
+            return 'Enable ' + msg
 
     def run(self, edit):
         s = self.view.settings()
@@ -295,22 +255,30 @@ class DiredToggleAutoRefresh(TextCommand):
 
 
 class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
-    '''Show properties and content of directory in popup; ST3 only'''
+    '''Show properties and content of directory in popup'''
     def run(self, edit, fqn=None, point=0):
         if not fqn:
             self.index = self.get_all()
             filenames = self.get_selected(full=True)
             if not filenames:
-                return sublime.status_message(u'Nothing to preview')
+                return sublime.status_message('Nothing to preview')
             fqn = filenames[0]
             if not (isdir(fqn) or fqn == PARENT_SYM):
-                return sublime.status_message(u'Something wrong')
+                return sublime.status_message('Something wrong')
 
         self.view.settings().set('dired_stop_preview_thread', False)
-        self.preview_thread = threading.Thread(target=self.worker, args=(fqn if fqn != PARENT_SYM else self.get_path(),))
+        self.preview_thread = threading.Thread(
+            target=self.worker, args=(fqn if fqn != PARENT_SYM else self.get_path(),))
         self.preview_thread.start()
         width, height = self.view.viewport_extent()
-        self.view.show_popup('Loading...', 0, point or self.view.sel()[0].begin(), width, height / 2, self.open_from_preview)
+        self.view.show_popup(
+            'Loading...',
+            0,
+            point or self.view.sel()[0].begin(),
+            width,
+            height / 2,
+            self.open_from_preview
+        )
 
     def worker(self, path):
         self.preview_path = '📁 <a href="dir\v{0}">{0}</a>'.format(path)
@@ -320,7 +288,8 @@ class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
         self.open_files = []
         self._created, self._accessed, self._modified = get_dates(path)
 
-        def add_err(err): self.errors.append(str(err))
+        def add_err(err):
+            self.errors.append(str(err))
 
         for index, (root, dirs, files) in enumerate(os.walk(path, onerror=add_err)):
             self.subdirs += len(dirs)
@@ -329,7 +298,10 @@ class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
             if not index:
                 sort_nicely(dirs)
                 sort_nicely(files)
-                self.open_dirs = ['📁 <a href="dir\v%s%s">%s</a>' % (join(root, d), os.sep, d) for d in dirs]
+                self.open_dirs = [
+                    '📁 <a href="dir\v{0}{1}">{2}</a>'.format(join(root, d), os.sep, d)
+                    for d in dirs
+                ]
                 self.open_files = []
 
             for f in files:
@@ -341,7 +313,10 @@ class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
                 except OSError as e:
                     add_err(e)
 
-            if not self.view.is_popup_visible() or self.view.settings().get('dired_stop_preview_thread'):
+            if (
+                not self.view.is_popup_visible()
+                or self.view.settings().get('dired_stop_preview_thread')
+            ):
                 return
             sublime.set_timeout_async(self.update_preview(), 1)
         sublime.set_timeout_async(self.update_preview(loading=False), 1)
@@ -354,7 +329,10 @@ class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
             else:
                 errors = '<br><a href="errors\v">%s errors</a> (click to view)<br><br>' % le
         else:
-            errors = '<br>Errors:<br> %s<br><br>' % '<br> '.join(self.errors) if self.errors else '<br>'
+            errors = (
+                '<br>Errors:<br> {0}<br><br>'
+                .format('<br> '.join(self.errors) if self.errors else '<br>')
+            )
         items = self.open_dirs + self.open_files
         self.view.update_popup(
             '<br>{0}{1}<br><br>'
@@ -399,16 +377,23 @@ class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
 
 
 class DiredFilePropertiesCommand(TextCommand, DiredBaseCommand):
-    '''Show properties of file in popup; ST3 only'''
+    '''Show properties of file in popup'''
     def run(self, edit, fqn=None, point=0):
         if not fqn:
             self.index = self.get_all()
             filenames = self.get_selected(full=True)
             if not filenames:
-                return sublime.status_message(u'Nothing to preview')
+                return sublime.status_message('Nothing to preview')
 
         width, height = self.view.viewport_extent()
-        self.view.show_popup('Loading...', 0, point or self.view.sel()[0].begin(), width, height / 2, self.open_from_preview)
+        self.view.show_popup(
+            'Loading...',
+            0,
+            point or self.view.sel()[0].begin(),
+            width,
+            height / 2,
+            self.open_from_preview
+        )
         self.get_info(fqn)
 
     def get_info(self, path):
@@ -493,10 +478,17 @@ class DiredHoverProperties(sublime_plugin.ViewEventListener, DiredBaseCommand):
             self.view.run_command('dired_file_properties', {'fqn': path, 'point': self.name_point})
         else:
             width, height = self.view.viewport_extent()
-            self.view.show_popup('<a href="{0}">Click here to preview directory<br> {0}</a>'.format(path), 0, point or self.view.sel()[0].begin(), width, height / 2, self.open_from_preview)
+            self.view.show_popup(
+                '<a href="{0}">Click here to preview directory<br> {0}</a>' .format(path),
+                0,
+                point or self.view.sel()[0].begin(),
+                width,
+                height / 2,
+                self.open_from_preview
+            )
 
     def open_from_preview(self, path):
-            self.view.run_command('dired_preview_directory', {'fqn': path, 'point': self.name_point})
+        self.view.run_command('dired_preview_directory', {'fqn': path, 'point': self.name_point})
 
 
 class DiredHijackNewWindow(EventListener):
@@ -529,13 +521,9 @@ class DiredHideEmptyGroup(EventListener):
         if (window, group) == (None, None):
             return
 
-        emit_event(u'view_closed', view.id())
-        # check if closed view was the last one in its group
-        if ST3:
-            single = not window.views_in_group(group)
-        else:
-            single = [view.id()] == [v.id() for v in window.views_in_group(group)]
-        if window.num_groups() == 2 and single:
+        emit_event('view_closed', view.id())
+        group_is_empty = not window.views_in_group(group)
+        if window.num_groups() == 2 and group_is_empty:
             window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
 
@@ -611,7 +599,6 @@ class DiredContextProvider(EventListener):
         return None
 
 
-
 # TOOLS #############################################################
 
 class DiredCallVcs(TextCommand):
@@ -664,10 +651,13 @@ class CallVCS(DiredBaseCommand):
             if match:
                 return match[0]
             else:
-                sublime.error_message(u'FileBrowser:\n'
-                    u'It seems like you use wildcards in\n\n"%s_path": "%s".\n\n'
-                    u'But the pattern cannot be found, please, fix it '
-                    u'or use absolute path without wildcards.' % (vcs, command))
+                sublime.error_message(
+                    'FileBrowser:\n'
+                    'It seems like you use wildcards in\n\n"{0}_path": "{1}".\n\n'
+                    'But the pattern cannot be found, please, fix it '
+                    'or use absolute path without wildcards.'
+                    .format(vcs, command)
+                )
         return command
 
     def get_output(self, vcs, command):
@@ -676,7 +666,7 @@ class CallVCS(DiredBaseCommand):
                 'git_root':   ['rev-parse', '--show-toplevel'],
                 'hg_status':  ['status'],
                 'hg_root':    ['root']}
-        sep = {'hg': '\n', 'git': '\x00' if ST3 else '\00'}
+        sep = {'hg': '\n', 'git': '\x00'}
         path = self.vcs_state['path']
         try:
             p = subprocess.Popen(
@@ -685,7 +675,7 @@ class CallVCS(DiredBaseCommand):
                 cwd=path,
                 startupinfo=STARTUPINFO)
             status = p.communicate()[0]
-            status = str(status, 'utf-8').split(sep[vcs]) if ST3 else status.split(sep[vcs])
+            status = str(status, 'utf-8').split(sep[vcs])
             p = subprocess.Popen(
                 [command] + args['%s_root' % vcs],
                 stdout=subprocess.PIPE,
@@ -702,7 +692,7 @@ class CallVCS(DiredBaseCommand):
     def set_value(self, vcs, root, item):
         '''return tuple (fullpath, status)'''
         item = item[1:] if vcs == 'git' else item
-        filename = (item[2:] if ST3 else unicode(item[2:], 'utf-8'))
+        filename = item[2:]
         return (join(root, filename), item[0])
 
 
@@ -717,7 +707,13 @@ class DiredDrawVcsMarkerCommand(TextCommand, DiredBaseCommand):
             return
 
         modified, untracked = [], []
-        files_regions = dict((f, r) for f, r in zip(self.get_all(), self.view.split_by_newlines(Region(0, self.view.size()))))
+        files_regions = {
+            f: r
+            for f, r in zip(
+                self.get_all(),
+                self.view.split_by_newlines(Region(0, self.view.size()))
+            )
+        }
         colorblind = self.view.settings().get('vcs_color_blind', False)
         offset = 1 if not colorblind else 0
         for fn in changed_items.keys():
@@ -735,8 +731,18 @@ class DiredDrawVcsMarkerCommand(TextCommand, DiredBaseCommand):
                     break
 
         if colorblind:
-            self.view.add_regions('M', modified, 'item.colorblind.dired', '', MARK_OPTIONS | sublime.DRAW_EMPTY_AS_OVERWRITE)
-            self.view.add_regions('?', untracked, 'item.colorblind.dired', '', MARK_OPTIONS | sublime.DRAW_EMPTY)
+            self.view.add_regions(
+                'M',
+                modified,
+                'item.colorblind.dired',
+                '',
+                MARK_OPTIONS | sublime.DRAW_EMPTY_AS_OVERWRITE)
+            self.view.add_regions(
+                '?',
+                untracked,
+                'item.colorblind.dired',
+                '',
+                MARK_OPTIONS | sublime.DRAW_EMPTY)
         else:
             self.view.add_regions('M', modified, 'item.modified.dired', '', MARK_OPTIONS)
             self.view.add_regions('?', untracked, 'item.untracked.dired', '', MARK_OPTIONS)

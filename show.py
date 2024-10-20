@@ -2,17 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sublime
 from os.path import basename
 
-ST3 = int(sublime.version()) >= 3000
-
-if ST3:
-    from .common import first, set_proper_scheme, calc_width, get_group
-    SYNTAX_EXTENSION = '.sublime-syntax'
-else:
-    from common import first, set_proper_scheme, calc_width, get_group
-    SYNTAX_EXTENSION = '.hidden-tmLanguage'
+from .common import first, set_proper_scheme, calc_width, get_group
+SYNTAX_EXTENSION = '.sublime-syntax'
 
 
 def set_active_group(window, view, other_group):
@@ -23,7 +16,11 @@ def set_active_group(window, view, other_group):
         if groups == 1:
             width = calc_width(view)
             cols = [0.0, width, 1.0] if other_group == 'left' else [0.0, 1-width, 1.0]
-            window.set_layout({"cols": cols, "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1], [1, 0, 2, 1]]})
+            window.set_layout({
+                "cols": cols,
+                "rows": [0.0, 1.0],
+                "cells": [[0, 0, 1, 1], [1, 0, 2, 1]]
+            })
         elif view:
             group = get_group(groups, nag)
         window.set_view_index(view, group, 0)
@@ -64,7 +61,15 @@ def set_view(view_id, window, ignore_existing, path, single_pane):
     return (view, reset_sels)
 
 
-def show(window, path, view_id=None, ignore_existing=False, single_pane=False, goto='', other_group=''):
+def show(
+    window,
+    path,
+    view_id=None,
+    ignore_existing=False,
+    single_pane=False,
+    goto='',
+    other_group=''
+):
     """
     Determines the correct view to use, creating one if necessary, and prepares it.
     """
@@ -79,9 +84,7 @@ def show(window, path, view_id=None, ignore_existing=False, single_pane=False, g
         path += os.sep
 
     view, reset_sels = set_view(view_id, window, ignore_existing, path, single_pane)
-
-    nag, group = set_active_group(window, view, other_group)
-
+    set_active_group(window, view, other_group)
     if other_group and prev_focus:
         window.focus_view(prev_focus)
 
@@ -90,11 +93,7 @@ def show(window, path, view_id=None, ignore_existing=False, single_pane=False, g
     else:
         view_name = basename(path.rstrip(os.sep))
 
-    if ST3:
-        name = u"𝌆 {0}".format(view_name)
-    else:
-        name = u"■ {0}".format(view_name)
-
+    name = "𝌆 {0}".format(view_name)
     view.set_name(name)
     view.settings().set('dired_path', path)
     view.settings().set('dired_rename_mode', False)
