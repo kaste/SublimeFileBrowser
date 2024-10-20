@@ -517,8 +517,6 @@ class DiredPreviewCommand(DiredSelect):
             return
 
         if exists(fqn):
-            self.view.run_command('dired_file_properties', {'fqn': fqn})
-
             window = self.view.window()
             dired_view = self.view
             will_create_preview_group = window.num_groups() == 1
