@@ -814,17 +814,18 @@ class DiredFold(TextCommand, DiredBaseCommand):
 class DiredUpCommand(TextCommand, DiredBaseCommand):
     def run(self, edit):
         path = self.path
-        parent = dirname(path.rstrip(os.sep))
-        if parent != os.sep and parent[1:] != ':\\':
-            # need to avoid c:\\\\
-            parent += os.sep
-        if parent == path and NT:
-            parent = 'ThisPC'
-        elif parent == path:
-            return
-        elif path == 'ThisPC\\':
+        if path == 'ThisPC\\':
             self.view.run_command('dired_refresh')
             return
+
+        parent = dirname(path.rstrip(os.sep))
+        if not parent.endswith(os.sep):
+            parent += os.sep
+        if parent == path:
+            if NT:
+                parent = 'ThisPC\\'
+            else:
+                return
 
         view_id = (self.view.id() if reuse_view() else None)
         goto = basename(path.rstrip(os.sep)) or path
