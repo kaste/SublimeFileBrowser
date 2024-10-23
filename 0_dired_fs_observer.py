@@ -104,6 +104,9 @@ class ObservePaths(object):
             self.paths.pop(view, None)
 
         def add_paths(view, paths):
+            for path in paths:
+                if path and not os.path.isdir(path):
+                    print("error(add_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
             old_paths = self.paths.get(view, [])
@@ -117,6 +120,9 @@ class ObservePaths(object):
             rewatch_all()
 
         def set_paths(view, paths):
+            for path in paths:
+                if path and not os.path.isdir(path):
+                    print("error(set_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
             old_paths = sorted(self.paths.get(view, []))
@@ -134,6 +140,8 @@ class ObservePaths(object):
             rewatch_all()
 
         def remove_path(view, path):
+            if path and not os.path.isdir(path):
+                print("error(remove_path): {path} is not a directory")
             path_without_sep = path.rstrip(os.sep)
             path_with_sep = path_without_sep + os.sep
             self.paths.update({
