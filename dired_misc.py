@@ -629,8 +629,7 @@ class CallVCS(DiredBaseCommand):
         '''launch threads'''
         command = self.view.settings().get('%s_path' % vcs, False)
         if command:
-            vars(self)['%s_thread' % vcs] = threading.Thread(target=self.check, args=(vcs, command))
-            vars(self)['%s_thread' % vcs].start()
+            threading.Thread(target=self.check, args=(vcs, command)).start()
         else:
             self.vcs_state.update({vcs: False})
 
