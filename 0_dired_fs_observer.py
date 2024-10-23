@@ -19,7 +19,7 @@ That is why this module must be loaded first, but its presence is checked in the
 '''
 
 import datetime
-from functools import reduce
+from itertools import chain
 import os
 
 import sublime
@@ -33,6 +33,8 @@ except ImportError:
     FileSystemEventHandler = object
 
 from .common import emit_event
+
+flatten = chain.from_iterable
 
 
 def plugin_loaded():
@@ -139,7 +141,7 @@ class ObservePaths(object):
 
         def rewatch_all():
             self.observer.unschedule_all()
-            for p in reduce(lambda i, j: i + j, self.paths.values()):
+            for p in flatten(self.paths.values()):
                 self.observer.schedule(self.event_handler, p)
 
         def toggle_watch_all(watch):
