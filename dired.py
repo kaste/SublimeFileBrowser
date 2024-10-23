@@ -623,21 +623,20 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         marked = self.get_marked()
         seled  = self.get_selected()
 
-        if toggle and self.try_to_fold(marked):
+        self.sel     = self.view.get_regions('marked')[0] if marked else list(self.view.sel())[0]
+        line         = self.view.line(self.sel)
+        line_content = self.view.substr(line)
+        if line_content.lstrip().startswith('▾'):
+            if toggle:
+                self.view.run_command('dired_fold')
             return
-
-        self.view.run_command('dired_fold', {'update': True, 'index': self.index})
-        self.index = self.get_all()  # fold changed index, get a new one
-
-        self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
-        self.sel = self.view.get_regions('marked')[0] if marked else list(self.view.sel())[0]
-        line     = self.view.line(self.sel)
 
         # number of next line to make slicing work properly
         self.number_line = 1 + self.view.rowcol(line.a)[0]
         # line may have inline error msg after os.sep
-        root = self.view.substr(line).split(os.sep)[0].replace('▸', '▾', 1) + os.sep
+        root = line_content.split(os.sep)[0].replace('▸', '▾', 1) + os.sep
 
+        self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
         items, error = self.try_listing_directory(path)
         if error:
             replacement = ['%s\t<%s>' % (root, error)]
@@ -657,16 +656,6 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
         emit_event('finish_refresh', (self.view.id(), [path]), view=self.view)
-
-    def try_to_fold(self, marked):
-        line = self.view.line(self.view.get_regions('marked')[0] if marked else
-                              list(self.view.sel())[0])
-        content = self.view.substr(line).lstrip()[0]
-        if content == '▾':
-            self.view.run_command('dired_fold')
-            return True
-        else:
-            return False
 
 
 class DiredFold(TextCommand, DiredBaseCommand):
