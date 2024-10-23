@@ -36,6 +36,10 @@ from .common import emit_event
 
 flatten = chain.from_iterable
 
+REFRESH_TIMEOUT  = 1000  # milliseconds: auto-refresh shall not happen more than once per REFRESH_TIMEOUT
+SCHEDULE_REFRESH = 700   # milliseconds: time out for checking REFRESH_TIMEOUT
+observer = None
+
 
 def plugin_loaded():
     global observer
@@ -44,21 +48,13 @@ def plugin_loaded():
 
 def plugin_unloaded():
     global observer
-    if 'observer' in globals():
-        print('\nShutting down observer:', observer)
-    else:
-        return
-    if observer is not None:
+    if observer:
+        print('FileBrowser: shutting down file watcher:', observer.observer)
         observer.observer.stop()
         package_events.unlisten('FileBrowser', observer.dired_event_handler)
         package_events.unlisten('FileBrowserWFS', observer.event_handler.update_paths)
         observer.observer.join()
-    del observer
-    print('BOOM!!1 done...\n')
-
-
-REFRESH_TIMEOUT  = 1000  # milliseconds: auto-refresh shall not happen more than once per REFRESH_TIMEOUT
-SCHEDULE_REFRESH = 700   # milliseconds: time out for checking REFRESH_TIMEOUT
+        del observer
 
 
 def time_out(past, now):
