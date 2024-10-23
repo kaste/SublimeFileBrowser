@@ -635,13 +635,18 @@ class CallVCS(DiredBaseCommand):
 
     def check(self, vcs, command, path):
         '''target function for a thread; worker'''
-        status, root = self.get_output(vcs, self.expand_command(vcs, command), path)
-        if status and root:
-            changed_items = self.vcs_state.get('changed_items', {})
-            changed_items.update(dict(self.set_value(vcs, root, i) for i in status if i != ''))
-            self.vcs_state.update({vcs: True, 'changed_items': changed_items})
-        else:
+        try:
+            root, status = self.get_output(vcs, self.expand_command(vcs, command), path)
+        except Exception:
             self.vcs_state.update({vcs: False})
+        else:
+            changed_items = self.vcs_state.get('changed_items', {})
+            changed_items.update({
+                self.parse_status_item(vcs, root, item)
+                for item in status
+                if item
+            })
+            self.vcs_state.update({vcs: True, 'changed_items': changed_items})
 
     def expand_command(self, vcs, command):
         '''check if user got wildcards or envvars in custom command'''
@@ -661,6 +666,9 @@ class CallVCS(DiredBaseCommand):
 
     def get_output(self, vcs, command, path):
         '''call a vsc, getting its output if any'''
+        if not path:
+            raise RuntimeError("path is required")
+
         args = {
             'git_status': ['--no-optional-locks', 'status', '--untracked-files=all', '-z'],
             'git_root':   ['rev-parse', '--show-toplevel'],
@@ -668,29 +676,30 @@ class CallVCS(DiredBaseCommand):
             'hg_root':    ['root'],
         }
         sep = {'hg': '\n', 'git': '\x00'}
-        try:
-            root = subprocess.run(
-                [command] + args[f'{vcs}_root'],
-                cwd=path,
-                capture_output=True,
-                text=True,
-                startupinfo=STARTUPINFO
-            ).stdout.strip('\n')
-            if NT:
-                root = root.replace("/", "\\")
-            status = subprocess.run(
-                [command] + args[f'{vcs}_status'],
-                cwd=path,
-                capture_output=True,
-                text=True,
-                startupinfo=STARTUPINFO
-            ).stdout.split(sep[vcs])
-        except Exception:
-            return (None, None)
-        else:
-            return (status, root)
 
-    def set_value(self, vcs, root, item):
+        root = subprocess.run(
+            [command] + args[f'{vcs}_root'],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            startupinfo=STARTUPINFO
+        ).stdout.strip('\n')
+        if not root:
+            raise ValueError(f"'{path}' is not managed by '{vcs}'.")
+        if NT:
+            root = root.replace("/", "\\")
+
+        status = subprocess.run(
+            [command] + args[f'{vcs}_status'],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            startupinfo=STARTUPINFO
+        ).stdout.split(sep[vcs])
+
+        return (root, status)
+
+    def parse_status_item(self, vcs, root, item):
         '''return tuple (fullpath, status)'''
         item = item[1:] if vcs == 'git' else item
         filename = item[2:]
