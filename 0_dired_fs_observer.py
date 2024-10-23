@@ -94,6 +94,7 @@ class ObservePaths(object):
     def __init__(self):
         self.observer = Observer()
         self.event_handler = ReportEvent()
+        self.watched_paths = set()
         self.paths = {}
         self.observer.start()
         package_events.listen('FileBrowser', self.dired_event_handler)
@@ -122,11 +123,6 @@ class ObservePaths(object):
                     print("error(set_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
-            old_paths = sorted(self.paths.get(view, []))
-            paths = sorted(paths)
-            if paths == old_paths:
-                return
-
             self.paths.update({
                 view: sorted(paths)
             })
@@ -150,9 +146,14 @@ class ObservePaths(object):
             rewatch_all()
 
         def rewatch_all():
+            next_set = set(flatten(self.paths.values()))
+            if self.watched_paths == next_set:
+                return
+
             self.observer.unschedule_all()
-            for p in flatten(self.paths.values()):
+            for p in next_set:
                 self.observer.schedule(self.event_handler, p)
+            self.watched_paths = next_set
 
         def toggle_watch_all(watch):
             '''watch is boolean or None, global setting dired_autorefresh'''
