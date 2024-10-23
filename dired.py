@@ -775,6 +775,7 @@ class DiredFold(TextCommand, DiredBaseCommand):
     def apply_change_into_view(self, edit, line, indented_region):
         '''set count and index, track marks/selections, replace icon, erase indented_region'''
         v = self.view
+        start_line = 1 + v.rowcol(line.a)[0]
 
         # do not set count & index on empty directory
         if not line.contains(indented_region):
@@ -785,7 +786,6 @@ class DiredFold(TextCommand, DiredBaseCommand):
                 # MUST avoid new line at eof
                 indented_region = Region(indented_region.a - 1, indented_region.b)
 
-            start_line = 1 + v.rowcol(line.a)[0]
             end_line   = start_line + removed_count
             self.index = self.index[:start_line] + self.index[end_line:]
             v.settings().set('dired_index', self.index)
