@@ -111,11 +111,7 @@ class ObservePaths(object):
 
             old_paths = self.paths.get(view, [])
             self.paths.update({
-                view: sorted(
-                    p
-                    for p in set(old_paths + paths)
-                    if os.path.exists(p)
-                )
+                view: sorted(p for p in set(old_paths + paths))
             })
             rewatch_all()
 
@@ -131,11 +127,7 @@ class ObservePaths(object):
                 return
 
             self.paths.update({
-                view: sorted(
-                    p
-                    for p in paths
-                    if os.path.exists(p)
-                )
+                view: sorted(paths)
             })
             rewatch_all()
 
