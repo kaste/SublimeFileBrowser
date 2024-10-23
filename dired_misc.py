@@ -612,9 +612,9 @@ class CallVCS(DiredBaseCommand):
     '''Magic'''
     def __init__(self, view, path):
         self.view = view
-        self.vcs_state = dict(path=path)
+        self.vcs_state = {}
         for vcs in ['git', 'hg']:
-            self.start(vcs)
+            self.start(vcs, path)
         self.watch_threads()
 
     def watch_threads(self):
@@ -625,17 +625,17 @@ class CallVCS(DiredBaseCommand):
         self.view.settings().set("vcs_changed_items", self.vcs_state.get('changed_items'))
         self.view.run_command("dired_draw_vcs_marker")
 
-    def start(self, vcs):
+    def start(self, vcs, path):
         '''launch threads'''
         command = self.view.settings().get('%s_path' % vcs, False)
         if command:
-            threading.Thread(target=self.check, args=(vcs, command)).start()
+            threading.Thread(target=self.check, args=(vcs, command, path)).start()
         else:
             self.vcs_state.update({vcs: False})
 
-    def check(self, vcs, command):
+    def check(self, vcs, command, path):
         '''target function for a thread; worker'''
-        status, root = self.get_output(vcs, self.expand_command(vcs, command))
+        status, root = self.get_output(vcs, self.expand_command(vcs, command), path)
         if status and root:
             changed_items = self.vcs_state.get('changed_items', {})
             changed_items.update(dict(self.set_value(vcs, root, i) for i in status if i != ''))
@@ -659,14 +659,13 @@ class CallVCS(DiredBaseCommand):
                 )
         return command
 
-    def get_output(self, vcs, command):
+    def get_output(self, vcs, command, path):
         '''call a vsc, getting its output if any'''
         args = {'git_status': ['--no-optional-locks', 'status', '--untracked-files=all', '-z'],
                 'git_root':   ['rev-parse', '--show-toplevel'],
                 'hg_status':  ['status'],
                 'hg_root':    ['root']}
         sep = {'hg': '\n', 'git': '\x00'}
-        path = self.vcs_state['path']
         try:
             p = subprocess.Popen(
                 [command] + args['%s_status' % vcs],
