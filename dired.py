@@ -6,6 +6,7 @@ from collections import defaultdict
 import os
 from os.path import basename, dirname, isdir, exists, join
 import sys
+from textwrap import dedent
 
 import sublime
 from sublime import Region
@@ -34,16 +35,14 @@ def plugin_loaded():
                 v.run_command("dired_refresh", {"reset_sels": True})
 
     dfsobserver = 'FileBrowser.0_dired_fs_observer'
-    if dfsobserver not in sys.modules or sys.modules[dfsobserver].Observer is None:  # noqa: E501
-        return sublime.error_message(
-            'FileBrowser:\n\n'
-            'watchdog module is not importable, hence we cannot know about '
-            'changes on file system, and auto-refresh will not work.\n\n'
-            'Despite that, FileBrowser is fully usable without auto-refresh, '
-            'you can just ignore this message and manually refresh view with r key.\n\n'
-            'But if you want working auto-refresh:\n'
-            ' • if you install manually, then look at Readme how to install it,\n'
-            ' • if you install via Package Control, report an issue.')
+    if dfsobserver not in sys.modules or sys.modules[dfsobserver].Observer is None:
+        print(dedent('''
+            FileBrowser: watchdog module is not importable, hence auto-refresh will not work.
+            You can still manually refresh a dired view with `[r]`.
+             • If you installed via Package Control, make sure to restart Sublime Text often enough
+               to give it a chance to install the required dependencies.
+             • If you installed manually, then refer the Readme on how to install dependencies as well.
+        '''))  # noqa: E501
 
     settings = sublime.load_settings('dired.sublime-settings')
     settings.add_on_change(
