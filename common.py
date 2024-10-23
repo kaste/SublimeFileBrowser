@@ -140,7 +140,7 @@ def hijack_window():
 def emit_event(event_type, payload, view=None, plugin='FileBrowser'):
     '''Notify our filesystem observer about changes in our views
     event_type
-        Unicode object tells what happen, i.e start_refresh, finish_refresh, fold, view_closed, etc.
+        Unicode object tells what happen, i.e set_paths, remove_path, view_closed, etc.
     payload
         some info for observer, e.g. id of view, list of paths, tuple of those things
         must be immutable object

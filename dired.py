@@ -203,8 +203,6 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_up')
             return
 
-        emit_event('start_refresh', (self.view.id(), path), view=self.view)
-
         self.expanded = expanded = self.view.find_all(r'^\s*▾') if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
         self.goto = goto
@@ -224,7 +222,7 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
                 self.marked, self.sels = None, None
             self.re_populate_view(edit, path, names, expanded, to_expand, toggle)
         emit_event(
-            'finish_refresh',
+            'set_paths',
             (self.view.id(), self.expanded + ([path] if path else [])),
             view=self.view
         )
@@ -655,7 +653,7 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
-        emit_event('finish_refresh', (self.view.id(), [path]), view=self.view)
+        emit_event('add_paths', (self.view.id(), [path]), view=self.view)
 
 
 class DiredFold(TextCommand, DiredBaseCommand):
@@ -795,7 +793,7 @@ class DiredFold(TextCommand, DiredBaseCommand):
         v.replace(edit, icon_region, '▸')
         v.erase(edit, indented_region)
         v.set_read_only(True)
-        emit_event('fold', (self.view.id(), self.index[start_line - 1]), view=self.view)
+        emit_event('remove_path', (self.view.id(), self.index[start_line - 1]), view=self.view)
 
 
 class DiredUpCommand(TextCommand, DiredBaseCommand):

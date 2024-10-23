@@ -100,15 +100,24 @@ class ObservePaths(object):
 
     def dired_event_handler(self, package, event, payload):
         '''receiving args from common.emit_event'''
-        def view_closed(view):
+        def stop_watch(view):
             self.paths.pop(view, None)
 
-        def start_refresh(view, path):
-            self.paths.update({view: [path.rstrip(os.sep)] if path else []})
+        def add_paths(view, paths):
+            paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
-        def finish_refresh(view, paths):
-            if not paths:
-                return
+            old_paths = self.paths.get(view, [])
+            self.paths.update({
+                view: sorted(
+                    p
+                    for p in set(old_paths + paths)
+                    if os.path.exists(p)
+                )
+            })
+            rewatch_all()
+
+        def set_paths(view, paths):
+            paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
             old_paths = sorted(self.paths.get(view, []))
             paths = sorted(paths)
@@ -118,13 +127,13 @@ class ObservePaths(object):
             self.paths.update({
                 view: sorted(
                     p
-                    for p in set(old_paths + [p.rstrip(os.sep) for p in paths])
+                    for p in paths
                     if os.path.exists(p)
                 )
             })
             rewatch_all()
 
-        def fold(view, path):
+        def remove_path(view, path):
             path_without_sep = path.rstrip(os.sep)
             path_with_sep = path_without_sep + os.sep
             self.paths.update({
@@ -152,11 +161,11 @@ class ObservePaths(object):
             sublime.set_timeout(lambda: refresh(views, erase_settings=(not watch)), 1)
 
         case = {
-            'start_refresh': lambda: start_refresh(*payload),
-            'finish_refresh': lambda: finish_refresh(*payload),
-            'view_closed': lambda: view_closed(payload),
-            'fold': lambda: fold(*payload),
-            'stop_watch': lambda: view_closed(payload),
+            'set_paths': lambda: set_paths(*payload),
+            'add_paths': lambda: add_paths(*payload),
+            'remove_path': lambda: remove_path(*payload),
+            'view_closed': lambda: stop_watch(payload),
+            'stop_watch': lambda: stop_watch(payload),
             'toggle_watch_all': lambda: toggle_watch_all(payload)
         }
         case[event]()
