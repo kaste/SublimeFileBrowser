@@ -661,10 +661,12 @@ class CallVCS(DiredBaseCommand):
 
     def get_output(self, vcs, command, path):
         '''call a vsc, getting its output if any'''
-        args = {'git_status': ['--no-optional-locks', 'status', '--untracked-files=all', '-z'],
-                'git_root':   ['rev-parse', '--show-toplevel'],
-                'hg_status':  ['status'],
-                'hg_root':    ['root']}
+        args = {
+            'git_status': ['--no-optional-locks', 'status', '--untracked-files=all', '-z'],
+            'git_root':   ['rev-parse', '--show-toplevel'],
+            'hg_status':  ['status'],
+            'hg_root':    ['root'],
+        }
         sep = {'hg': '\n', 'git': '\x00'}
         try:
             p = subprocess.Popen(
