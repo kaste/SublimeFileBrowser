@@ -664,8 +664,10 @@ class CallVCS(DiredBaseCommand):
                 )
         return command
 
-    def get_output(self, vcs, command, path):
+    def get_output(self, vcs, executable, path):
         '''call a vsc, getting its output if any'''
+        if not executable:
+            raise ValueError("executable is required")
         if not path:
             raise RuntimeError("path is required")
 
@@ -678,7 +680,7 @@ class CallVCS(DiredBaseCommand):
         sep = {'hg': '\n', 'git': '\x00'}
 
         root = subprocess.run(
-            [command] + args[f'{vcs}_root'],
+            [executable] + args[f'{vcs}_root'],
             cwd=path,
             capture_output=True,
             text=True,
@@ -690,7 +692,7 @@ class CallVCS(DiredBaseCommand):
             root = root.replace("/", "\\")
 
         status = subprocess.run(
-            [command] + args[f'{vcs}_status'],
+            [executable] + args[f'{vcs}_status'],
             cwd=path,
             capture_output=True,
             text=True,
