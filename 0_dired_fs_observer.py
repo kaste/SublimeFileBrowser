@@ -102,6 +102,7 @@ class ObservePaths(object):
         '''receiving args from common.emit_event'''
         def stop_watch(view):
             self.paths.pop(view, None)
+            rewatch_all()
 
         def add_paths(view, paths):
             for path in paths:
