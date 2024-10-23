@@ -603,20 +603,21 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         toggle  if True, state of directory(s) will be toggled (i.e. expand/collapse)
         '''
         self.index = self.get_all()
-        filenames = self.get_marked(full=True) or self.get_selected(parent=False, full=True)
+        items = self.get_marked(full=True) or self.get_selected(parent=False, full=True)
+        paths = [path for path in items if path.endswith(os.sep)]
 
-        if len(filenames) == 1 and filenames[0][~0] == os.sep:
-            return self.expand_single_directory(edit, filenames[0], toggle)
-        elif filenames:
+        if len(paths) == 1:
+            return self.expand_single_directory(edit, paths[0], toggle)
+        elif paths:
             # working with several selections at once is very tricky, thus for reliability we should
             # recreate the entire tree, despite it is supposedly slower, but not really, because
             # one view.replace/insert() call is faster than multiple ones
-            self.view.run_command('dired_refresh', {'to_expand': filenames, 'toggle': toggle})
+            self.view.run_command('dired_refresh', {'to_expand': paths, 'toggle': toggle})
             return
         else:
             return sublime.status_message('Item cannot be expanded')
 
-    def expand_single_directory(self, edit, filename, toggle):
+    def expand_single_directory(self, edit, path, toggle):
         '''Expand one directory is save and fast, thus we do it here,
         but for many directories calling refresh command'''
         marked = self.get_marked()
@@ -637,11 +638,11 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         # line may have inline error msg after os.sep
         root = self.view.substr(line).split(os.sep)[0].replace('▸', '▾', 1) + os.sep
 
-        items, error = self.try_listing_directory(filename)
+        items, error = self.try_listing_directory(path)
         if error:
             replacement = ['%s\t<%s>' % (root, error)]
         elif items:
-            replacement = [root] + self.prepare_filelist(items, '', filename, '\t')
+            replacement = [root] + self.prepare_filelist(items, '', path, '\t')
             dired_count = self.view.settings().get('dired_count', 0)
             self.view.settings().set('dired_count', dired_count + len(items))
         else:  # expanding empty folder, so notify that it is empty
@@ -655,7 +656,7 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
-        emit_event('finish_refresh', (self.view.id(), [filename]), view=self.view)
+        emit_event('finish_refresh', (self.view.id(), [path]), view=self.view)
 
     def try_to_fold(self, marked):
         line = self.view.line(self.view.get_regions('marked')[0] if marked else
