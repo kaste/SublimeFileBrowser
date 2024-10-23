@@ -612,41 +612,41 @@ class CallVCS(DiredBaseCommand):
     '''Magic'''
     def __init__(self, view, path):
         self.view = view
-        self.vcs_state = {}
+        self.vcs_state = {'done': set(), 'changed_items': {}}
         for vcs in ['git', 'hg']:
             self.start(vcs, path)
-        self.watch_threads()
-
-    def watch_threads(self):
-        '''wait while all checks are done'''
-        if not all(vcs in self.vcs_state for vcs in ['git', 'hg']):
-            sublime.set_timeout(self.watch_threads, 100)
-            return
-        self.view.settings().set("vcs_changed_items", self.vcs_state.get('changed_items'))
-        self.view.run_command("dired_draw_vcs_marker")
 
     def start(self, vcs, path):
         '''launch threads'''
         command = self.view.settings().get(f'{vcs}_path', False)
         if command:
-            threading.Thread(target=self.check, args=(vcs, command, path)).start()
+            threading.Thread(target=self.check, args=(vcs, command, path)).start()  # fan-out
         else:
-            self.vcs_state.update({vcs: False})
+            self.done(vcs)
 
     def check(self, vcs, command, path):
         '''target function for a thread; worker'''
         try:
             root, status = self.get_output(vcs, self.expand_command(vcs, command), path)
         except Exception:
-            self.vcs_state.update({vcs: False})
+            self.done(vcs)
         else:
-            changed_items = self.vcs_state.get('changed_items', {})
-            changed_items.update({
+            changed_items = {
                 self.parse_status_item(vcs, root, item)
                 for item in status
                 if item
-            })
-            self.vcs_state.update({vcs: True, 'changed_items': changed_items})
+            }
+            self.done(vcs, changed_items)
+
+    def done(self, vcs, changed_items={}):
+        sublime.set_timeout(lambda: self.sink_(vcs, changed_items))  # fan-in
+
+    def sink_(self, vcs, changed_items):
+        self.vcs_state['done'].add(vcs)
+        self.vcs_state['changed_items'].update(changed_items)
+        if self.vcs_state['done'] == {'git', 'hg'}:
+            self.view.settings().set("vcs_changed_items", self.vcs_state.get('changed_items'))
+            self.view.run_command("dired_draw_vcs_marker")
 
     def expand_command(self, vcs, command):
         '''check if user got wildcards or envvars in custom command'''
