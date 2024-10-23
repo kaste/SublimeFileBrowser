@@ -627,7 +627,7 @@ class CallVCS(DiredBaseCommand):
 
     def start(self, vcs, path):
         '''launch threads'''
-        command = self.view.settings().get('%s_path' % vcs, False)
+        command = self.view.settings().get(f'{vcs}_path', False)
         if command:
             threading.Thread(target=self.check, args=(vcs, command, path)).start()
         else:
@@ -669,21 +669,22 @@ class CallVCS(DiredBaseCommand):
         }
         sep = {'hg': '\n', 'git': '\x00'}
         try:
-            p = subprocess.Popen(
-                [command] + args['%s_status' % vcs],
-                stdout=subprocess.PIPE,
+            root = subprocess.run(
+                [command] + args[f'{vcs}_root'],
                 cwd=path,
-                startupinfo=STARTUPINFO)
-            status = p.communicate()[0]
-            status = str(status, 'utf-8').split(sep[vcs])
-            p = subprocess.Popen(
-                [command] + args['%s_root' % vcs],
-                stdout=subprocess.PIPE,
-                cwd=path,
-                startupinfo=STARTUPINFO)
-            root = p.communicate()[0].decode('utf-8').strip('\n')
+                capture_output=True,
+                text=True,
+                startupinfo=STARTUPINFO
+            ).stdout.strip('\n')
             if NT:
                 root = root.replace("/", "\\")
+            status = subprocess.run(
+                [command] + args[f'{vcs}_status'],
+                cwd=path,
+                capture_output=True,
+                text=True,
+                startupinfo=STARTUPINFO
+            ).stdout.split(sep[vcs])
         except Exception:
             return (None, None)
         else:
