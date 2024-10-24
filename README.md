@@ -3,11 +3,11 @@
 
 Ditch sidebar and browse your files in a normal tab with keyboard, like a pro!
 
-![SublimeFileBrowser Screenshot](http://cl.ly/image/2y1R143k3J1n/Screen%20Shot%202015-01-28%20at%208.22.56%20pm.png)
+![SublimeFileBrowser Screenshot](assets/6253230706d2e706e67.png)
 
 You can also use it as a sidebar that you can put on right or left side
 
-![SublimeFileBrowser Screenshot2](http://cl.ly/image/2Y37412n351x/Screen%20Shot%202015-01-28%20at%208.33.28%20pm.png)
+![SublimeFileBrowser Screenshot2](assets/8253230706d2e706e67.png)
 
 ## Installation
 
@@ -247,7 +247,7 @@ There are several ways to view your Jump list:
 ##### Jump List in a Quick Panel in Browse Mode
 While in *Browse Mode*, you can press <kbd>p</kbd> to view the *Jump List* in a Sublime quick panel.
 
-![SublimeFileBrowser Jump List is quick panel](http://cl.ly/image/132X1K0C0P0h/Screen%20Shot%202015-01-25%20at%203.49.42%20pm.png)
+![SublimeFileBrowser Jump List is quick panel](assets/2253230706d2e706e67.png)
 
 **NOTE**: This command does NOT create a new window or project. it lets you jump quickly to a
           particular location.
@@ -280,7 +280,7 @@ You can change `f3` in the above code to your custom keyboard shortcut.
 Bring up *Command Palette* and search for `Browse Mode: Jump List` (typing `bmj` should find it for
 you). This command will open a *Jump List View* that looks like this:
 
-![SublimeFileBrowser Jump List View](http://cl.ly/image/1e3W1c07311Y/Screen%20Shot%202015-01-25%20at%203.56.45%20pm.png)
+![SublimeFileBrowser Jump List View](assets/5253230706d2e706e67.png)
 
 If you want to save some key stokes you can add the following code in your user key bindings file:
 
