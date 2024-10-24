@@ -1,0 +1,7 @@
+0.9.0
+-----
+
+We're now running on python 3.8. Restarting Sublime Text is likely required to give
+Package Control a chance to fetch new dependencies.
+
+🫣
