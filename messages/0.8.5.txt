@@ -1,0 +1,13 @@
+0.8.5
+-----
+
+The plugin is alive again and has a new home at https://github.com/kaste/SublimeFileBrowser.
+
+Only a few bug fixes went into this release.  There is just one very noteable
+change: we now use your color scheme (e.g. a dark one) instead of ours.
+However, we still ship our color scheme and use it for the
+shortcuts/help view.  You can turn that back on in the settings if you prefer.
+
+The next release will have more fixes and will run on ST4/python 3.8 only.  Stay tuned.
+
+🕺
