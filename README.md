@@ -489,8 +489,11 @@ add following setting into `Preferences` → `Settings — User`:
 
 ## Credit
 
-This is a fork of the awesome [dired plugin](https://github.com/mkleehammer/dired) by
-[Michael Kleehammer](https://github.com/mkleehammer)
+This project started as a fork of the awesome [dired plugin](https://packagecontrol.io/packages/dired),
+originally by [Michael Kleehammer](https://github.com/mkleehammer) but now hosted by
+[kublaios](https://github.com/kublaios/dired).
+
+@aziz and @vovkkk did more work at https://github.com/aziz/SublimeFileBrowser which I forked here.
 
 #### License
 See the LICENSE file
