@@ -612,7 +612,7 @@ class CallVCS(DiredBaseCommand):
     '''Magic'''
     def __init__(self, view, path):
         self.view = view
-        self.vcs_state = {'done': set(), 'changed_items': {}}
+        self.vcs_state = {'awaiting': 2, 'changed_items': {}}
         for vcs in ['git', 'hg']:
             self.start(vcs, path)
 
@@ -622,29 +622,30 @@ class CallVCS(DiredBaseCommand):
         if command:
             threading.Thread(target=self.check, args=(vcs, command, path)).start()  # fan-out
         else:
-            self.done(vcs)
+            self.done()
 
     def check(self, vcs, command, path):
         '''target function for a thread; worker'''
         try:
             root, status = self.get_output(vcs, self.expand_command(vcs, command), path)
         except Exception:
-            self.done(vcs)
+            changed_items = {}
         else:
             changed_items = {
                 self.parse_status_item(vcs, root, item)
                 for item in status
                 if item
             }
-            self.done(vcs, changed_items)
+        finally:
+            self.done(changed_items)
 
-    def done(self, vcs, changed_items={}):
-        sublime.set_timeout(lambda: self.sink_(vcs, changed_items))  # fan-in
+    def done(self, changed_items={}):
+        sublime.set_timeout(lambda: self.sink_(changed_items))  # fan-in
 
-    def sink_(self, vcs, changed_items):
-        self.vcs_state['done'].add(vcs)
+    def sink_(self, changed_items):
+        self.vcs_state['awaiting'] -= 1
         self.vcs_state['changed_items'].update(changed_items)
-        if self.vcs_state['done'] == {'git', 'hg'}:
+        if self.vcs_state['awaiting'] == 0:
             self.view.settings().set("vcs_changed_items", self.vcs_state.get('changed_items'))
             self.view.run_command("dired_draw_vcs_marker")
 
