@@ -522,11 +522,6 @@ class DiredHideEmptyGroup(EventListener):
         emit_event('view_closed', view.id())
         group_is_empty = not window.views_in_group(group)
         if window.num_groups() == 2 and group_is_empty:
-            if group == 0:  # mitigate https://github.com/sublimehq/sublime_text/issues/6520
-                active_sheet = window.active_sheet_in_group(1)
-                window.move_sheets_to_group(window.sheets_in_group(1), 0, 0, select=False)
-                if active_sheet:
-                    window.focus_sheet(active_sheet)
             window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
 
