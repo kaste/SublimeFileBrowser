@@ -44,16 +44,15 @@ observer = None
 
 def plugin_loaded():
     global observer
-    observer = ObservePaths()
+    if Observer:
+        observer = ObservePaths()
 
 
 def plugin_unloaded():
     global observer
     if observer:
         print('FileBrowser: shutting down file watcher:', observer.observer)
-        observer.observer.stop()
-        package_events.unlisten(EVENT_TOPIC, observer.dired_event_handler)
-        observer.observer.join()
+        observer.stop()
         del observer
 
 
@@ -82,11 +81,6 @@ def refresh(views, erase_settings=False):
 
 
 class ObservePaths(object):
-    def __new__(cls):
-        if Observer is None:
-            return None
-        return object.__new__(cls)
-
     def __init__(self):
         self.observer = Observer()
         self.event_handler = ReportEvent()
@@ -94,6 +88,11 @@ class ObservePaths(object):
         self.paths: dict[sublime.ViewId, list[str]] = {}
         self.observer.start()
         package_events.listen(EVENT_TOPIC, self.dired_event_handler)
+
+    def stop(self):
+        self.observer.stop()
+        package_events.unlisten(EVENT_TOPIC, self.dired_event_handler)
+        self.observer.join()
 
     def dired_event_handler(self, package, event, payload):
         '''receiving args from common.emit_event'''
