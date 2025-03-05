@@ -18,6 +18,7 @@ then, finally,
 That is why this module must be loaded first, but its presence is checked in the other module.
 '''
 
+from __future__ import annotations
 import datetime
 from itertools import chain
 import os
@@ -90,49 +91,49 @@ class ObservePaths(object):
     def __init__(self):
         self.observer = Observer()
         self.event_handler = ReportEvent()
-        self.watched_paths = set()
-        self.paths = {}
+        self.watched_paths: set[str] = set()
+        self.paths: dict[sublime.ViewId, list[str]] = {}
         self.observer.start()
         package_events.listen('FileBrowser', self.dired_event_handler)
 
     def dired_event_handler(self, package, event, payload):
         '''receiving args from common.emit_event'''
-        def stop_watch(view):
-            self.paths.pop(view, None)
+        def stop_watch(vid: sublime.ViewId):
+            self.paths.pop(vid, None)
             rewatch_all()
 
-        def add_paths(view, paths):
+        def add_paths(vid: sublime.ViewId, paths):
             for path in paths:
                 if path and not os.path.isdir(path):
                     print("error(add_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
-            old_paths = self.paths.get(view, [])
+            old_paths = self.paths.get(vid, [])
             self.paths.update({
-                view: sorted(p for p in set(old_paths + paths))
+                vid: sorted(p for p in set(old_paths + paths))
             })
             rewatch_all()
 
-        def set_paths(view, paths):
+        def set_paths(vid: sublime.ViewId, paths):
             for path in paths:
                 if path and not os.path.isdir(path):
                     print("error(set_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
             self.paths.update({
-                view: sorted(paths)
+                vid: sorted(paths)
             })
             rewatch_all()
 
-        def remove_path(view, path):
+        def remove_path(vid: sublime.ViewId, path):
             if path and not os.path.isdir(path):
                 print("error(remove_path): {path} is not a directory")
             path_without_sep = path.rstrip(os.sep)
             path_with_sep = path_without_sep + os.sep
             self.paths.update({
-                view: sorted(
+                vid: sorted(
                     p
-                    for p in self.paths.get(view, [])
+                    for p in self.paths.get(vid, [])
                     if (
                         p != path_without_sep
                         and not p.startswith(path_with_sep)
@@ -167,24 +168,27 @@ class ObservePaths(object):
             'toggle_watch_all': lambda: toggle_watch_all(payload)
         }
         case[event]()
-        emit_event('', self.paths, plugin='FileBrowserWFS')
+        emit_event('update_paths', self.paths, plugin='FileBrowserWFS')
 
 
 class ReportEvent(FileSystemEventHandler):
     def __init__(self):
         self.paths = {}
-        self.ignore_views = set()
+        self.ignore_views: set[sublime.ViewId] = set()
         self.scheduled_views = {}
         package_events.listen('FileBrowserWFS', self.update_paths)
 
     def update_paths(self, package, event, payload):
         if event == 'ignore_view':
-            self.ignore_views.update([payload])
-            return
+            assert isinstance(payload, int)
+            self.ignore_views.add(payload)
         elif event == 'watch_view':
-            self.ignore_views -= set([payload])
-            return
-        self.paths = payload
+            assert isinstance(payload, int)
+            self.ignore_views.discard(payload)
+        elif event == "update_paths":
+            self.paths = payload
+        else:
+            raise RuntimeError(f"received unknown event type {event}. payload: {payload}")
 
     def on_any_event(self, event):
         '''
