@@ -151,7 +151,7 @@ class DiredCommand(WindowCommand, DiredBaseCommand):
         show(self.window, path, single_pane=single_pane, other_group=other_group)
 
 
-class DiredRefreshCommand(TextCommand, DiredBaseCommand):
+class dired_refresh(TextCommand, DiredBaseCommand):
     """
     Populates or repopulates a dired view.
 
