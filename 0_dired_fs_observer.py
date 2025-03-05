@@ -158,10 +158,10 @@ class ObservePaths(object):
             sublime.set_timeout(lambda: refresh(views, erase_settings=(not watch)), 1)
 
         def ignore_view(vid: sublime.ViewId):
-            self.event_handler.ignore_views.add(vid)
+            self.event_handler.ignored_views.add(vid)
 
         def unignore_view(vid: sublime.ViewId):
-            self.event_handler.ignore_views.discard(vid)
+            self.event_handler.ignored_views.discard(vid)
 
         case = {
             'set_paths': lambda: set_paths(*payload),
@@ -180,7 +180,7 @@ class ObservePaths(object):
 class ReportEvent(FileSystemEventHandler):
     def __init__(self):
         self.paths = {}
-        self.ignore_views: set[sublime.ViewId] = set()
+        self.ignored_views: set[sublime.ViewId] = set()
         self.scheduled_views = {}
 
     def on_any_event(self, event):
@@ -205,7 +205,7 @@ class ReportEvent(FileSystemEventHandler):
         src_path = event.src_path
         path = os.path.dirname(src_path)
         for v, p in self.paths.items():
-            if any(i in p for i in (src_path, path)) and v not in self.ignore_views:
+            if any(i in p for i in (src_path, path)) and v not in self.ignored_views:
                 if not self.scheduled_views:
                     self.schedule_refresh(v, datetime.datetime.now())
                 else:
