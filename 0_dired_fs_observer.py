@@ -19,9 +19,9 @@ That is why this module must be loaded first, but its presence is checked in the
 '''
 
 from __future__ import annotations
-import datetime
 from itertools import chain
 import os
+import time
 
 import sublime
 
@@ -37,8 +37,8 @@ from .common import EVENT_TOPIC
 
 flatten = chain.from_iterable
 
-REFRESH_TIMEOUT  = 1000  # milliseconds: auto-refresh shall not happen more than once per REFRESH_TIMEOUT
-SCHEDULE_REFRESH = 700   # milliseconds: time out for checking REFRESH_TIMEOUT
+REFRESH_TIMEOUT  = 1.0   # seconds: settly down time before we call `refresh`
+SCHEDULE_REFRESH = 700   # milliseconds: interval for checking REFRESH_TIMEOUT
 observer = None
 
 
@@ -56,10 +56,6 @@ def plugin_unloaded():
         del observer
 
 
-def time_out(past, now):
-    return (now - past) > datetime.timedelta(milliseconds=REFRESH_TIMEOUT)
-
-
 def refresh(views, erase_settings=False):
     '''
     views
@@ -68,7 +64,7 @@ def refresh(views, erase_settings=False):
         boolean, can be True after change of global setting dired_autorefresh
     '''
     if not views and not erase_settings:
-        def is_dired(view): return view.settings() and view.settings().get("dired_path")
+        def is_dired(view): return view.settings().get("dired_path")
     else:
         def is_dired(view): return False
 
@@ -204,26 +200,24 @@ class ReportEvent(FileSystemEventHandler):
 
         src_path = event.src_path
         path = os.path.dirname(src_path)
-        for v, p in self.paths.items():
-            if any(i in p for i in (src_path, path)) and v not in self.ignored_views:
-                if not self.scheduled_views:
-                    self.schedule_refresh(v, datetime.datetime.now())
-                else:
-                    self.scheduled_views.update({v: datetime.datetime.now()})
+        for vid, paths in self.paths.items():
+            if vid in self.ignored_views:
+                continue
+            if any(candidate in paths for candidate in (src_path, path)):
+                self.schedule_refresh(vid)
 
-    def schedule_refresh(self, view=None, at=None):
-        now = datetime.datetime.now()
-        if view and at:
-            if time_out(at, now):
-                sublime.set_timeout(self.schedule_refresh, SCHEDULE_REFRESH)
-                return
-            else:
-                self.scheduled_views.update({view: at})
+    def schedule_refresh(self, view=None):
+        now = time.monotonic()
+        if view:
+            self.scheduled_views.update({view: now})
 
         if not self.scheduled_views:
             return
 
-        views = [v for v, t in self.scheduled_views.items() if time_out(t, now)]
+        views = [
+            v for v, past in self.scheduled_views.items()
+            if (now - past) > REFRESH_TIMEOUT
+        ]
         for v in views:
             self.scheduled_views.pop(v, None)
         if views:
