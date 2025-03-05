@@ -1,5 +1,3 @@
-# coding: utf-8
-
 '''This module creates a file system observer, which
     1. collect all open/expanded paths from all FileBrowser views and
     2. waiting for any changes in these paths (create/remove/modify file), and in case of such change

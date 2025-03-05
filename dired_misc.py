@@ -1,5 +1,3 @@
-# coding: utf-8
-
 '''This module contains miscellaneous commands for additional functionality.
     Suppose these things are useful, but not essential.
 '''

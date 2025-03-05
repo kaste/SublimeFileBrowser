@@ -1,5 +1,3 @@
-# coding: utf-8
-
 '''Main module; launch and navigation related stuff'''
 
 from collections import defaultdict

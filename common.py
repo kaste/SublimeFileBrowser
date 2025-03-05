@@ -1,5 +1,3 @@
-# coding: utf-8
-
 '''Common stuff, used in other modules'''
 
 import re
