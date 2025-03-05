@@ -33,7 +33,7 @@ except ImportError:
 class DiredCreateCommand(TextCommand, DiredBaseCommand):
     def run(self, edit, which=None):
         assert which in ('file', 'directory'), "which: " + which
-        emit_event('ignore_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('ignore_view', self.view.id())
         self.index = self.get_all()
         rel_path   = relative_path(self.get_selected(parent=False) or '')
 
@@ -62,7 +62,7 @@ class DiredCreateCommand(TextCommand, DiredBaseCommand):
             with open(fqn, 'wb'):
                 pass
         if self.refresh:  # user press enter
-            emit_event('watch_view', self.view.id(), plugin='FileBrowserWFS')
+            emit_event('watch_view', self.view.id())
             self.view.run_command('dired_refresh', {'goto': fqn})
 
         # user press ctrl+enter, no refresh
@@ -94,7 +94,7 @@ class DiredCreateAndOpenCommand(DiredCreateCommand):
         else:
             sublime.active_window().open_file(fqn)
         if self.refresh:
-            emit_event('watch_view', dired_view.id(), plugin='FileBrowserWFS')
+            emit_event('watch_view', dired_view.id())
             dired_view.run_command('dired_refresh', {'goto': fqn})
 
 
@@ -107,7 +107,7 @@ class DiredDeleteCommand(TextCommand, DiredBaseCommand):
 
         msg, trash = self.setup_msg(files, trash)
 
-        emit_event('ignore_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('ignore_view', self.view.id())
         if trash:
             need_confirm = self.view.settings().get('dired_confirm_send2trash', True)
             msg = msg.replace('Delete', 'Delete to trash', 1)
@@ -117,7 +117,7 @@ class DiredDeleteCommand(TextCommand, DiredBaseCommand):
             self._delete(files)
         else:
             print("Cancel delete or something wrong in DiredDeleteCommand")
-        emit_event('watch_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('watch_view', self.view.id())
 
     def setup_msg(self, files, trash):
         '''If user send to trash, but send2trash is unavailable, we suggest deleting permanently'''
@@ -212,7 +212,7 @@ class DiredRenameCommand(TextCommand, DiredBaseCommand):
         if not self.filecount():
             return sublime.status_message('Directory seems empty, nothing could be renamed')
 
-        emit_event('ignore_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('ignore_view', self.view.id())
         # Store the original filenames so we can compare later.
         path = self.path
         self.view.settings().set(
@@ -245,7 +245,7 @@ class DiredRenameCommand(TextCommand, DiredBaseCommand):
 class DiredRenameCancelCommand(TextCommand, DiredBaseCommand):
     """Cancel rename mode"""
     def run(self, edit):
-        emit_event('watch_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('watch_view', self.view.id())
         self.view.settings().erase('rename')
         self.view.settings().set('dired_rename_mode', False)
         self.view.erase_regions('rename')
@@ -275,7 +275,7 @@ class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
         self.view.erase_regions('rename')
         self.view.settings().erase('rename')
         self.view.settings().set('dired_rename_mode', False)
-        emit_event('watch_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('watch_view', self.view.id())
         self.view.run_command('dired_refresh', {'to_expand': self.re_expand_new_names()})
 
     def get_after(self):
@@ -425,7 +425,7 @@ class DiredPasteFilesCommand(TextCommand, DiredBaseCommand):
         path        = self.get_path()
         rel_path    = relative_path(self.get_selected(parent=False) or '')
         destination = join(path, rel_path) or path
-        emit_event('ignore_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('ignore_view', self.view.id())
         if NT:
             return call_SHFileOperationW(self.view, sources_move, sources_copy, destination)
         else:
@@ -455,7 +455,7 @@ class DiredPasteFilesToCommand(TextCommand, DiredBaseCommand):
                             ('%sopy %d' % (' and c' if both else 'C', citems)) if citems else '')
         path = self.get_path()
         window = self.view.window() or sublime.active_window()
-        emit_event('ignore_view', self.view.id(), plugin='FileBrowserWFS')
+        emit_event('ignore_view', self.view.id())
         prompt.start(msg, window, path, self.initfo, sources_move, sources_copy)
 
     def initfo(self, destination, move, copy):
@@ -539,7 +539,7 @@ class call_SHFileOperationW(object):
         out = SHFileOperationW(ctypes.byref(args))
 
         sublime.set_timeout(
-            lambda: emit_event('watch_view', self.view.id(), plugin='FileBrowserWFS'), 1)
+            lambda: emit_event('watch_view', self.view.id()), 1)
         if not out and destination:  # 0 == success
             sublime.set_timeout(lambda: self.view.run_command('dired_clear_copy_cut_list'), 1)
         else:  # probably user cancel op., or sth went wrong; keep settings
@@ -690,7 +690,7 @@ class call_SystemAgnosticFileOperation(object):
             sublime.set_timeout(lambda: self.progress_bar(threads, i, dir), 100)
             return
         else:
-            emit_event('watch_view', self.view.id(), plugin='FileBrowserWFS')
+            emit_event('watch_view', self.view.id())
             self.view.run_command('dired_clear_copy_cut_list')
 
     def generic_nn(self, old_name):

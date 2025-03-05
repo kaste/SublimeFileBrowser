@@ -33,7 +33,7 @@ except ImportError:
     Observer = None
     FileSystemEventHandler = object
 
-from .common import emit_event
+from .common import EVENT_TOPIC
 
 flatten = chain.from_iterable
 
@@ -52,8 +52,7 @@ def plugin_unloaded():
     if observer:
         print('FileBrowser: shutting down file watcher:', observer.observer)
         observer.observer.stop()
-        package_events.unlisten('FileBrowser', observer.dired_event_handler)
-        package_events.unlisten('FileBrowserWFS', observer.event_handler.update_paths)
+        package_events.unlisten(EVENT_TOPIC, observer.dired_event_handler)
         observer.observer.join()
         del observer
 
@@ -94,7 +93,7 @@ class ObservePaths(object):
         self.watched_paths: set[str] = set()
         self.paths: dict[sublime.ViewId, list[str]] = {}
         self.observer.start()
-        package_events.listen('FileBrowser', self.dired_event_handler)
+        package_events.listen(EVENT_TOPIC, self.dired_event_handler)
 
     def dired_event_handler(self, package, event, payload):
         '''receiving args from common.emit_event'''
@@ -159,16 +158,24 @@ class ObservePaths(object):
                 self.paths = {}
             sublime.set_timeout(lambda: refresh(views, erase_settings=(not watch)), 1)
 
+        def ignore_view(vid: sublime.ViewId):
+            self.event_handler.ignore_views.add(vid)
+
+        def unignore_view(vid: sublime.ViewId):
+            self.event_handler.ignore_views.discard(vid)
+
         case = {
             'set_paths': lambda: set_paths(*payload),
             'add_paths': lambda: add_paths(*payload),
             'remove_path': lambda: remove_path(*payload),
             'view_closed': lambda: stop_watch(payload),
             'stop_watch': lambda: stop_watch(payload),
-            'toggle_watch_all': lambda: toggle_watch_all(payload)
+            'toggle_watch_all': lambda: toggle_watch_all(payload),
+            'ignore_view': lambda: ignore_view(payload),
+            'watch_view': lambda: unignore_view(payload),
         }
         case[event]()
-        emit_event('update_paths', self.paths, plugin='FileBrowserWFS')
+        self.event_handler.paths = self.paths
 
 
 class ReportEvent(FileSystemEventHandler):
@@ -176,19 +183,6 @@ class ReportEvent(FileSystemEventHandler):
         self.paths = {}
         self.ignore_views: set[sublime.ViewId] = set()
         self.scheduled_views = {}
-        package_events.listen('FileBrowserWFS', self.update_paths)
-
-    def update_paths(self, package, event, payload):
-        if event == 'ignore_view':
-            assert isinstance(payload, int)
-            self.ignore_views.add(payload)
-        elif event == 'watch_view':
-            assert isinstance(payload, int)
-            self.ignore_views.discard(payload)
-        elif event == "update_paths":
-            self.paths = payload
-        else:
-            raise RuntimeError(f"received unknown event type {event}. payload: {payload}")
 
     def on_any_event(self, event):
         '''

@@ -220,11 +220,14 @@ class DiredRefreshCommand(TextCommand, DiredBaseCommand):
             else:
                 self.marked, self.sels = None, None
             self.re_populate_view(edit, path, names, expanded, to_expand, toggle)
-        emit_event(
-            'set_paths',
-            (self.view.id(), self.expanded + ([path] if path else [])),
-            view=self.view
-        )
+
+        if self.view.settings().get('dired_autorefresh', True):
+            emit_event(
+                'set_paths',
+                (self.view.id(), self.expanded + ([path] if path else []))
+            )
+        else:
+            emit_event('stop_watch', self.view.id())
 
     def expand_goto(self, to_expand):
         '''e.g. self.goto = "a/b/c/d/", then to put cursor onto d, it should be
@@ -652,7 +655,10 @@ class DiredExpand(TextCommand, DiredBaseCommand):
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
-        emit_event('add_paths', (self.view.id(), [path]), view=self.view)
+        if self.view.settings().get('dired_autorefresh', True):
+            emit_event('add_paths', (self.view.id(), [path]))
+        else:
+            emit_event('stop_watch', self.view.id())
 
 
 class DiredFold(TextCommand, DiredBaseCommand):
@@ -792,7 +798,10 @@ class DiredFold(TextCommand, DiredBaseCommand):
         v.replace(edit, icon_region, '▸')
         v.erase(edit, indented_region)
         v.set_read_only(True)
-        emit_event('remove_path', (self.view.id(), self.index[start_line - 1]), view=self.view)
+        if self.view.settings().get('dired_autorefresh', True):
+            emit_event('remove_path', (self.view.id(), self.index[start_line - 1]))
+        else:
+            emit_event('stop_watch', self.view.id())
 
 
 class DiredUpCommand(TextCommand, DiredBaseCommand):

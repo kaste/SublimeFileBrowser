@@ -25,6 +25,7 @@ if NT:
     import ctypes
 
 
+EVENT_TOPIC = 'FileBrowser'
 MARK_OPTIONS = sublime.DRAW_NO_OUTLINE
 RE_FILE = re.compile(r'^(\s*)([^\\//].*)$')
 PARENT_SYM = "⠤"
@@ -137,30 +138,10 @@ def hijack_window():
                 lambda: sublime.windows()[-1].run_command("dired", {"immediate": True}), 1)
 
 
-def emit_event(event_type, payload, view=None, plugin='FileBrowser'):
-    '''Notify our filesystem observer about changes in our views
-    event_type
-        Unicode object tells what happen, i.e set_paths, remove_path, view_closed, etc.
-    payload
-        some info for observer, e.g. id of view, list of paths, tuple of those things
-        must be immutable object
-    view
-        sublime.View object or None
-    plugin
-        Unicode object tells who is sender, in order to address event to certain listener
-        we have two different listeners for FileBrowser and FileBrowserWFS
-        FileBrowser
-            notifies observer about user actions to adjust scheduling paths
-        FileBrowserWFS
-            notifies FileSystemEventHandler about scheduled paths in order to schedule refresh when
-            sth is changed on file system
-    '''
-    if package_events is None:
-        return
-    if view and not view.settings().get('dired_autorefresh', True):
-        package_events.notify(plugin, 'stop_watch', view.id())
-        return
-    package_events.notify(plugin, event_type, payload)
+def emit_event(event_type: str, payload: object):
+    '''Notify our filesystem observer about changes in our views'''
+    if package_events:
+        package_events.notify(EVENT_TOPIC, event_type, payload)
 
 
 class DiredBaseCommand:
