@@ -450,9 +450,9 @@ is using a tab_size of 3 but you can customize it in your user settings file (`P
 `Package Settings` → `FileBrowser` → `Settings — User`).
 
 #### Other settings
-##### Disable confirmation dialog for sending items to trash (does not affect system one):
+##### Disable confirmation dialog for sending items to trash:
 ```js
-{ "dired_confirm_send2trash": false }
+{ "dired_confirm_deletions": false }
 ```
 
 ##### Change initial width of FileBrowser column (as sidebar):

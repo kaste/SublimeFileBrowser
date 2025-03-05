@@ -22,12 +22,8 @@ from . import prompt
 
 if NT:
     import ctypes
+    from ctypes import wintypes
     from Default.send2trash.plat_win import SHFILEOPSTRUCTW
-
-try:
-    import Default.send2trash as send2trash
-except ImportError:
-    send2trash = None
 
 
 class DiredCreateCommand(TextCommand, DiredBaseCommand):
@@ -98,113 +94,43 @@ class DiredCreateAndOpenCommand(DiredCreateCommand):
             dired_view.run_command('dired_refresh', {'goto': fqn})
 
 
-class DiredDeleteCommand(TextCommand, DiredBaseCommand):
+class dired_delete(TextCommand, DiredBaseCommand):
     def run(self, edit, trash=False):
+        view = self.view
+        window = view.window()
+        assert window
+
         self.index = self.get_all()
         files = self.get_marked() or self.get_selected(parent=False)
         if not files:
-            return sublime.status_message('Nothing chosen')
+            return sublime.status_message('Nothing selected')
 
-        msg, trash = self.setup_msg(files, trash)
-
-        emit_event('ignore_view', self.view.id())
-        if trash:
-            need_confirm = self.view.settings().get('dired_confirm_send2trash', True)
-            msg = msg.replace('Delete', 'Delete to trash', 1)
-            if not need_confirm or (need_confirm and sublime.ok_cancel_dialog(msg)):
-                self._to_trash(files)
-        elif not trash and sublime.ok_cancel_dialog(msg):
-            self._delete(files)
-        else:
-            print("Cancel delete or something wrong in DiredDeleteCommand")
-        emit_event('watch_view', self.view.id())
-
-    def setup_msg(self, files, trash):
-        '''If user send to trash, but send2trash is unavailable, we suggest deleting permanently'''
-        # Yes, I know this is English.  Not sure how Sublime is translating.
         if len(files) == 1:
             msg = "Delete {0}?".format(files[0])
         else:
             msg = "Delete {0} items?".format(len(files))
-        if trash and not send2trash:
-            msg = "Cannot delete to trash.\nPermanently " + msg.replace('D', 'd', 1)
-            trash = False
-        return (msg, trash)
 
-    def _to_trash(self, files):
-        '''Sending to trash might be slow
-        So we start two threads which run _sender function in parallel and each of them waiting and
-        setting certain event:
-            1. remove one which signals that _sender need try to call send2trash for current file
-               and if it fails collect error message (always ascii, no bother with encoding)
-            2. report one which call _status function to display message on status-bar so user
-               can see what is going on
-        When loop in _sender is finished we refresh view and show errors if any.
+        view.settings().get('dired_confirm_delete', True)
+        if (
+            view.settings().get('dired_confirm_delete', True)
+            and not sublime.ok_cancel_dialog(msg)
+        ):
+            return
 
-        On Windows we call API directly in call_SHFileOperationW class.
-        '''
-        path = self.path
-        if NT:  # use winapi directly, because better errors handling, plus GUI
-            sources_move = [join(path, f) for f in files]
-            return call_SHFileOperationW(self.view, sources_move, [], '$TRASH$')
+        emit_event('ignore_view', view.id())
 
-        errors = []
-
-        def _status(filename='', done=False):
-            if done:
-                sublime.set_timeout(lambda: self.view.run_command('dired_refresh'), 1)
-                if errors:
-                    sublime.error_message(
-                        'Some files couldn’t be sent to trash '
-                        '(perhaps, they are being used by another process): \n\n'
-                        + '\n'.join(errors).replace('Couldn\'t perform operation.', '')
-                    )
-            else:
-                status = 'Please, wait… Removing ' + filename
-                sublime.set_timeout(lambda: self.view.set_status("__FileBrowser__", status), 1)
-
-        def _sender(files, event_for_wait, event_for_set):
-            for filename in files:
-                event_for_wait.wait()
-                event_for_wait.clear()
-                if event_for_wait is remove_event:
-                    try:
-                        send2trash.send2trash(join(path, filename))
-                    except OSError as e:
-                        errors.append('{0}:\t{1}'.format(e, filename))
-                else:
-                    _status(filename)
-                event_for_set.set()
-            if event_for_wait is remove_event:
-                _status(done=True)
-
-        remove_event = threading.Event()
-        report_event = threading.Event()
-        t1 = threading.Thread(target=_sender, args=(files, remove_event, report_event))
-        t2 = threading.Thread(target=_sender, args=(files, report_event, remove_event))
-        t1.start()
-        t2.start()
-        report_event.set()
-
-    def _delete(self, files):
-        '''Delete is fast, no need to bother with threads or even status message
-        But need to bother with encoding of error messages since they are vary,
-        depending on OS and/or version of Python
-        '''
-        errors = []
+        files_, directories_ = [], []
         for filename in files:
             fqn = join(self.path, filename)
-            try:
-                if isdir(fqn):
-                    shutil.rmtree(fqn)
-                else:
-                    os.remove(fqn)
-            except (PermissionError, FileNotFoundError) as e:
-                e = str(e).split(':')[0].replace('[Error 5] ', 'Access denied')
-                errors.append('{0}:\t{1}'.format(e, filename))
-        self.view.run_command('dired_refresh')
-        if errors:
-            sublime.error_message('Some files couldn’t be deleted: \n\n' + '\n'.join(errors))
+            (directories_ if isdir(fqn) else files_).append(fqn)
+
+        if files_:
+            window.run_command("delete_file", {"files": files_, "prompt": False})
+        if directories_:
+            window.run_command("delete_folder", {"dirs": directories_, "prompt": False})
+
+        emit_event('watch_view', view.id())
+        view.run_command('dired_refresh')
 
 
 class DiredRenameCommand(TextCommand, DiredBaseCommand):
@@ -526,15 +452,15 @@ class call_SHFileOperationW(object):
         SHFileOperationW.argtypes = [ctypes.POINTER(SHFILEOPSTRUCTW)]
         pFrom = '\x00'.join(sources) + '\x00'
         pTo   = ('%s\x00' % destination) if destination else None
-        wf = ctypes.WINFUNCTYPE(ctypes.wintypes.HWND)
+        wf = ctypes.WINFUNCTYPE(wintypes.HWND)
         get_hwnd = wf(ctypes.windll.user32.GetForegroundWindow)
         args  = SHFILEOPSTRUCTW(
             hwnd   = get_hwnd(),
-            wFunc  = ctypes.wintypes.UINT(mode),
-            pFrom  = ctypes.wintypes.LPCWSTR(pFrom),
-            pTo    = ctypes.wintypes.LPCWSTR(pTo),
+            wFunc  = wintypes.UINT(mode),
+            pFrom  = wintypes.LPCWSTR(pFrom),
+            pTo    = wintypes.LPCWSTR(pTo),
             fFlags = fFlags,
-            fAnyOperationsAborted = ctypes.wintypes.BOOL()
+            fAnyOperationsAborted = wintypes.BOOL()
         )
         out = SHFileOperationW(ctypes.byref(args))
 

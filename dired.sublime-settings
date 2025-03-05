@@ -10,8 +10,8 @@
   // if tab is focused
   "dired_show_full_path": false,
 
-  // If true 'Send to Trash' command will confirm the action with a dialog box
-  "dired_confirm_send2trash": true,
+  // If true a dialog box asks for confirmation for any delete operations
+  "dired_confirm_deletions": true,
 
   // Showing hidden files by default
   "dired_show_hidden_files": true,
