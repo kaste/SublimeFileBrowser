@@ -1,5 +1,5 @@
 '''Common stuff, used in other modules'''
-
+from __future__ import annotations
 import re
 import os
 import fnmatch
@@ -262,7 +262,7 @@ class DiredBaseCommand:
     def get_all_relative(self, path):
         return [f.replace(path, '', 1) for f in self.get_all()]
 
-    def get_selected(self, parent=True, full=False):
+    def get_selected(self, parent=True, full=False) -> list[str] | None:
         """
         parent
             if False, returned list does not contain PARENT_SYM even if it is in view
@@ -283,7 +283,7 @@ class DiredBaseCommand:
                 names.append(text)
         return names
 
-    def get_marked(self, full=False):
+    def get_marked(self, full=False) -> list[str] | None:
         '''self.index should be assigned before call it'''
         if not self.filecount():
             return []
@@ -544,8 +544,12 @@ class DiredBaseCommand:
         self.view.show_at_center(s)
 
     def display_path(self, folder):
-        display = folder
-        home = os.path.expanduser("~")
-        if folder.startswith(home):
-            display = folder.replace(home, "~", 1)
-        return display
+        return display_path(folder)
+
+
+def display_path(folder):
+    display = folder
+    home = os.path.expanduser("~")
+    if folder.startswith(home):
+        display = folder.replace(home, "~", 1)
+    return display

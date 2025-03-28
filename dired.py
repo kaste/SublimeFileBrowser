@@ -1,5 +1,5 @@
 '''Main module; launch and navigation related stuff'''
-
+from __future__ import annotations
 from collections import defaultdict
 import os
 from os.path import basename, dirname, isdir, exists, join
@@ -11,8 +11,8 @@ from sublime import Region
 from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
-    DiredBaseCommand, set_proper_scheme, calc_width, get_group, hijack_window, emit_event,
-    NT, PARENT_SYM)
+    DiredBaseCommand, calc_width, display_path, emit_event, get_group, hijack_window,
+    set_proper_scheme, NT, PARENT_SYM)
 from . import prompt
 from .show import show
 from .jumping import jump_names
@@ -53,7 +53,7 @@ def plugin_unloaded():
     sublime.load_settings('dired.sublime-settings').clear_on_change('dired_autorefresh')
 
 
-class dired(WindowCommand, DiredBaseCommand):
+class dired(WindowCommand):
     """
     Open a dired view.  This is the main entrypoint/constructor.
 
@@ -121,7 +121,7 @@ class dired(WindowCommand, DiredBaseCommand):
         for i, f in enumerate(folders):
             name     = names[i]
             offset   = ' ' * (longest_name - len(name) + 1)
-            names[i] = '%s%s%s' % (name, offset, self.display_path(f))
+            names[i] = '%s%s%s' % (name, offset, display_path(f))
 
         self.window.show_quick_panel(
             names,
@@ -164,6 +164,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     to get full path, instead of grinding with substr thru entire view
     substr is slow: https://github.com/SublimeTextIssues/Core/issues/882
     """
+    sels: tuple[list[str] | None, list[Region] | None] | None
+
     def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None):
         """
         goto
@@ -415,7 +417,7 @@ class dired_move(TextCommand, DiredBaseCommand):
 
 class dired_select(TextCommand, DiredBaseCommand):
     '''Common command for opening file/directory in existing view'''
-    def run(self, edit, new_view=0, other_group=0, and_close=0):
+    def run(self, edit, new_view=False, other_group=False, and_close=0):
         '''
         new_view     if True, open directory in new view, rather than existing one
         other_group  if True, create a new group (if need) and open file in this group
@@ -426,6 +428,7 @@ class dired_select(TextCommand, DiredBaseCommand):
                      self.get_marked(full=True) or self.get_selected(full=True))
 
         window = self.view.window()
+        assert window
         if self.goto_directory(filenames, window, new_view):
             return
 
@@ -442,38 +445,39 @@ class dired_select(TextCommand, DiredBaseCommand):
                         other_view.close()
                 window.focus_view(dired_view)
 
-        self.last_created_view = None
-        for fqn in filenames:
-            self.open_item(fqn, window, new_view)
+        last_created_view = None
+        for fqn in filenames or []:
+            last_created_view = self.open_item(fqn, window, new_view)
 
         if and_close:
             window.focus_view(dired_view)
             window.run_command("close")
-            if self.last_created_view:
-                window.focus_view(self.last_created_view)
+            if last_created_view:
+                window.focus_view(last_created_view)
 
-    def goto_directory(self, filenames, window, new_view):
+    def goto_directory(self, filenames, window: sublime.Window, new_view: bool):
         '''If reuse view is turned on and the only item is a directory, refresh the existing view'''
         if new_view and reuse_view():
             return False
         fqn = filenames[0]
         if len(filenames) == 1 and isdir(fqn):
-            show(self.view.window(), fqn, view_id=self.view.id())
+            show(window, fqn, view_id=self.view.id())
             return True
         elif fqn == PARENT_SYM:
-            self.view.window().run_command("dired_up")
+            window.run_command("dired_up")
             return True
         return False
 
-    def open_item(self, fqn, window, new_view):
+    def open_item(self, fqn, window, new_view) -> sublime.View | None:
         if isdir(fqn):
             show(window, fqn, ignore_existing=new_view)
         elif exists(fqn):  # ignore 'item <error>'
-            self.last_created_view = window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
+            return window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
         else:
             sublime.status_message(
                 'File does not exist ({0})'.format((basename(fqn.rstrip(os.sep)) or fqn))
             )
+        return None
 
     def focus_other_group(self, window):
         '''call it when preview open in other group'''
@@ -516,6 +520,7 @@ class dired_preview(dired_select):
 
         if exists(fqn):
             window = self.view.window()
+            assert window
             dired_view = self.view
             will_create_preview_group = window.num_groups() == 1
             group = self._other_group(window, window.active_group())
@@ -601,7 +606,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         toggle  if True, state of directory(s) will be toggled (i.e. expand/collapse)
         '''
         self.index = self.get_all()
-        items = self.get_marked(full=True) or self.get_selected(parent=False, full=True)
+        items = self.get_marked(full=True) or self.get_selected(parent=False, full=True) or []
         paths = [path for path in items if path.endswith(os.sep)]
 
         if len(paths) == 1:
@@ -680,6 +685,8 @@ class dired_fold(TextCommand, DiredBaseCommand):
     Very important, in case of actual modification of view, set valid dired_index setting
                     see DiredRefreshCommand docs for details
     '''
+    sels: tuple[list[str] | None, list[Region] | None] | None
+
     def run(self, edit, update=None, index=None):
         '''
         update
@@ -693,7 +700,7 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.update = update
         self.index  = index or self.get_all()
         self.marked = None
-        self.seled  = (self.get_selected(), list(self.view.sel()))
+        self.sels  = (self.get_selected(), list(self.view.sel()))
         marks       = self.view.get_regions('marked')
         virt_sels   = []
 
@@ -709,7 +716,7 @@ class dired_fold(TextCommand, DiredBaseCommand):
             self.fold(edit, line)
 
         self.restore_marks(self.marked)
-        self.restore_sels(self.seled)
+        self.restore_sels(self.sels)
         self.view.run_command("dired_draw_vcs_marker")
 
     def fold(self, edit, line):
@@ -781,13 +788,13 @@ class dired_fold(TextCommand, DiredBaseCommand):
             self.index = self.index[:start_line] + self.index[end_line:]
             v.settings().set('dired_index', self.index)
 
-        if self.marked or self.seled:
+        if self.marked or self.sels:
             path = self.path
             folded_name = self.get_parent(line, path)
             if self.marked:
                 self.marked.append(folded_name)
-            elif self.seled:
-                self.seled[0].append(folded_name)
+            elif self.sels and self.sels[0]:
+                self.sels[0].append(folded_name)
 
         name_point  = self._get_name_point(line)
         icon_region = Region(name_point - 2, name_point - 1)
@@ -846,7 +853,9 @@ class dired_mark_extension(TextCommand, DiredBaseCommand):
             ext = ''
         else:
             ext = current_item.split('.')[-1]
-        pv = self.view.window().show_input_panel('Extension:', ext, self.on_done, None, None)
+        window = self.view.window()
+        assert window
+        pv = window.show_input_panel('Extension:', ext, self.on_done, None, None)
         pv.run_command("select_all")
 
     def on_done(self, ext):
