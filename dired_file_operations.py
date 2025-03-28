@@ -262,13 +262,6 @@ class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
         existing = set(before)
         window = self.view.window()
 
-        def retarget(a, b):
-            if not window:
-                return
-            view = window.find_open_file(a)
-            if view:
-                view.retarget(b)
-
         while diffs:
             b, a = diffs.pop(0)
 
@@ -303,7 +296,7 @@ class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
                     )
                     sublime.error_message(msg)
                     return
-            retarget(orig, join(path, a))
+            retarget(orig, join(path, a), window)
             existing.remove(b)
             existing.add(a)
 
@@ -311,6 +304,13 @@ class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
         '''Make sure that expanded directories will keep state if were renamed'''
         expanded = [self.view.line(r) for r in self.view.find_all(r'^\s*▾')]
         return [self._new_name(line, full=True) for line in expanded]
+
+
+def retarget(a, b, window=None):
+    for w in [window] if window else sublime.windows():
+        if view := w.find_open_file(a):
+            view.retarget(b)
+            return
 
 
 class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
@@ -468,6 +468,9 @@ class call_SHFileOperationW(object):
             lambda: emit_event('watch_view', self.view.id()), 1)
         if not out and destination:  # 0 == success
             sublime.set_timeout(lambda: self.view.run_command('dired_clear_copy_cut_list'), 1)
+            if mode == 1:
+                for s in sources:
+                    retarget(s, join(destination, basename(s)))
         else:  # probably user cancel op., or sth went wrong; keep settings
             sublime.set_timeout(lambda: self.view.run_command('dired_refresh'), 1)
 
@@ -595,6 +598,9 @@ class call_SystemAgnosticFileOperation(object):
                 sublime.error_message('FileBrowser:\n\n' + e)
         except Exception as e:  # just in case
             sublime.error_message('FileBrowser:\n\n' + str([e]))
+        else:
+            if mode == 'move':
+                retarget(source_name, new_name)
 
     def progress_bar(self, threads, i=0, dir=1):
         threads = [t for t in threads if t.is_alive()]
