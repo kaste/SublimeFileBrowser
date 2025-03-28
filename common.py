@@ -494,7 +494,7 @@ class DiredBaseCommand:
             seled_fnames, seled_regions = sels
             path = self.get_path()
             regions = []
-            for selection in seled_fnames:
+            for selection in seled_fnames or []:
                 matches = self._find_in_view(selection)
                 for region in matches:
                     filename = self.get_parent(region, path)
