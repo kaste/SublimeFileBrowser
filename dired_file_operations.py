@@ -359,7 +359,7 @@ class DiredPasteFilesCommand(TextCommand, DiredBaseCommand):
                 self.view, sources_move, sources_copy, destination)
 
 
-class DiredPasteFilesToCommand(TextCommand, DiredBaseCommand):
+class dired_paste_files_to(TextCommand, DiredBaseCommand):
     '''Init prompt for path where to paste, then init file ops.'''
     def run(self, edit):
         s = self.view.settings()
@@ -391,7 +391,7 @@ class DiredPasteFilesToCommand(TextCommand, DiredBaseCommand):
             return call_SystemAgnosticFileOperation(self.view, move, copy, destination)
 
 
-class DiredClearCopyCutList(TextCommand):
+class dired_clear_copy_cut_list(TextCommand):
     def run(self, edit):
         sublime.load_settings('dired.sublime-settings').set('dired_to_move', [])
         sublime.load_settings('dired.sublime-settings').set('dired_to_copy', [])

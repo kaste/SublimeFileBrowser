@@ -53,7 +53,7 @@ def plugin_unloaded():
     sublime.load_settings('dired.sublime-settings').clear_on_change('dired_autorefresh')
 
 
-class DiredCommand(WindowCommand, DiredBaseCommand):
+class dired(WindowCommand, DiredBaseCommand):
     """
     Open a dired view.  This is the main entrypoint/constructor.
 
@@ -403,17 +403,17 @@ class dired_refresh(TextCommand, DiredBaseCommand):
 
 # NAVIGATION #####################################################
 
-class DiredNextLineCommand(TextCommand, DiredBaseCommand):
+class dired_next_line(TextCommand, DiredBaseCommand):
     def run(self, edit, forward=None):
         self.move(forward)
 
 
-class DiredMoveCommand(TextCommand, DiredBaseCommand):
+class dired_move(TextCommand, DiredBaseCommand):
     def run(self, edit, to="bof"):
         self.move_to_extreme(to)
 
 
-class DiredSelect(TextCommand, DiredBaseCommand):
+class dired_select(TextCommand, DiredBaseCommand):
     '''Common command for opening file/directory in existing view'''
     def run(self, edit, new_view=0, other_group=0, and_close=0):
         '''
@@ -499,7 +499,7 @@ class DiredSelect(TextCommand, DiredBaseCommand):
         return group
 
 
-class DiredPreviewCommand(DiredSelect):
+class dired_preview(dired_select):
     '''Open file as a preview, so focus remains in FileBrowser view'''
     def run(self, edit):
         self.index = self.get_all()
@@ -594,7 +594,7 @@ class PreviewViewHandler(EventListener):
             window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
 
 
-class DiredExpand(TextCommand, DiredBaseCommand):
+class dired_expand(TextCommand, DiredBaseCommand):
     '''Open directory(s) inline, aka treeview'''
     def run(self, edit, toggle=False):
         '''
@@ -659,7 +659,7 @@ class DiredExpand(TextCommand, DiredBaseCommand):
             emit_event('stop_watch', self.view.id())
 
 
-class DiredFold(TextCommand, DiredBaseCommand):
+class dired_fold(TextCommand, DiredBaseCommand):
     '''
     This command used to fold/erase/shrink (whatever you like to call it) content
     of some [sub]directory (within current directory, see self.path).
@@ -802,7 +802,7 @@ class DiredFold(TextCommand, DiredBaseCommand):
             emit_event('stop_watch', self.view.id())
 
 
-class DiredUpCommand(TextCommand, DiredBaseCommand):
+class dired_up(TextCommand, DiredBaseCommand):
     def run(self, edit):
         path = self.path
         if path == 'ThisPC\\':
@@ -823,7 +823,7 @@ class DiredUpCommand(TextCommand, DiredBaseCommand):
         show(self.view.window(), parent, view_id, goto=goto)
 
 
-class DiredGotoCommand(TextCommand, DiredBaseCommand):
+class dired_goto(TextCommand, DiredBaseCommand):
     """
     Prompt for a new directory.
     """
@@ -836,7 +836,7 @@ class DiredGotoCommand(TextCommand, DiredBaseCommand):
 
 # MARKING ###########################################################
 
-class DiredMarkExtensionCommand(TextCommand, DiredBaseCommand):
+class dired_mark_extension(TextCommand, DiredBaseCommand):
     def run(self, edit):
         filergn = self.fileregion()
         if filergn.empty():
@@ -859,7 +859,7 @@ class DiredMarkExtensionCommand(TextCommand, DiredBaseCommand):
                    regions=[self.fileregion()])
 
 
-class DiredMarkCommand(TextCommand, DiredBaseCommand):
+class dired_mark(TextCommand, DiredBaseCommand):
     """
     Marks or unmarks files.
 
@@ -899,7 +899,7 @@ class DiredMarkCommand(TextCommand, DiredBaseCommand):
 
 # OTHER #############################################################
 
-class DiredToggleHiddenFilesCommand(TextCommand):
+class dired_toggle_hidden_files(TextCommand):
     def run(self, edit):
         show = self.view.settings().get('dired_show_hidden_files', True)
         self.view.settings().set('dired_show_hidden_files', not show)
@@ -908,7 +908,7 @@ class DiredToggleHiddenFilesCommand(TextCommand):
 
 # MOUSE INTERACTIONS #################################################
 
-class DiredDoubleclickCommand(TextCommand, DiredBaseCommand):
+class dired_doubleclick(TextCommand, DiredBaseCommand):
     def run_(self, _, args):
         view = self.view
         s = view.settings()
