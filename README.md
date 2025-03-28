@@ -3,6 +3,22 @@
 
 Ditch sidebar and browse your files in a normal tab with keyboard, like a pro!
 
+# DISCLAIMER:
+
+The pictures advertise a sidebar like layout.  Well, likely that has bugs.  The
+main challenge is it to write code that reliable opens and closes such
+sidebars -- think a specialized ORIGAMI --, and then detects them e.g. after
+restarting Sublime Text.
+
+Just file the bugs or even better fix'em with pull requests.  I did not write
+all of the code.  I'm just the maintainer and work solely with the Dired
+Browser in a full view mode to browse the directories, and to create and
+rename and copy and paste files.
+
+This "main" functionality should just work fine.  And with the sidebar thing,
+... well, maybe the original authors had not the right, generalized, approach
+in mind but "hacked" through it.
+
 ![SublimeFileBrowser Screenshot](assets/6253230706d2e706e67.png)
 
 You can also use it as a sidebar that you can put on right or left side
