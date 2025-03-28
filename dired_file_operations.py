@@ -598,9 +598,9 @@ class call_SystemAgnosticFileOperation(object):
                     'FileBrowser:\n\n{0}'.format('\n'.join([i[-1] for i in m]))
                 )
             else:
-                sublime.error_message('FileBrowser:\n\n' + e)
+                sublime.error_message(f'FileBrowser:\n\n{e}')
         except Exception as e:  # just in case
-            sublime.error_message('FileBrowser:\n\n' + str([e]))
+            sublime.error_message(f'FileBrowser:\n\n{e}')
         else:
             if mode == 'move':
                 retarget(source_name, new_name)
