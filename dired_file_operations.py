@@ -585,9 +585,12 @@ class call_SystemAgnosticFileOperation(object):
 
     def _do(self, mode, source_name, new_name):
         try:
-            if mode == 'move': shutil.move(source_name, new_name)
-            if mode == 'dir':  shutil.copytree(source_name, new_name)
-            if mode == 'file': shutil.copy2(source_name, new_name)
+            if mode == 'move':
+                shutil.move(source_name, new_name)
+            elif mode == 'dir':
+                shutil.copytree(source_name, new_name)
+            elif mode == 'file':
+                shutil.copy2(source_name, new_name)
         except shutil.Error as e:
             m = e.args[0]
             if isinstance(m, list):
