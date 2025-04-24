@@ -129,9 +129,14 @@ class dired(WindowCommand):
             sublime.MONOSPACE_FONT
         )
 
-    def _fallback_path(self):
+    def _fallback_path(self) -> str:
+        if view := self.window.active_view():
+            if repo_path := view.settings().get("git_savvy.repo_path"):
+                return repo_path
         folders = self.window.folders()
-        return folders[0] if folders else os.path.expanduser('~')
+        if folders:
+            return folders[0]
+        return os.path.expanduser('~')
 
     def _best_root_for_fpath(self, fpath):
         folders = self.window.folders()
