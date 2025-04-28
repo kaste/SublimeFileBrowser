@@ -133,8 +133,8 @@ class dired(WindowCommand):
         if view := self.window.active_view():
             if repo_path := view.settings().get("git_savvy.repo_path"):
                 return repo_path
-        folders = self.window.folders()
-        if folders:
+
+        if folders := self.window.folders():
             return folders[0]
         return os.path.expanduser('~')
 
