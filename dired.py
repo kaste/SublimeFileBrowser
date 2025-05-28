@@ -877,8 +877,8 @@ class dired_mark(TextCommand, DiredBaseCommand):
     """
     Marks or unmarks files.
 
-    The mark can be set to '*' to mark a file, ' ' to unmark a file,  or 't' to toggle the
-    mark.
+    The mark can be set to True to mark a file, False to unmark a file, or 'toggle' to
+    toggle the mark.
 
     By default only selected files are marked, but if markall is True all files are
     marked/unmarked and the selection is ignored.
@@ -888,6 +888,13 @@ class dired_mark(TextCommand, DiredBaseCommand):
     """
     def run(self, edit, mark=True, markall=False, forward=True):
         assert mark in (True, False, 'toggle')
+
+        # If there is no selection, move the cursor so the user can keep pressing 'm'
+        # to mark or toggle successive files.
+        should_move = not markall and len(self.view.sel()) == 1 and self.view.sel()[0].empty()
+
+        if should_move and not forward:
+            self.move(forward)
 
         filergn = self.fileregion()
         if filergn.empty():
@@ -905,9 +912,7 @@ class dired_mark(TextCommand, DiredBaseCommand):
 
         self._mark(mark=mark, regions=regions)
 
-        # If there is no selection, move the cursor forward so the user can keep pressing 'm'
-        # to mark successive files.
-        if not markall and len(self.view.sel()) == 1 and self.view.sel()[0].empty():
+        if should_move and forward:
             self.move(forward)
 
 
