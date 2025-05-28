@@ -29,6 +29,7 @@
 | Copy                          | super+c or ctrl+c         |
 | Cut                           | super+x or ctrl+x         |
 | Paste                         | super+v or ctrl+v         |
+| Reset copy/cut list           | super+z or ctrl+z         |
 | Rename                        | R                         |
 | Delete to trash               | D                         |
 | Delete (permanently)          | alt+shift+d               |
