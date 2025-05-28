@@ -24,7 +24,6 @@ from .common import (
     DiredBaseCommand, hijack_window, get_group, emit_event,
     MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely)
 
-SYNTAX_EXTENSION = '.sublime-syntax'
 
 STARTUPINFO = None
 if sys.platform == "win32":
@@ -74,43 +73,59 @@ class DiredFindInFilesCommand(TextCommand, DiredBaseCommand):
 
 # HELP ##############################################################
 
-class dired_help(TextCommand):
-    def run(self, edit):
-        view = self.view.window().new_file()
-        view.set_name("Browse: shortcuts")
-        view.set_scratch(True)
-        view.settings().set('rulers', [])
-        view.settings().set('color_scheme', 'Packages/FileBrowser/dired.hidden-tmTheme')
-        view.settings().set('syntax', 'Packages/FileBrowser/dired-help' + SYNTAX_EXTENSION)
-        view.settings().set('margin', 16)
-        view.settings().set('line_numbers', False)
-        view.settings().set('gutter', False)
-        view.settings().set('fold_buttons', False)
-        view.settings().set('draw_indent_guides', False)
-        view.settings().set('word_wrap', False)
-        view.settings().set('spell_check', False)
-        view.settings().set('drag_text', False)
-        view.run_command('dired_show_help')
-        sublime.active_window().focus_view(view)
+
+PANEL_NAME = "dired_help"
+HELP_VIEW_SETTINGS = {
+    'rulers': [],
+    'color_scheme': 'Packages/FileBrowser/dired.hidden-tmTheme',
+    'syntax': 'Packages/FileBrowser/dired-help.sublime-syntax',
+    'margin': 16,
+    'line_numbers': False,
+    'gutter': False,
+    'fold_buttons': False,
+    'draw_indent_guides': False,
+    'word_wrap': False,
+    'spell_check': False,
+    'drag_text': False,
+}
+
+def ensure_panel(window: sublime.Window) -> sublime.View:
+    panel = window.find_output_panel(PANEL_NAME)
+    if panel:
+        return panel
+    panel = window.create_output_panel(PANEL_NAME)
+    panel.set_read_only(True)
+    return panel
 
 
-class dired_show_help(TextCommand):
+def show_panel(window: sublime.Window) -> sublime.View:
+    panel = ensure_panel(window)
+    window.run_command("show_panel", {"panel": "output.{}".format(PANEL_NAME)})
+    return panel
+
+
+class dired_help(sublime_plugin.TextCommand):
     def run(self, edit):
+        window = self.view.window()
+        if not window:
+            return
+        panel = show_panel(window)
+        for key, value in HELP_VIEW_SETTINGS.items():
+            panel.settings().set(key, value)
+        # load help content
         content = sublime.load_resource('Packages/FileBrowser/shortcuts.md')
         if not content:
-            window = self.view.window()
             window.status_message("Could not load 'Packages/FileBrowser/shortcuts.md'.")
             return
-
-        normed_content = (
-            content
-            .replace('\r\n', '\n')
-            .replace('\r', '\n')
-        )
-        self.view.erase(edit, Region(0, self.view.size()))
-        self.view.insert(edit, 0, normed_content)
-        self.view.sel().clear()
-        self.view.set_read_only(True)
+        # normalize line endings
+        content = content.replace('\r\n', '\n').replace('\r', '\n')
+        panel.set_read_only(False)
+        panel.run_command("select_all")
+        panel.run_command("right_delete")
+        panel.run_command("append", {"characters": content})
+        panel.set_read_only(True)
+        panel.sel().clear()
+        panel.show(0)
 
 
 # OTHER #############################################################

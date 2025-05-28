@@ -244,9 +244,18 @@
   },
   {
     "keys": ["?"],
-    "command": "close",
+    "command": "hide_panel",
     "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired_help" },
+    ]
+  },
+  {
+    "keys": ["?"],
+    "command": "hide_panel",
+    "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "panel", "operand": "output.dired_help" },
+        { "key": "panel_visible" },
     ]
   },
   {
