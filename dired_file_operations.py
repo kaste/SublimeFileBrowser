@@ -338,7 +338,7 @@ class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
         self.set_status()
 
 
-class DiredPasteFilesCommand(TextCommand, DiredBaseCommand):
+class dired_paste_files(TextCommand, DiredBaseCommand):
     '''Init file operation(s) for stored names in settings, when user paste'''
     def run(self, edit):
         s = self.view.settings()
@@ -348,15 +348,30 @@ class DiredPasteFilesCommand(TextCommand, DiredBaseCommand):
             return sublime.status_message('Nothing to paste')
 
         self.index  = self.get_all()
-        path        = self.get_path()
-        rel_path    = relative_path(self.get_selected(parent=False) or '')
-        destination = join(path, rel_path) or path
+        selected = self.get_selected(parent=False, full=True)
+        if not selected:
+            destination = self.get_path()
+        elif (
+            (selection := selected[0])
+            and selection.endswith(os.sep)
+            and not is_directory_expanded(self.view)
+        ):
+            destination = os.path.dirname(selection.rstrip(os.sep)) + os.sep
+        else:
+            destination = os.path.dirname(selected[0]) + os.sep
+
         emit_event('ignore_view', self.view.id())
         if NT:
             return call_SHFileOperationW(self.view, sources_move, sources_copy, destination)
         else:
             return call_SystemAgnosticFileOperation(
                 self.view, sources_move, sources_copy, destination)
+
+
+def is_directory_expanded(view):
+    line_region = view.line(view.sel()[0].a)
+    line_content = view.substr(line_region)
+    return '▾' in line_content
 
 
 class dired_paste_files_to(TextCommand, DiredBaseCommand):
