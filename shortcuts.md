@@ -1,8 +1,3 @@
- General Shortcuts:
-:            Command            :          Shortcut         :
-| Shortcuts page                | ?                         |
-| Refresh view                  | r                         |
-
  Navigation Shortcuts:
 :            Command            :          Shortcut         :
 | Move to previous              | k or up                   |
@@ -55,3 +50,8 @@
 :            Command            :          Shortcut         :
 | Apply changes                 | enter                     |
 | Discard changes               | escape                    |
+
+ General Shortcuts:
+:            Command            :          Shortcut         :
+| Shortcuts page                | ?                         |
+| Refresh view                  | r                         |
