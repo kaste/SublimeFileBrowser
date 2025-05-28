@@ -74,7 +74,7 @@ class DiredFindInFilesCommand(TextCommand, DiredBaseCommand):
 
 # HELP ##############################################################
 
-class DiredHelpCommand(TextCommand):
+class dired_help(TextCommand):
     def run(self, edit):
         view = self.view.window().new_file()
         view.set_name("Browse: shortcuts")
@@ -94,7 +94,7 @@ class DiredHelpCommand(TextCommand):
         sublime.active_window().focus_view(view)
 
 
-class DiredShowHelpCommand(TextCommand):
+class dired_show_help(TextCommand):
     def run(self, edit):
         content = sublime.load_resource('Packages/FileBrowser/shortcuts.md')
         if not content:
