@@ -11,15 +11,18 @@ You can also use it as a sidebar that you can put on right or left side
 
 ### DISCLAIMER:
 
-The pictures advertise a sidebar like layout.  Well, likely that has bugs.  The
-main challenge is it to write code that reliable opens and closes such
+The pictures advertise a sidebar like layout.  Well, likely that has bugs.  Not
+terrible bugs but glitches.  I actually don't even know, I just read the code.
+
+The main challenge here is it to write code that reliable opens and closes such
 sidebars -- think a specialized Origami --, and then detects them e.g. after
-restarting Sublime Text.
+restarting Sublime Text.  And .. well, I doubt that this implemented 100%
+correct.
 
 Just file the bugs or even better fix'em with pull requests.  I did not write
-all of the code.  I'm just the maintainer and work solely with the Dired
-Browser in a full view mode to browse the directories, and to create and
-rename and copy and paste files.
+all of the code.  I'm just the maintainer and use dired only in the full view
+mode, to browse the directories, and to create and rename and copy and paste
+files.
 
 This "main" functionality should just work fine.  And with the sidebar thing,
 ... well, maybe the original authors had not the right, generalized, approach
