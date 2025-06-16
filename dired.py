@@ -931,15 +931,8 @@ class dired_doubleclick(TextCommand, DiredBaseCommand):
     def run_(self, _, args):
         view = self.view
         s = view.settings()
-        if s.get("dired_path") and not s.get("dired_rename_mode"):
+        if s.get("dired_path"):
             if 'directory' in view.scope_name(view.sel()[0].a):
-                command = ("dired_expand", {"toggle": True})
+                view.run_command("dired_expand", {"toggle": True})
             else:
-                command = ("dired_select", {"other_group": True})
-            view.run_command(*command)
-        else:
-            system_command = args["command"] if "command" in args else None
-            if system_command:
-                system_args = dict({"event": args["event"]}.items())
-                system_args.update(dict(args["args"].items()))
-                view.run_command(system_command, system_args)
+                view.run_command("dired_select", {"other_group": True})

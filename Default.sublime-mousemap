@@ -2,6 +2,10 @@
 {
   "button": "button1", "count": 2,
   "press_command": "dired_doubleclick",
-  "press_args": {"command": "drag_select", "args": {"by": "words"}}
-}
+  "press_args": {"command": "drag_select", "args": {"by": "words"}},
+  "context": [
+      { "key": "selector", "operator": "equal", "operand": "text.dired" },
+      { "key": "setting.dired_rename_mode", "operand": false }
+  ]
+ }
 ]
