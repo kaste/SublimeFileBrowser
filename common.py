@@ -608,7 +608,8 @@ class DiredBaseCommand:
                 regions.append(Region(r.a + i, r.a + i + n))
                 start = i + n if n else i + 1
 
-        SUBTLE_MATCH_HIGHLIGHTING = True
+        # Subtle when not actively typing in the filter input panel
+        subtle_highlighting = not self.view.settings().get('dired_filter_live', False)
         if regions:
             # Use a standard region scope for visibility across themes
             self.view.add_regions(
@@ -619,7 +620,7 @@ class DiredBaseCommand:
                     64
                     | (
                         sublime.DRAW_SOLID_UNDERLINE | sublime.DRAW_NO_OUTLINE
-                        if SUBTLE_MATCH_HIGHLIGHTING else
+                        if subtle_highlighting else
                         0
                     )
                     | sublime.RegionFlags.DRAW_NO_FILL

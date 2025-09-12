@@ -290,12 +290,14 @@ class dired_filter(TextCommand, DiredBaseCommand):
             self.view.run_command('dired_refresh')
 
         def on_done(text: str):
+            self.view.settings().set('dired_filter_live', False)
             apply_filter(text)
 
         def on_change(text: str):
             apply_filter(text)
 
         def on_cancel():
+            self.view.settings().set('dired_filter_live', False)
             if current:
                 self.view.settings().set('dired_filter', current)
             else:
@@ -303,6 +305,7 @@ class dired_filter(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_filter_enabled', enabled)
             self.view.run_command('dired_refresh')
 
+        self.view.settings().set('dired_filter_live', True)
         self.view.settings().set('dired_filter_enabled', True)
         pv = window.show_input_panel('Filter:', current if enabled else "", on_done, on_change, on_cancel)
         if enabled:
