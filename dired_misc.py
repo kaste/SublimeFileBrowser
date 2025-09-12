@@ -278,12 +278,13 @@ class dired_filter(TextCommand, DiredBaseCommand):
         window = self.view.window()
         if not window:
             return
+
         current = self.view.settings().get('dired_filter') or ''
+        enabled = self.view.settings().get('dired_filter_enabled', True)
 
         def apply_filter(text: str):
             if text:
                 self.view.settings().set('dired_filter', text)
-                self.view.settings().set('dired_filter_enabled', True)
             else:
                 self.view.settings().erase('dired_filter')
             self.view.run_command('dired_refresh')
@@ -295,13 +296,17 @@ class dired_filter(TextCommand, DiredBaseCommand):
             apply_filter(text)
 
         def on_cancel():
-            # Revert filter and refresh
-            self.view.settings().erase('dired_filter')
+            if current:
+                self.view.settings().set('dired_filter', current)
+            else:
+                self.view.settings().erase('dired_filter')
+            self.view.settings().set('dired_filter_enabled', enabled)
             self.view.run_command('dired_refresh')
 
-        pv = window.show_input_panel('Filter:', current, on_done, on_change, on_cancel)
-        # Pre-select existing content for quick overwrite
-        pv.run_command('select_all')
+        self.view.settings().set('dired_filter_enabled', True)
+        pv = window.show_input_panel('Filter:', current if enabled else "", on_done, on_change, on_cancel)
+        if enabled:
+            pv.run_command('select_all')
 
 
 class dired_toggle_filter(TextCommand, DiredBaseCommand):
