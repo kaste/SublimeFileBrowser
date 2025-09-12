@@ -511,6 +511,19 @@ class DiredBaseCommand:
             if regions:
                 return self._add_sels(regions)
             else:
+                # If we’re live filtering and previously landed on the parent line,
+                # prefer the first actual item instead of restoring the old region.
+                flt = self.view.settings().get('dired_filter')
+                flt_enabled = self.view.settings().get('dired_filter_enabled', True)
+                if flt and flt_enabled and seled_regions:
+                    # Check if first selection region is the parent link
+                    is_parent = 'parent_dir' in self.view.scope_name(seled_regions[0].a)
+                    has_items = bool(
+                        self.view.find_by_selector('text.dired dired.item.directory string.name.directory.dired ')
+                        or self.view.find_by_selector('text.dired dired.item.file string.name.file.dired ')
+                    )
+                    if is_parent and has_items:
+                        return self._add_sels()  # triggers filtered-first fallback
                 # e.g. when user remove file(s), we just restore sel RegionSet
                 # despite positions may be wrong sometimes
                 return self._add_sels(seled_regions)
@@ -539,11 +552,21 @@ class DiredBaseCommand:
 
         if not sels or not list(self.view.sel()):  # all sels more than eof
             fbs = self.view.find_by_selector
-            item = (
-                fbs('text.dired dired.item.parent_dir ')
-                or fbs('text.dired dired.item.directory string.name.directory.dired ')
-                or fbs('text.dired dired.item.file string.name.file.dired ')
-            )
+            # Prefer first real item when a live filter is active
+            flt = self.view.settings().get('dired_filter')
+            flt_enabled = self.view.settings().get('dired_filter_enabled', True)
+            if flt and flt_enabled:
+                item = (
+                    fbs('text.dired dired.item.directory string.name.directory.dired ')
+                    or fbs('text.dired dired.item.file string.name.file.dired ')
+                    or fbs('text.dired dired.item.parent_dir ')
+                )
+            else:
+                item = (
+                    fbs('text.dired dired.item.parent_dir ')
+                    or fbs('text.dired dired.item.directory string.name.directory.dired ')
+                    or fbs('text.dired dired.item.file string.name.file.dired ')
+                )
             s = Region(item[0].a, item[0].a) if item else Region(0, 0)
             self.view.sel().add(s)
 
