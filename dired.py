@@ -207,7 +207,12 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_up')
             return
 
-        self.expanded = expanded = self.view.find_all(r'^\s*▾') if not reset_sels else []
+        # Track expanded dirs via stored setting to survive filtering cycles
+        stored_expanded = self.view.settings().get('dired_expanded_paths') or []
+        # Normalize to list of strings
+        if not isinstance(stored_expanded, list):
+            stored_expanded = []
+        self.expanded = expanded = list(dict.fromkeys(stored_expanded)) if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
         self.goto = goto
         if os.sep in goto:
@@ -249,9 +254,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     def re_populate_view(self, edit, path, names, expanded, to_expand, toggle):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
-        for i, r in enumerate(expanded):
-            name = self.get_fullpath_for(r)
-            expanded[i] = name
+        # `expanded` already contains absolute paths collected from settings
         if toggle and to_expand:
             merged = list(set(expanded + to_expand))
             expanded = [e for e in merged if not (e in expanded and e in to_expand)]
@@ -269,6 +272,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         items = self.correcting_index(path, tree)
         self.write(edit, items)
         self.restore_selections(path)
+        # Persist expanded paths for future refreshes
+        try:
+            self.view.settings().set('dired_expanded_paths', self.expanded)
+        except Exception:
+            pass
         self.view.run_command('dired_call_vcs', {'path': path})
 
     def populate_view(self, edit, path, names):
@@ -668,6 +676,13 @@ class dired_expand(TextCommand, DiredBaseCommand):
         self.view.set_read_only(True)
 
         self.view.settings().set('dired_index', self.index)
+        # Persist expanded paths
+        try:
+            expanded = set(self.view.settings().get('dired_expanded_paths') or [])
+            expanded.add(path)
+            self.view.settings().set('dired_expanded_paths', list(expanded))
+        except Exception:
+            pass
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
@@ -732,6 +747,23 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.restore_marks(self.marked)
         self.restore_sels(self.sels)
         self.view.run_command("dired_draw_vcs_marker")
+        # Update persisted expanded paths based on current view state
+        try:
+            # Collect current expanded directory paths from visible arrows
+            regions = self.view.find_all(r'^\s*▾')
+            if regions:
+                self.index = self.get_all()
+                paths = []
+                for r in regions:
+                    try:
+                        paths.append(self.get_fullpath_for(r))
+                    except Exception:
+                        continue
+                self.view.settings().set('dired_expanded_paths', paths)
+            else:
+                self.view.settings().set('dired_expanded_paths', [])
+        except Exception:
+            pass
 
     def fold(self, edit, line):
         '''line is a Region, on which folding is supposed to happen (or not)'''
