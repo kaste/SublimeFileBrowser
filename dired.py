@@ -293,6 +293,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         '''Called if there is no exception in self.populate_view'''
         self.sel = None
         self.set_status()
+        # Apply filter for names passed directly (e.g., ThisPC case)
+        flt = self.view.settings().get('dired_filter')
+        if isinstance(flt, str) and flt != '':
+            low = flt.lower()
+            names = [n for n in names if low in n.lower()]
         items = self.correcting_index(path, self.prepare_filelist(names, path, '', ''))
         self.write(edit, items)
         self.restore_selections(path)

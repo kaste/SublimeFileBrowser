@@ -267,6 +267,42 @@ class DiredToggleAutoRefresh(TextCommand):
         self.view.run_command('dired_refresh')
 
 
+
+# FILTER ############################################################
+
+class dired_filter(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        window = self.view.window()
+        if not window:
+            return
+        current = self.view.settings().get('dired_filter') or ''
+
+        def apply_filter(text: str):
+            if text:
+                self.view.settings().set('dired_filter', text)
+            else:
+                self.view.settings().erase('dired_filter')
+            self.view.run_command('dired_refresh')
+
+        def on_done(text: str):
+            apply_filter(text)
+
+        def on_change(text: str):
+            apply_filter(text)
+
+        def on_cancel():
+            # Revert filter and refresh
+            self.view.settings().erase('dired_filter')
+            self.view.run_command('dired_refresh')
+
+        pv = window.show_input_panel('Filter:', current, on_done, on_change, on_cancel)
+        # Pre-select existing content for quick overwrite
+        pv.run_command('select_all')
+
+
 class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
     '''Show properties and content of directory in popup'''
     def run(self, edit, fqn=None, point=0):

@@ -452,6 +452,11 @@ class DiredBaseCommand:
                 )
         else:
             sort_nicely(items)
+            # Apply optional live filter if present
+            flt = self.view.settings().get('dired_filter')
+            if isinstance(flt, str) and flt != '':
+                low = flt.lower()
+                items = [n for n in items if low in n.lower()]
         finally:
             return items, error
 
