@@ -329,6 +329,23 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             if error:
                 tree[~0] += '\t<%s>' % error
                 return
+            # Ensure expanded child directories remain visible even if they do not
+            # match the current filter, so users can search within expanded trees.
+            forced = []
+            for e in expanded:
+                parent = dirname(e.rstrip(os.sep)) + os.sep
+                if parent == path:
+                    b = os.path.basename(os.path.abspath(e)) or e.rstrip(os.sep)
+                    name = b.rstrip(os.sep)
+                    if (name not in items) and isdir(join(path, name)):
+                        forced.append(name)
+            if forced:
+                items += forced
+                try:
+                    from .common import sort_nicely as _sn
+                    _sn(items)
+                except Exception:
+                    pass
             if not items:
                 if path == root:
                     return []
