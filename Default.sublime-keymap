@@ -193,8 +193,16 @@
     ]
   },
   {
-    "keys": ["/"],
+    "keys": ["i"],
     "command": "dired_filter",
+    "context": [
+      { "key": "selector", "operator": "equal", "operand": "text.dired" },
+      { "key": "setting.dired_rename_mode", "operand": false }
+    ]
+  },
+  {
+    "keys": ["I"] ,
+    "command": "dired_toggle_filter",
     "context": [
       { "key": "selector", "operator": "equal", "operand": "text.dired" },
       { "key": "setting.dired_rename_mode", "operand": false }

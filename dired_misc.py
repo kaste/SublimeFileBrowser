@@ -283,6 +283,7 @@ class dired_filter(TextCommand, DiredBaseCommand):
         def apply_filter(text: str):
             if text:
                 self.view.settings().set('dired_filter', text)
+                self.view.settings().set('dired_filter_enabled', True)
             else:
                 self.view.settings().erase('dired_filter')
             self.view.run_command('dired_refresh')
@@ -301,6 +302,24 @@ class dired_filter(TextCommand, DiredBaseCommand):
         pv = window.show_input_panel('Filter:', current, on_done, on_change, on_cancel)
         # Pre-select existing content for quick overwrite
         pv.run_command('select_all')
+
+
+class dired_toggle_filter(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        s = self.view.settings()
+        flt = s.get('dired_filter')
+        if not flt:
+            sublime.status_message('FileBrowser: No filter set')
+            return
+        enabled = s.get('dired_filter_enabled', True)
+        s.set('dired_filter_enabled', not enabled)
+        # Refresh and update highlight according to new state
+        self.view.run_command('dired_refresh')
+        state = 'On' if not enabled else 'Off'
+        sublime.status_message('FileBrowser: Filter {}'.format(state))
 
 
 class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):

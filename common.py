@@ -452,9 +452,10 @@ class DiredBaseCommand:
                 )
         else:
             sort_nicely(items)
-            # Apply optional live filter if present
+            # Apply optional live filter if present and enabled
             flt = self.view.settings().get('dired_filter')
-            if isinstance(flt, str) and flt != '':
+            enabled = self.view.settings().get('dired_filter_enabled', True)
+            if enabled and isinstance(flt, str) and flt != '':
                 low = flt.lower()
                 items = [n for n in items if low in n.lower()]
         finally:
@@ -560,7 +561,8 @@ class DiredBaseCommand:
         """
         key = 'dired_filter_hits'
         flt = self.view.settings().get('dired_filter')
-        if not flt:
+        enabled = self.view.settings().get('dired_filter_enabled', True)
+        if not enabled or not flt:
             self.view.erase_regions(key)
             return
 
