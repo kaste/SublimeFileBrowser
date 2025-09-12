@@ -378,6 +378,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         count = len(self.view.lines(fileregion)) if fileregion else 0
         self.view.settings().set('dired_count', count)
         self.view.settings().set('dired_index', self.index)
+        # Update filter highlights (if any)
+        self.update_filter_highlight()
 
     def correcting_index(self, path, fileslist):
         '''Add leading elements to self.index (if any), we need conformity of
@@ -668,6 +670,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
+        self.update_filter_highlight()
         if self.view.settings().get('dired_autorefresh', True):
             emit_event('add_paths', (self.view.id(), [path]))
         else:

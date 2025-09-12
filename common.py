@@ -551,6 +551,59 @@ class DiredBaseCommand:
     def display_path(self, folder):
         return display_path(folder)
 
+    # --- Live filter highlight -------------------------------------------------
+    def update_filter_highlight(self):
+        """Highlight occurrences of the active filter within visible item names.
+
+        Uses `add_regions` with a soft background style. Clears highlights when
+        no filter is set. Safe to call after any view rewrite (refresh/expand).
+        """
+        key = 'dired_filter_hits'
+        flt = self.view.settings().get('dired_filter')
+        if not flt:
+            self.view.erase_regions(key)
+            return
+
+        needle = flt.lower()
+
+        regions = []
+        # File names
+        for r in (
+            self.view.find_by_selector('text.dired string.name.file.dired')
+            + self.view.find_by_selector('text.dired string.name.directory.dired')
+        ):
+            text = self.view.substr(r)
+            low = text.lower()
+            start = 0
+            n = len(needle)
+            while True:
+                i = low.find(needle, start)
+                if i == -1:
+                    break
+                regions.append(Region(r.a + i, r.a + i + n))
+                start = i + n if n else i + 1
+
+        SUBTLE_MATCH_HIGHLIGHTING = True
+        if regions:
+            # Use a standard region scope for visibility across themes
+            self.view.add_regions(
+                key,
+                regions,
+                scope="region.bluish",
+                flags=(
+                    64
+                    | (
+                        sublime.DRAW_SOLID_UNDERLINE | sublime.DRAW_NO_OUTLINE
+                        if SUBTLE_MATCH_HIGHLIGHTING else
+                        0
+                    )
+                    | sublime.RegionFlags.DRAW_NO_FILL
+                    | sublime.RegionFlags.NO_UNDO
+                ),
+            )
+        else:
+            self.view.erase_regions(key)
+
 
 def display_path(folder):
     display = folder
