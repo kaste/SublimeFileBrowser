@@ -499,6 +499,9 @@ class dired_select(TextCommand, DiredBaseCommand):
             return False
         fqn = filenames[0]
         if len(filenames) == 1 and isdir(fqn):
+            # Disable active filter when traversing into a subdirectory
+            s = self.view.settings()
+            s.set('dired_filter_enabled', False)
             show(window, fqn, view_id=self.view.id())
             return True
         elif fqn == PARENT_SYM:
@@ -887,6 +890,10 @@ class dired_up(TextCommand, DiredBaseCommand):
                 parent = 'ThisPC\\'
             else:
                 return
+
+        # Disable any active filter when navigating to the parent directory
+        s = self.view.settings()
+        s.set('dired_filter_enabled', False)
 
         view_id = (self.view.id() if reuse_view() else None)
         goto = basename(path.rstrip(os.sep)) or path
