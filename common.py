@@ -438,29 +438,31 @@ class DiredBaseCommand:
             error  exception message, or empty string
         '''
         items, error = [], ''
-        try:
-            if not self.show_hidden:
-                items = [name for name in os.listdir(path) if not self.is_hidden(name, path)]
-            else:
-                items = os.listdir(path)
-        except OSError as e:
-            error = str(e)
-            if NT:
-                error = (
-                    error
-                    .split(':')[0]
-                    .replace('[Error 5] ', 'Access denied')
-                    .replace('[Error 3] ', 'Not exists, press r to refresh')
-                )
+        # Special root: ThisPC (empty path) → list drives on Windows
+        if not path:
+            items = [f"{s}:" for s in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if isdir(f"{s}:")]
         else:
-            sort_nicely(items)
-            # Apply optional live filter if present and enabled
-            flt = self.view.settings().get('dired_filter')
-            enabled = self.view.settings().get('dired_filter_enabled', True)
-            if enabled and flt:
-                items = rx_fuzzy_filter(flt, items)
-        finally:
-            return items, error
+            try:
+                items = os.listdir(path)
+            except OSError as e:
+                error = str(e)
+                if NT:
+                    error = (
+                        error
+                        .split(':')[0]
+                        .replace('[Error 5] ', 'Access denied')
+                        .replace('[Error 3] ', 'Not exists, press r to refresh')
+                    )
+
+        if not self.show_hidden:
+            items = [name for name in items if not self.is_hidden(name, path)]
+        sort_nicely(items)
+        # Apply optional live filter if present and enabled
+        flt = self.view.settings().get('dired_filter')
+        enabled = self.view.settings().get('dired_filter_enabled', True)
+        if enabled and flt:
+            items = rx_fuzzy_filter(flt, items)
+        return items, error
 
     def try_listing_only_dirs(self, path):
         '''Same as self.try_listing_directory, but items contains only directories.

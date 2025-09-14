@@ -194,7 +194,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         path = self.path
         names = []
         if path == 'ThisPC\\':
-            path, names = '', self.get_disks()
+            path = ''
         if path and not exists(path):
             if sublime.ok_cancel_dialog(
                 (
@@ -281,14 +281,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
 
     def populate_view(self, edit, path, names):
         '''Called when no directories were (or/and need to be) expanded'''
-        if not path and names:  # open ThisPC
-            flt = self.view.settings().get('dired_filter')
-            enabled = self.view.settings().get('dired_filter_enabled', True)
-            if enabled and flt:
-                from .common import rx_fuzzy_filter
-                names = rx_fuzzy_filter(flt, names)
-            self.continue_populate(edit, path, names)
-            return
         items, error = self.try_listing_directory(path)
         if error:
             self.view.run_command("dired_up")
@@ -313,9 +305,13 @@ class dired_refresh(TextCommand, DiredBaseCommand):
 
     def traverse_tree(self, root, path, indent, tree, expanded):
         '''Recursively build list of filenames for self.re_populate_view'''
-        if not path:  # special case for ThisPC, path is empty string
-            items = ['%s\\' % d for d in tree]
-            tree  = []
+        if not path:  # special case for root/ThisPC, path is empty string
+            items, error = self.try_listing_directory(path)
+            if error:
+                return []
+            # show drives as directories with trailing os.sep
+            items = ['%s%s' % (d, os.sep) for d in items]
+            tree = []
 
         else:
             if indent:  # this happens during recursive call, i.e. path in expanded
@@ -429,15 +425,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                 self.goto += (os.sep if isdir(join(path, self.goto)) else '')
             self.sels = ([self.goto.replace(path, '', 1)], None)
         self.restore_sels(self.sels)
-
-    def get_disks(self):
-        '''create list of disks on Windows for ThisPC folder'''
-        names = []
-        for s in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-            disk = '%s:' % s
-            if isdir(disk):
-                names.append(disk)
-        return names
 
 
 # NAVIGATION #####################################################
