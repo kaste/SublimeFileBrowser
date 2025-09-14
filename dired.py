@@ -282,6 +282,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     def populate_view(self, edit, path, names):
         '''Called when no directories were (or/and need to be) expanded'''
         if not path and names:  # open ThisPC
+            flt = self.view.settings().get('dired_filter')
+            enabled = self.view.settings().get('dired_filter_enabled', True)
+            if enabled and flt:
+                from .common import rx_fuzzy_filter
+                names = rx_fuzzy_filter(flt, names)
             self.continue_populate(edit, path, names)
             return
         items, error = self.try_listing_directory(path)
@@ -301,12 +306,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         '''Called if there is no exception in self.populate_view'''
         self.sel = None
         self.set_status()
-        # Apply filter for names passed directly (e.g., ThisPC case)
-        flt = self.view.settings().get('dired_filter')
-        enabled = self.view.settings().get('dired_filter_enabled', True)
-        if enabled and flt:
-            from .common import rx_fuzzy_filter
-            names = rx_fuzzy_filter(flt, names)
         items = self.correcting_index(path, self.prepare_filelist(names, path, '', ''))
         self.write(edit, items)
         self.restore_selections(path)
