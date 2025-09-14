@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import os
 import fnmatch
-import itertools
+from itertools import chain, repeat
+from typing import Iterable
 
 import sublime
 from sublime import Region
@@ -14,6 +15,7 @@ try:  # unavailable dependencies shall not break basic functionality
 except ImportError:
     package_events = None
 
+flatten = chain.from_iterable
 PLATFORM = sublime.platform()
 NT = PLATFORM == 'windows'
 LIN = PLATFORM == 'linux'
@@ -345,7 +347,7 @@ class DiredBaseCommand:
         '''
         return (
             line
-            for line in itertools.chain(*(self.view.lines(r) for r in regions))
+            for line in chain(*(self.view.lines(r) for r in regions))
             if within.contains(line)
         )
 
@@ -455,9 +457,8 @@ class DiredBaseCommand:
             # Apply optional live filter if present and enabled
             flt = self.view.settings().get('dired_filter')
             enabled = self.view.settings().get('dired_filter_enabled', True)
-            if enabled and isinstance(flt, str) and flt != '':
-                low = flt.lower()
-                items = [n for n in items if low in n.lower()]
+            if enabled and flt:
+                items = rx_fuzzy_filter(flt, items)
         finally:
             return items, error
 
@@ -589,24 +590,20 @@ class DiredBaseCommand:
             self.view.erase_regions(key)
             return
 
-        needle = flt.lower()
-
+        # Build positions per name via regex fuzzy matcher
         regions = []
-        # File names
         for r in (
             self.view.find_by_selector('text.dired string.name.file.dired')
             + self.view.find_by_selector('text.dired string.name.directory.dired')
         ):
-            text = self.view.substr(r)
-            low = text.lower()
-            start = 0
-            n = len(needle)
-            while True:
-                i = low.find(needle, start)
-                if i == -1:
-                    break
-                regions.append(Region(r.a + i, r.a + i + n))
-                start = i + n if n else i + 1
+            name = self.view.substr(r)
+            pos = rx_fuzzy_match(flt, name)
+            if not pos:
+                continue
+            regs = combine_adjacent_regions(
+                Region(r.a + p, r.a + p + 1) for p in sorted(pos)
+            )
+            regions.extend(regs)
 
         # Subtle when not actively typing in the filter input panel
         subtle_highlighting = not self.view.settings().get('dired_filter_live', False)
@@ -637,3 +634,35 @@ def display_path(folder):
     if folder.startswith(home):
         display = folder.replace(home, "~", 1)
     return display
+
+
+def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.Region]:
+    prev = None
+    rv = []
+    for r in regions:
+        if prev is None or prev.b != r.a:
+            rv.append(r)
+            prev = r
+        else:
+            prev.b = r.b
+    return rv
+
+
+def rx_fuzzy_match(term: str, text: str) -> list[int]:
+    if not term:
+        return []
+    parts = zip(
+        chain(
+            [r'(?:^|\W)'] if term[0] != "." else [],
+            repeat(r'(?:.*\W)??')
+        ),
+        [f'({re.escape(ch)})' for ch in term]
+    )
+    pattern = ''.join(flatten(parts))
+    if m := re.search(pattern, text, re.IGNORECASE):
+        return [m.start(i + 1) for i in range(len(term))]
+    return []
+
+
+def rx_fuzzy_filter(term: str, items: list[str]) -> list[str]:
+    return [s for s in items if (m := rx_fuzzy_match(term, s))]

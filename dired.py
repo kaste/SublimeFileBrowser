@@ -304,9 +304,9 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         # Apply filter for names passed directly (e.g., ThisPC case)
         flt = self.view.settings().get('dired_filter')
         enabled = self.view.settings().get('dired_filter_enabled', True)
-        if enabled and isinstance(flt, str) and flt != '':
-            low = flt.lower()
-            names = [n for n in names if low in n.lower()]
+        if enabled and flt:
+            from .common import rx_fuzzy_filter
+            names = rx_fuzzy_filter(flt, names)
         items = self.correcting_index(path, self.prepare_filelist(names, path, '', ''))
         self.write(edit, items)
         self.restore_selections(path)
