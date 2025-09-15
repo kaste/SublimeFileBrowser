@@ -521,8 +521,9 @@ class DiredBaseCommand:
                 # If we’re live filtering and previously landed on the parent line,
                 # prefer the first actual item instead of restoring the old region.
                 flt = self.view.settings().get('dired_filter')
-                flt_enabled = self.view.settings().get('dired_filter_enabled', True)
-                if flt and flt_enabled and seled_regions:
+                enabled = self.view.settings().get('dired_filter_enabled', True)
+                filter_extension = self.view.settings().get('dired_filter_extension')
+                if enabled and (flt or filter_extension):
                     # Check if first selection region is the parent link
                     is_parent = 'parent_dir' in self.view.scope_name(seled_regions[0].a)
                     has_items = bool(
@@ -561,8 +562,9 @@ class DiredBaseCommand:
             fbs = self.view.find_by_selector
             # Prefer first real item when a live filter is active
             flt = self.view.settings().get('dired_filter')
-            flt_enabled = self.view.settings().get('dired_filter_enabled', True)
-            if flt and flt_enabled:
+            enabled = self.view.settings().get('dired_filter_enabled', True)
+            filter_extension = self.view.settings().get('dired_filter_extension')
+            if enabled and (flt or filter_extension):
                 item = (
                     fbs('text.dired dired.item.directory string.name.directory.dired ')
                     or fbs('text.dired dired.item.file string.name.file.dired ')
