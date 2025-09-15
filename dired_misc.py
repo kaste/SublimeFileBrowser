@@ -57,7 +57,7 @@ def get_dates(path):
     return created, accessed, modified
 
 
-class DiredFindInFilesCommand(TextCommand, DiredBaseCommand):
+class dired_find_in_files(TextCommand, DiredBaseCommand):
     def run(self, edit):
         self.index = self.get_all()
         path = self.path
