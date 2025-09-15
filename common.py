@@ -457,9 +457,12 @@ class DiredBaseCommand:
         if not self.show_hidden:
             items = [name for name in items if not self.is_hidden(name, path)]
         sort_nicely(items)
-        # Apply optional live filter if present and enabled
-        flt = self.view.settings().get('dired_filter')
-        enabled = self.view.settings().get('dired_filter_enabled', True)
+        # Apply optional filters
+        s = self.view.settings()
+        if ext_filter := s.get('dired_filter_extension', '').lower():
+            items = [n for n in items if os.path.splitext(n)[1].lower() == ext_filter]
+        enabled = s.get('dired_filter_enabled', True)
+        flt = s.get('dired_filter')
         if enabled and flt:
             items = rx_fuzzy_filter(flt, items)
         return items, error
@@ -586,26 +589,32 @@ class DiredBaseCommand:
         no filter is set. Safe to call after any view rewrite (refresh/expand).
         """
         key = 'dired_filter_hits'
-        flt = self.view.settings().get('dired_filter')
-        enabled = self.view.settings().get('dired_filter_enabled', True)
-        if not enabled or not flt:
+        s = self.view.settings()
+        flt = s.get('dired_filter')
+        enabled = s.get('dired_filter_enabled', True)
+        ext_filter = s.get('dired_filter_extension')
+        if not (enabled and flt) and not ext_filter:
             self.view.erase_regions(key)
             return
 
-        # Build positions per name via regex fuzzy matcher
         regions = []
-        for r in (
-            self.view.find_by_selector('text.dired string.name.file.dired')
-            + self.view.find_by_selector('text.dired string.name.directory.dired')
-        ):
-            name = self.view.substr(r)
-            pos = rx_fuzzy_match(flt, name)
-            if not pos:
-                continue
-            regs = combine_adjacent_regions(
-                Region(r.a + p, r.a + p + 1) for p in sorted(pos)
-            )
-            regions.extend(regs)
+        # Extension highlight
+        if ext_filter:
+            ext_l = ext_filter.lower()
+            for r in self.view.find_by_selector('text.dired string.name.file.dired'):
+                name = self.view.substr(r)
+                if len(name) >= len(ext_l) and name.lower().endswith(ext_l):
+                    start = r.b - len(ext_l)
+                    regions.append(Region(start, r.b))
+        # Name fuzzy highlight
+        if enabled and flt:
+            for r in (
+                self.view.find_by_selector('text.dired string.name.file.dired')
+                + self.view.find_by_selector('text.dired string.name.directory.dired')
+            ):
+                name = self.view.substr(r)
+                if pos := rx_fuzzy_match(flt, name):
+                    regions.extend(Region(r.a + p, r.a + p + 1) for p in pos)
 
         # Subtle when not actively typing in the filter input panel
         subtle_highlighting = not self.view.settings().get('dired_filter_live', False)
@@ -613,7 +622,7 @@ class DiredBaseCommand:
             # Use a standard region scope for visibility across themes
             self.view.add_regions(
                 key,
-                regions,
+                combine_adjacent_regions(sorted(regions)),
                 scope="region.bluish",
                 flags=(
                     64

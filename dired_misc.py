@@ -330,6 +330,42 @@ class dired_toggle_filter(TextCommand, DiredBaseCommand):
         sublime.status_message('FileBrowser: Filter {}'.format(state))
 
 
+class dired_filter_by_extension(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        # Determine filename under cursor
+        self.index = self.get_all()
+        names = self.get_selected(parent=False) or []
+        if not names:
+            sublime.status_message('FileBrowser: Nothing selected')
+            return
+
+        name = names[0]
+        # Ignore directories and parent link
+        if name.endswith(os.sep) or name == PARENT_SYM:
+            sublime.status_message('FileBrowser: Not a file')
+            return
+
+        _, ext = os.path.splitext(name)
+        if not ext:
+            sublime.status_message('FileBrowser: No extension')
+            return
+
+        s = self.view.settings()
+        current_ext = s.get('dired_filter_extension', '')
+        if current_ext.lower() == ext.lower():
+            s.erase('dired_filter_extension')
+            sublime.status_message('FileBrowser: Cleared extension filter')
+        else:
+            s.set('dired_filter_extension', ext)
+            sublime.status_message('FileBrowser: Extension filter {}'.format(ext))
+        s.set('dired_filter_enabled', True)
+        s.set('dired_filter_live', False)
+        self.view.run_command('dired_refresh')
+
+
 class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
     '''Show properties and content of directory in popup'''
     def run(self, edit, fqn=None, point=0):
