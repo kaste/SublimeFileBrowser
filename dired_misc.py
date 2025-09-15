@@ -281,6 +281,7 @@ class dired_filter(TextCommand, DiredBaseCommand):
 
         current = self.view.settings().get('dired_filter') or ''
         enabled = self.view.settings().get('dired_filter_enabled', True)
+        filter_extension = self.view.settings().get('dired_filter_extension', '')
 
         def apply_filter(text: str):
             if text:
@@ -303,10 +304,14 @@ class dired_filter(TextCommand, DiredBaseCommand):
             else:
                 self.view.settings().erase('dired_filter')
             self.view.settings().set('dired_filter_enabled', enabled)
+            self.view.settings().set('dired_filter_extension', filter_extension)
             self.view.run_command('dired_refresh')
 
         self.view.settings().set('dired_filter_live', True)
         self.view.settings().set('dired_filter_enabled', True)
+        if not enabled and filter_extension:
+            self.view.settings().erase('dired_filter_extension')
+
         pv = window.show_input_panel('Filter:', current if enabled else "", on_done, on_change, on_cancel)
         if enabled:
             pv.run_command('select_all')
@@ -319,7 +324,7 @@ class dired_toggle_filter(TextCommand, DiredBaseCommand):
     def run(self, edit):
         s = self.view.settings()
         flt = s.get('dired_filter')
-        if not flt:
+        if not flt and not s.get('dired_filter_extension'):
             sublime.status_message('FileBrowser: No filter set')
             return
         enabled = s.get('dired_filter_enabled', True)

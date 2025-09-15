@@ -456,15 +456,16 @@ class DiredBaseCommand:
 
         if not self.show_hidden:
             items = [name for name in items if not self.is_hidden(name, path)]
-        sort_nicely(items)
         # Apply optional filters
         s = self.view.settings()
-        if ext_filter := s.get('dired_filter_extension', '').lower():
-            items = [n for n in items if os.path.splitext(n)[1].lower() == ext_filter]
         enabled = s.get('dired_filter_enabled', True)
-        flt = s.get('dired_filter')
-        if enabled and flt:
-            items = rx_fuzzy_filter(flt, items)
+        if enabled:
+            if ext_filter := s.get('dired_filter_extension', '').lower():
+                items = [n for n in items if os.path.splitext(n)[1].lower() == ext_filter]
+            if flt := s.get('dired_filter'):
+                items = rx_fuzzy_filter(flt, items)
+
+        sort_nicely(items)
         return items, error
 
     def try_listing_only_dirs(self, path):
@@ -590,10 +591,10 @@ class DiredBaseCommand:
         """
         key = 'dired_filter_hits'
         s = self.view.settings()
-        flt = s.get('dired_filter')
         enabled = s.get('dired_filter_enabled', True)
+        flt = s.get('dired_filter')
         ext_filter = s.get('dired_filter_extension')
-        if not (enabled and flt) and not ext_filter:
+        if not enabled or (not flt and not ext_filter):
             self.view.erase_regions(key)
             return
 
@@ -607,7 +608,7 @@ class DiredBaseCommand:
                     start = r.b - len(ext_l)
                     regions.append(Region(start, r.b))
         # Name fuzzy highlight
-        if enabled and flt:
+        if flt:
             for r in (
                 self.view.find_by_selector('text.dired string.name.file.dired')
                 + self.view.find_by_selector('text.dired string.name.directory.dired')
