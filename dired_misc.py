@@ -284,7 +284,7 @@ class dired_filter(TextCommand, DiredBaseCommand):
 
         def apply_filter(text: str):
             if text:
-                self.view.settings().set('dired_filter', text)
+                self.view.settings().set('dired_filter', text.strip())
             else:
                 self.view.settings().erase('dired_filter')
             self.view.run_command('dired_refresh')
