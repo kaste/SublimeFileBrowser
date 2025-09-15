@@ -593,15 +593,15 @@ class DiredBaseCommand:
         s = self.view.settings()
         enabled = s.get('dired_filter_enabled', True)
         flt = s.get('dired_filter')
-        ext_filter = s.get('dired_filter_extension')
-        if not enabled or (not flt and not ext_filter):
+        filter_extension = s.get('dired_filter_extension')
+        if not enabled or (not flt and not filter_extension):
             self.view.erase_regions(key)
             return
 
         regions = []
         # Extension highlight
-        if ext_filter:
-            ext_l = ext_filter.lower()
+        if filter_extension:
+            ext_l = filter_extension.lower()
             for r in self.view.find_by_selector('text.dired string.name.file.dired'):
                 name = self.view.substr(r)
                 if len(name) >= len(ext_l) and name.lower().endswith(ext_l):
