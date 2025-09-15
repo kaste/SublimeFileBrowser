@@ -675,7 +675,7 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
 
     parts = zip(
         chain(
-            [r'(?:^|\W)'] if term[0] != "." else [],
+            ['(?:.*)'] if term[0] == "." else [],
             repeat(r'(?:.*\W)??')
         ),
         [f'({re.escape(ch)})' for ch in term]
