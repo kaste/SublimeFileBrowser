@@ -359,12 +359,15 @@ class dired_filter_by_extension(TextCommand, DiredBaseCommand):
             return
 
         s = self.view.settings()
+        enabled = s.get('dired_filter_enabled', True)
         current_ext = s.get('dired_filter_extension', '')
-        if current_ext.lower() == ext.lower():
+        if enabled and current_ext.lower() == ext.lower():
             s.erase('dired_filter_extension')
             sublime.status_message('FileBrowser: Cleared extension filter')
         else:
             s.set('dired_filter_extension', ext)
+            if not enabled:
+                s.erase('dired_filter')
             sublime.status_message('FileBrowser: Extension filter {}'.format(ext))
         s.set('dired_filter_enabled', True)
         s.set('dired_filter_live', False)
