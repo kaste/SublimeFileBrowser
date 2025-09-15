@@ -264,7 +264,7 @@ class DiredBaseCommand:
     def get_all_relative(self, path):
         return [f.replace(path, '', 1) for f in self.get_all()]
 
-    def get_selected(self, parent=True, full=False) -> list[str] | None:
+    def get_selected(self, parent=True, full=False) -> list[str]:
         """
         parent
             if False, returned list does not contain PARENT_SYM even if it is in view
@@ -276,7 +276,7 @@ class DiredBaseCommand:
         """
         fileregion = self.fileregion(with_parent_link=parent)
         if not fileregion:
-            return None
+            return []
         path = self.get_path()
         names = []
         for line in self._get_lines([s for s in self.view.sel()], fileregion):
@@ -285,7 +285,7 @@ class DiredBaseCommand:
                 names.append(text)
         return names
 
-    def get_marked(self, full=False) -> list[str] | None:
+    def get_marked(self, full=False) -> list[str]:
         '''self.index should be assigned before call it'''
         if not self.filecount():
             return []
