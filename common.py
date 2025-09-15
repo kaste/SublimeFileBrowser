@@ -651,8 +651,18 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
 
 
 def rx_fuzzy_match(term: str, text: str) -> list[int]:
+    R""" Boundary-only fuzzy match with non-greedy gaps.
+
+    Pattern inserts a non-greedy, non-word-terminated gap between characters.
+    Example term "abc" → (?:^|\W)(a)(?:.*\W)??(b)(?:.*\W)??(c)
+    If term starts with '.', we do not anchor the first char to a word-boundary
+    so that extensions like ".txt" match naturally.
+
+    Returns start indices for each matched character or the falsy [].
+    """
     if not term:
         return []
+
     parts = zip(
         chain(
             [r'(?:^|\W)'] if term[0] != "." else [],
