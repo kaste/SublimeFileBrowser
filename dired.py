@@ -303,7 +303,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.restore_selections(path)
         self.view.run_command('dired_call_vcs', {'path': path})
 
-    def traverse_tree(self, root, path, indent, tree, expanded):
+    def traverse_tree(self, root, path, indent, tree, expanded, was_forced=False):
         '''Recursively build list of filenames for self.re_populate_view'''
         if not path:  # special case for root/ThisPC, path is empty string
             items, error = self.try_listing_directory(path)
@@ -344,7 +344,23 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             if not items:
                 if path == root:
                     return []
-                # expanding empty folder, so notify that it is empty
+                s = self.view.settings()
+                filter_active = (
+                    s.get('dired_filter_enabled', True)
+                    and (s.get('dired_filter') or bool(s.get('dired_filter_extension')))
+                )
+                if filter_active:
+                    # If a live filter is active and this node was "forced in" to
+                    # evetually show matching children, omit it entirely.
+                    # T.i. undo the forcing.
+                    if indent and was_forced:
+                        if tree:
+                            tree.pop()
+                        if self.index:
+                            self.index.pop()
+                    # Otherwise, show matching folder name.
+                    return
+                # No filters active; show explicit <empty>
                 tree[~0] += '\t<empty>'
                 return
 
@@ -355,7 +371,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             dir_path = '%s%s' % (new_path.rstrip(os.sep), os.sep)
             check = isdir(new_path)
             if check and dir_path in expanded:
-                self.traverse_tree(root, dir_path, indent + '\t', tree, expanded)
+                self.traverse_tree(root, dir_path, indent + '\t', tree, expanded, was_forced=(f in forced))
             elif check:
                 self.index.append(dir_path)
                 tree.append('%s▸ %s%s' % (indent, f.rstrip(os.sep), os.sep))
