@@ -8,16 +8,20 @@
 | Go to parent directory        | backspace                 |
 | Go to first                   | super+up or ctrl+home     |
 | Go to last                    | super+down or ctrl+end    |
-| Jump to                       | /                         |
-| Go to directory               | g                         |
-| Quick jump to directory       | p                         |
+|                               |                           |
+| Fuzzy search                  | / or i                    |
+| Toggle fuzzy filter           | I                         |
+| Filter by extension           | *                         |
 | Find in files                 | s                         |
+|                               |                           |
 | Toggle mark                   | m                         |
-| Toggle mark and move down     | shift+down                |
+| Toggle mark and move down     | shift+down or m           |
 | Toggle mark and move up       | shift+up                  |
 | Toggle all marks              | t                         |
 | Unmark all                    | u                         |
-| Mark by extension             | *                         |
+|                               |                           |
+| Go to directory               | g                         |
+| Quick jump to directory       | p                         |
 
  Action Shortcuts:
 :            Command            :          Shortcut         :

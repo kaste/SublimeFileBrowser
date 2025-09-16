@@ -194,7 +194,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         path = self.path
         names = []
         if path == 'ThisPC\\':
-            path, names = '', self.get_disks()
+            path = ''
         if path and not exists(path):
             if sublime.ok_cancel_dialog(
                 (
@@ -207,7 +207,12 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_up')
             return
 
-        self.expanded = expanded = self.view.find_all(r'^\s*▾') if not reset_sels else []
+        # Track expanded dirs via stored setting to survive filtering cycles
+        stored_expanded = self.view.settings().get('dired_expanded_paths') or []
+        # Normalize to list of strings
+        if not isinstance(stored_expanded, list):
+            stored_expanded = []
+        self.expanded = expanded = list(dict.fromkeys(stored_expanded)) if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
         self.goto = goto
         if os.sep in goto:
@@ -249,9 +254,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     def re_populate_view(self, edit, path, names, expanded, to_expand, toggle):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
-        for i, r in enumerate(expanded):
-            name = self.get_fullpath_for(r)
-            expanded[i] = name
+        # `expanded` already contains absolute paths collected from settings
         if toggle and to_expand:
             merged = list(set(expanded + to_expand))
             expanded = [e for e in merged if not (e in expanded and e in to_expand)]
@@ -269,13 +272,15 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         items = self.correcting_index(path, tree)
         self.write(edit, items)
         self.restore_selections(path)
+        # Persist expanded paths for future refreshes
+        try:
+            self.view.settings().set('dired_expanded_paths', self.expanded)
+        except Exception:
+            pass
         self.view.run_command('dired_call_vcs', {'path': path})
 
     def populate_view(self, edit, path, names):
         '''Called when no directories were (or/and need to be) expanded'''
-        if not path and names:  # open ThisPC
-            self.continue_populate(edit, path, names)
-            return
         items, error = self.try_listing_directory(path)
         if error:
             self.view.run_command("dired_up")
@@ -298,11 +303,15 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.restore_selections(path)
         self.view.run_command('dired_call_vcs', {'path': path})
 
-    def traverse_tree(self, root, path, indent, tree, expanded):
+    def traverse_tree(self, root, path, indent, tree, expanded, was_forced=False):
         '''Recursively build list of filenames for self.re_populate_view'''
-        if not path:  # special case for ThisPC, path is empty string
-            items = ['%s\\' % d for d in tree]
-            tree  = []
+        if not path:  # special case for root/ThisPC, path is empty string
+            items, error = self.try_listing_directory(path)
+            if error:
+                return []
+            # show drives as directories with trailing os.sep
+            items = ['%s%s' % (d, os.sep) for d in items]
+            tree = []
 
         else:
             if indent:  # this happens during recursive call, i.e. path in expanded
@@ -315,10 +324,43 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             if error:
                 tree[~0] += '\t<%s>' % error
                 return
+            # Ensure expanded child directories remain visible even if they do not
+            # match the current filter, so users can search within expanded trees.
+            forced = []
+            for e in expanded:
+                parent = dirname(e.rstrip(os.sep)) + os.sep
+                if parent == path:
+                    b = os.path.basename(os.path.abspath(e)) or e.rstrip(os.sep)
+                    name = b.rstrip(os.sep)
+                    if (name not in items) and isdir(join(path, name)):
+                        forced.append(name)
+            if forced:
+                items += forced
+                try:
+                    from .common import sort_nicely as _sn
+                    _sn(items)
+                except Exception:
+                    pass
             if not items:
                 if path == root:
                     return []
-                # expanding empty folder, so notify that it is empty
+                s = self.view.settings()
+                filter_active = (
+                    s.get('dired_filter_enabled', True)
+                    and (s.get('dired_filter') or bool(s.get('dired_filter_extension')))
+                )
+                if filter_active:
+                    # If a live filter is active and this node was "forced in" to
+                    # evetually show matching children, omit it entirely.
+                    # T.i. undo the forcing.
+                    if indent and was_forced:
+                        if tree:
+                            tree.pop()
+                        if self.index:
+                            self.index.pop()
+                    # Otherwise, show matching folder name.
+                    return
+                # No filters active; show explicit <empty>
                 tree[~0] += '\t<empty>'
                 return
 
@@ -329,7 +371,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             dir_path = '%s%s' % (new_path.rstrip(os.sep), os.sep)
             check = isdir(new_path)
             if check and dir_path in expanded:
-                self.traverse_tree(root, dir_path, indent + '\t', tree, expanded)
+                self.traverse_tree(root, dir_path, indent + '\t', tree, expanded, was_forced=(f in forced))
             elif check:
                 self.index.append(dir_path)
                 tree.append('%s▸ %s%s' % (indent, f.rstrip(os.sep), os.sep))
@@ -373,6 +415,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         count = len(self.view.lines(fileregion)) if fileregion else 0
         self.view.settings().set('dired_count', count)
         self.view.settings().set('dired_index', self.index)
+        # Update filter highlights (if any)
+        self.update_filter_highlight()
 
     def correcting_index(self, path, fileslist):
         '''Add leading elements to self.index (if any), we need conformity of
@@ -397,15 +441,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                 self.goto += (os.sep if isdir(join(path, self.goto)) else '')
             self.sels = ([self.goto.replace(path, '', 1)], None)
         self.restore_sels(self.sels)
-
-    def get_disks(self):
-        '''create list of disks on Windows for ThisPC folder'''
-        names = []
-        for s in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-            disk = '%s:' % s
-            if isdir(disk):
-                names.append(disk)
-        return names
 
 
 # NAVIGATION #####################################################
@@ -466,6 +501,9 @@ class dired_select(TextCommand, DiredBaseCommand):
             return False
         fqn = filenames[0]
         if len(filenames) == 1 and isdir(fqn):
+            # Disable active filter when traversing into a subdirectory
+            s = self.view.settings()
+            s.set('dired_filter_enabled', False)
             show(window, fqn, view_id=self.view.id())
             return True
         elif fqn == PARENT_SYM:
@@ -660,9 +698,17 @@ class dired_expand(TextCommand, DiredBaseCommand):
         self.view.set_read_only(True)
 
         self.view.settings().set('dired_index', self.index)
+        # Persist expanded paths
+        try:
+            expanded = set(self.view.settings().get('dired_expanded_paths') or [])
+            expanded.add(path)
+            self.view.settings().set('dired_expanded_paths', list(expanded))
+        except Exception:
+            pass
         self.restore_marks(marked)
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
+        self.update_filter_highlight()
         if self.view.settings().get('dired_autorefresh', True):
             emit_event('add_paths', (self.view.id(), [path]))
         else:
@@ -723,6 +769,23 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.restore_marks(self.marked)
         self.restore_sels(self.sels)
         self.view.run_command("dired_draw_vcs_marker")
+        # Update persisted expanded paths based on current view state
+        try:
+            # Collect current expanded directory paths from visible arrows
+            regions = self.view.find_all(r'^\s*▾')
+            if regions:
+                self.index = self.get_all()
+                paths = []
+                for r in regions:
+                    try:
+                        paths.append(self.get_fullpath_for(r))
+                    except Exception:
+                        continue
+                self.view.settings().set('dired_expanded_paths', paths)
+            else:
+                self.view.settings().set('dired_expanded_paths', [])
+        except Exception:
+            pass
 
     def fold(self, edit, line):
         '''line is a Region, on which folding is supposed to happen (or not)'''
@@ -829,6 +892,10 @@ class dired_up(TextCommand, DiredBaseCommand):
                 parent = 'ThisPC\\'
             else:
                 return
+
+        # Disable any active filter when navigating to the parent directory
+        s = self.view.settings()
+        s.set('dired_filter_enabled', False)
 
         view_id = (self.view.id() if reuse_view() else None)
         goto = basename(path.rstrip(os.sep)) or path

@@ -154,7 +154,7 @@
   },
   {
       "keys": ["*"],
-      "command": "dired_mark_extension",
+      "command": "dired_filter_by_extension",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
@@ -194,11 +194,26 @@
   },
   {
     "keys": ["/"],
-    "command": "show_panel",
-    "args": {"panel": "incremental_find", "reverse": false},
+    "command": "dired_filter",
     "context": [
-        { "key": "selector", "operator": "equal", "operand": "text.dired" },
-        { "key": "setting.dired_rename_mode", "operand": false }
+      { "key": "selector", "operator": "equal", "operand": "text.dired" },
+      { "key": "setting.dired_rename_mode", "operand": false }
+    ]
+  },
+  {
+    "keys": ["i"],
+    "command": "dired_filter",
+    "context": [
+      { "key": "selector", "operator": "equal", "operand": "text.dired" },
+      { "key": "setting.dired_rename_mode", "operand": false }
+    ]
+  },
+  {
+    "keys": ["I"] ,
+    "command": "dired_toggle_filter",
+    "context": [
+      { "key": "selector", "operator": "equal", "operand": "text.dired" },
+      { "key": "setting.dired_rename_mode", "operand": false }
     ]
   },
   {

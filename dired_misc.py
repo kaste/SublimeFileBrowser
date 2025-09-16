@@ -57,7 +57,7 @@ def get_dates(path):
     return created, accessed, modified
 
 
-class DiredFindInFilesCommand(TextCommand, DiredBaseCommand):
+class dired_find_in_files(TextCommand, DiredBaseCommand):
     def run(self, edit):
         self.index = self.get_all()
         path = self.path
@@ -264,6 +264,113 @@ class DiredToggleAutoRefresh(TextCommand):
         s = self.view.settings()
         ar = s.get('dired_autorefresh', True)
         s.set('dired_autorefresh', not ar)
+        self.view.run_command('dired_refresh')
+
+
+
+# FILTER ############################################################
+
+class dired_filter(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        window = self.view.window()
+        if not window:
+            return
+
+        current = self.view.settings().get('dired_filter') or ''
+        enabled = self.view.settings().get('dired_filter_enabled', True)
+        filter_extension = self.view.settings().get('dired_filter_extension', '')
+
+        def apply_filter(text: str):
+            if text:
+                self.view.settings().set('dired_filter', text.strip())
+            else:
+                self.view.settings().erase('dired_filter')
+            self.view.run_command('dired_refresh')
+
+        def on_done(text: str):
+            self.view.settings().set('dired_filter_live', False)
+            apply_filter(text)
+
+        def on_change(text: str):
+            apply_filter(text)
+
+        def on_cancel():
+            self.view.settings().set('dired_filter_live', False)
+            if current:
+                self.view.settings().set('dired_filter', current)
+            else:
+                self.view.settings().erase('dired_filter')
+            self.view.settings().set('dired_filter_enabled', enabled)
+            self.view.settings().set('dired_filter_extension', filter_extension)
+            self.view.run_command('dired_refresh')
+
+        self.view.settings().set('dired_filter_live', True)
+        self.view.settings().set('dired_filter_enabled', True)
+        if not enabled and filter_extension:
+            self.view.settings().erase('dired_filter_extension')
+
+        pv = window.show_input_panel('Filter:', current if enabled else "", on_done, on_change, on_cancel)
+        if enabled:
+            pv.run_command('select_all')
+
+
+class dired_toggle_filter(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        s = self.view.settings()
+        flt = s.get('dired_filter')
+        if not flt and not s.get('dired_filter_extension'):
+            sublime.status_message('FileBrowser: No filter set')
+            return
+        enabled = s.get('dired_filter_enabled', True)
+        s.set('dired_filter_enabled', not enabled)
+        # Refresh and update highlight according to new state
+        self.view.run_command('dired_refresh')
+        state = 'On' if not enabled else 'Off'
+        sublime.status_message('FileBrowser: Filter {}'.format(state))
+
+
+class dired_filter_by_extension(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        # Determine filename under cursor
+        self.index = self.get_all()
+        names = self.get_selected(parent=False) or []
+        if not names:
+            sublime.status_message('FileBrowser: Nothing selected')
+            return
+
+        name = names[0]
+        # Ignore directories and parent link
+        if name.endswith(os.sep) or name == PARENT_SYM:
+            sublime.status_message('FileBrowser: Not a file')
+            return
+
+        _, ext = os.path.splitext(name)
+        if not ext:
+            sublime.status_message('FileBrowser: No extension')
+            return
+
+        s = self.view.settings()
+        enabled = s.get('dired_filter_enabled', True)
+        current_ext = s.get('dired_filter_extension', '')
+        if enabled and current_ext.lower() == ext.lower():
+            s.erase('dired_filter_extension')
+            sublime.status_message('FileBrowser: Cleared extension filter')
+        else:
+            s.set('dired_filter_extension', ext)
+            if not enabled:
+                s.erase('dired_filter')
+            sublime.status_message('FileBrowser: Extension filter {}'.format(ext))
+        s.set('dired_filter_enabled', True)
+        s.set('dired_filter_live', False)
         self.view.run_command('dired_refresh')
 
 
