@@ -1,0 +1,15 @@
+0.11.0
+------
+
+I've implemented live, fuuzzy filtering.  Yeah!
+
+Press "/" or "i", to open an input box at start typing to narrow the directory
+listing.  "Enter" to commit that filter, "Escape" to undo.
+
+If you have an active filter -- you likely notice the highlighted, matching
+chars -- you can use "I" to toggle the filter.
+
+On top of that, "*" now filters the listing by the extension of the file under
+the cursor.  Both filters can be used at the same time.
+
+🤔... 👍
