@@ -1,9 +1,9 @@
 0.11.0
 ------
 
-I've implemented live, fuuzzy filtering.  Yeah!
+I've implemented live, fuzzy filtering.  Yeah!
 
-Press "/" or "i", to open an input box at start typing to narrow the directory
+Press "/" or "i" to open an input box and start typing to narrow the directory
 listing.  "Enter" to commit that filter, "Escape" to undo.
 
 If you have an active filter -- you likely notice the highlighted, matching
