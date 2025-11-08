@@ -649,8 +649,17 @@ class dired_expand(TextCommand, DiredBaseCommand):
         toggle  if True, state of directory(s) will be toggled (i.e. expand/collapse)
         '''
         self.index = self.get_all()
-        items = self.get_marked(full=True) or self.get_selected(parent=False, full=True) or []
-        paths = [path for path in items if path.endswith(os.sep)]
+        # - If marks exist and consist only of directories, expand those marks.
+        # - Otherwise, combine marks + selections and expand any directories in that union.
+        selected = self.get_selected(parent=False, full=True) or []
+        marked = self.get_marked(full=True) or []
+
+        def is_dir(p):
+            return p.endswith(os.sep)
+
+        paths = [p for p in marked if is_dir(p)]
+        if not paths or len(marked) != len(paths):  # <= marked was mixed files and folders
+            paths += [p for p in selected if is_dir(p) and p not in paths]
 
         if len(paths) == 1:
             return self.expand_single_directory(edit, paths[0], toggle)
