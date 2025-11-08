@@ -342,6 +342,10 @@ class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
         # Inform the user how to clear the internal clipboard
         sublime.status_message('ctrl+z to empty the clipboard')
 
+        # If marks were used, clear all marks (same effect as pressing 'u')
+        if used_marked:
+            self.view.erase_regions('marked')
+
         # If there are multiple selections, collapse to the last one first
         if not used_marked:
             sels = list(self.view.sel())
