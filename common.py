@@ -579,7 +579,7 @@ class DiredBaseCommand:
             s = Region(item[0].a, item[0].a) if item else Region(0, 0)
             self.view.sel().add(s)
 
-        self.view.show_at_center(s)
+        self.view.show(s, False)
 
     def display_path(self, folder):
         return display_path(folder)
