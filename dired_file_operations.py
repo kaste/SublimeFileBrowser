@@ -317,7 +317,9 @@ class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
     '''Store filename(s) in settings, when user copy or cut'''
     def run(self, edit, cut=False):
         self.index = self.get_all()
-        filenames = self.get_marked(full=True) or self.get_selected(parent=False, full=True)
+        marked = self.get_marked(full=True)
+        used_marked = bool(marked)
+        filenames = marked or self.get_selected(parent=False, full=True)
         if not filenames:
             return sublime.status_message('Nothing chosen')
         settings  = sublime.load_settings('dired.sublime-settings')
@@ -338,6 +340,12 @@ class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
         self.set_status()
         # Inform the user how to clear the internal clipboard
         sublime.status_message('ctrl+z to empty the clipboard')
+        # Move selection to the next item only when copying a single current item
+        if not used_marked:
+            try:
+                self.view.run_command('dired_next_line', {"forward": True})
+            except Exception:
+                pass
 
 
 class dired_paste_files(TextCommand, DiredBaseCommand):
