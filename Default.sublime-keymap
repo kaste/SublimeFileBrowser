@@ -17,9 +17,8 @@
       ]
   },
   {
-      "keys": ["o"],
-      "command": "dired_expand",
-      "args": { "toggle": true },
+      "keys": ["O"],
+      "command": "dired_quick_look",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
