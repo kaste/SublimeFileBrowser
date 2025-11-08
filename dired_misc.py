@@ -667,7 +667,7 @@ class DiredContextProvider(EventListener):
             return (op.eq if operator == sublime.OP_EQUAL else op.ne)(
                 (
                     (all if match_all else any)(
-                        not s.empty() and len(view.lines(s)) == 1
+                        not s.empty()
                         for s in view.sel()
                     )
                 ),
