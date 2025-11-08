@@ -338,8 +338,20 @@ class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
         sublime.save_settings('dired.sublime-settings')
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
         self.set_status()
+
         # Inform the user how to clear the internal clipboard
         sublime.status_message('ctrl+z to empty the clipboard')
+
+        # If there are multiple selections, collapse to the last one first
+        if not used_marked:
+            sels = list(self.view.sel())
+            if len(sels) > 1:
+                last = sels[-1]
+                line = self.view.line(last.a)
+                name_point = self._get_name_point(line)
+                self.view.sel().clear()
+                self.view.sel().add(Region(name_point, name_point))
+
         # Move selection to the next item only when copying a single current item
         if not used_marked:
             try:
