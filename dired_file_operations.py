@@ -342,6 +342,9 @@ class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
         # Inform the user how to clear the internal clipboard
         sublime.status_message('ctrl+z to empty the clipboard')
 
+        # Highlight items currently in the internal clipboard (copied/cut)
+        self.refresh_clipboard_highlights(copied=copy_list, cut=cut_list)
+
         # If marks were used, clear all marks (same effect as pressing 'u')
         if used_marked:
             self.view.erase_regions('marked')
@@ -437,6 +440,9 @@ class dired_clear_copy_cut_list(TextCommand):
         sublime.load_settings('dired.sublime-settings').set('dired_to_move', [])
         sublime.load_settings('dired.sublime-settings').set('dired_to_copy', [])
         sublime.save_settings('dired.sublime-settings')
+        # Also clear visual highlights for copied/cut items
+        self.view.erase_regions('copied')
+        self.view.erase_regions('cut')
         self.view.run_command('dired_refresh')
 
 

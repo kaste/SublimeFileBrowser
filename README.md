@@ -415,6 +415,13 @@ scopes are `item.modified.dired` and `item.untracked.dired` for the (git/hg) fil
 statuses.  `item.colorblind.dired` is used in "colorblind"-mode.
 
 Marked (`[m]ark/[u]nmark`) files are highlighted using `dired.marked`.
+Files queued in the internal clipboard are highlighted as well:
+- Copied items use the `dired.copied` scope.
+- Cut items use the `dired.cut` scope.
+
+You can customize these colors in your active color scheme by adding rules
+for the scopes above (e.g., set a soft rosa background for `dired.copied`,
+and a slightly dimmer foreground for `dired.cut`).
 
 Customize your color scheme as usual for Sublime Text.
 

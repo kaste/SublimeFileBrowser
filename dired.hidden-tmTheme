@@ -169,6 +169,34 @@
 			</dict>
 		</dict>
 
+		<dict>
+			<key>name</key>
+			<string>Copied</string>
+			<key>scope</key>
+			<string>dired.copied</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#222222</string>
+				<key>background</key>
+				<string>#FF88BD66</string>
+			</dict>
+		</dict>
+
+		<dict>
+			<key>name</key>
+			<string>Cut</string>
+			<key>scope</key>
+			<string>dired.cut</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#8D8899aa</string>
+				<key>background</key>
+				<string>#d9dee4</string>
+			</dict>
+		</dict>
+
 		<!-- HELP ----------------------------- -->
 		<dict>
 			<key>name</key>

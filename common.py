@@ -581,6 +581,51 @@ class DiredBaseCommand:
 
         self.view.show(s, False)
 
+    # --- Clipboard highlight helpers -----------------------------------------
+    def _build_regions_for_paths(self, paths):
+        """Return line regions covering filename spans for given absolute paths.
+
+        Matches each path against the current view content, confirming via
+        get_fullpath_for to avoid false positives. Regions cover only the name
+        portion (from name start to end-of-line) to match mark styling.
+        """
+        regions = []
+        if not paths:
+            return regions
+        for item in set(paths):
+            for region in self._find_in_view(item):
+                try:
+                    full = self.get_fullpath_for(region)
+                except Exception:
+                    continue
+                if full == item:
+                    line = self.view.line(region.a)
+                    name_point = self._get_name_point(line)
+                    regions.append(Region(name_point, line.b))
+                    break
+        return regions
+
+    def refresh_clipboard_highlights(self, copied=None, cut=None):
+        """Apply visual highlights for items in the internal clipboard.
+
+        If lists are not provided, read them from settings. This is invoked:
+        - after copy/cut to show immediate feedback,
+        - after refresh/expand to restore highlights after a redraw.
+        """
+        if copied is None or cut is None:
+            # Merge from both global and view settings for robustness
+            g = sublime.load_settings('dired.sublime-settings')
+            v = self.view.settings()
+            if copied is None:
+                copied = (g.get('dired_to_copy') or []) or (v.get('dired_to_copy') or [])
+            if cut is None:
+                cut = (g.get('dired_to_move') or []) or (v.get('dired_to_move') or [])
+
+        copied_regions = self._build_regions_for_paths(copied)
+        cut_regions = self._build_regions_for_paths(cut)
+        self.view.add_regions('copied', copied_regions, 'dired.copied', '', MARK_OPTIONS)
+        self.view.add_regions('cut', cut_regions, 'dired.cut', '', MARK_OPTIONS)
+
     def display_path(self, folder):
         return display_path(folder)
 

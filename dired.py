@@ -272,6 +272,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         items = self.correcting_index(path, tree)
         self.write(edit, items)
         self.restore_selections(path)
+        self.refresh_clipboard_highlights()
         # Persist expanded paths for future refreshes
         try:
             self.view.settings().set('dired_expanded_paths', self.expanded)
@@ -301,6 +302,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         items = self.correcting_index(path, self.prepare_filelist(names, path, '', ''))
         self.write(edit, items)
         self.restore_selections(path)
+        self.refresh_clipboard_highlights()
         self.view.run_command('dired_call_vcs', {'path': path})
 
     def traverse_tree(self, root, path, indent, tree, expanded, was_forced=False):
@@ -718,6 +720,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         self.restore_sels((seled, [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
         self.update_filter_highlight()
+        self.refresh_clipboard_highlights()
         if self.view.settings().get('dired_autorefresh', True):
             emit_event('add_paths', (self.view.id(), [path]))
         else:
@@ -778,6 +781,7 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.restore_marks(self.marked)
         self.restore_sels(self.sels)
         self.view.run_command("dired_draw_vcs_marker")
+        self.refresh_clipboard_highlights()
         # Update persisted expanded paths based on current view state
         try:
             # Collect current expanded directory paths from visible arrows
