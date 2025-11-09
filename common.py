@@ -286,16 +286,23 @@ class DiredBaseCommand:
         return names
 
     def get_marked(self, full=False) -> list[str]:
-        '''self.index should be assigned before call it'''
+        """Return the set of marked items based on persisted paths.
+
+        Intersects `dired_marked_paths` with the current, visible index so the
+        result reflects what’s shown in this view. Returns absolute paths when
+        `full=True`, otherwise paths relative to the current root.
+        """
         if not self.filecount():
             return []
-        path = self.get_path()
-        names = []
-        for line in self.view.get_regions('marked'):
-            text = self.get_fullpath_for(line) if full else self.get_parent(line, path)
-            if text and text not in names:
-                names.append(text)
-        return names
+        self.index = self.get_all()
+        marked = set(self.view.settings().get('dired_marked_paths') or [])
+        visible = [p for p in self.index if p and p in marked]
+        if full:
+            return visible
+        root = self.get_path()
+        if not root:
+            return visible
+        return [p.replace(root, '', 1) if p.startswith(root) else p for p in visible]
 
     def _get_lines(self, regions, within):
         '''
