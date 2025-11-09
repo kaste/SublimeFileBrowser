@@ -51,7 +51,7 @@ class PromptContext:
         self.args = args
 
 
-class DiredPromptCommand(WindowCommand):
+class dired_prompt(WindowCommand):
     """
     An internal-only command that separates prompt handling from external commands since each
     tab completion requires another command.
@@ -68,7 +68,7 @@ class DiredPromptCommand(WindowCommand):
         self.ctx.callback(value, *self.ctx.args)
 
 
-class DiredCompleteCommand(TextCommand, DiredBaseCommand):
+class dired_complete(TextCommand, DiredBaseCommand):
     """
     An internal command executed when the user has pressed Tab in our directory prompt.
     """

@@ -130,7 +130,7 @@ class dired_help(sublime_plugin.TextCommand):
 
 # OTHER #############################################################
 
-class DiredToggleProjectFolder(TextCommand, DiredBaseCommand):
+class dired_toggle_project_folder(TextCommand, DiredBaseCommand):
     def run(self, edit):
         path = self.path.rstrip(os.sep)
         data = self.view.window().project_data() or {}
@@ -143,7 +143,7 @@ class DiredToggleProjectFolder(TextCommand, DiredBaseCommand):
         self.view.window().run_command('dired_refresh')
 
 
-class DiredOnlyOneProjectFolder(TextCommand, DiredBaseCommand):
+class dired_only_one_project_folder(TextCommand, DiredBaseCommand):
     def run(self, edit):
         path = self.path.rstrip(os.sep)
         msg = (
@@ -158,7 +158,7 @@ class DiredOnlyOneProjectFolder(TextCommand, DiredBaseCommand):
             self.view.window().run_command('dired_refresh')
 
 
-class DiredQuickLookCommand(TextCommand, DiredBaseCommand):
+class dired_quick_look(TextCommand, DiredBaseCommand):
     """
     quick look current file in mac or open in default app on other OSs
     """
@@ -186,7 +186,7 @@ class DiredQuickLookCommand(TextCommand, DiredBaseCommand):
                 launch(fqn)
 
 
-class DiredOpenExternalCommand(TextCommand, DiredBaseCommand):
+class dired_open_external(TextCommand, DiredBaseCommand):
     """open dir/file in external file explorer"""
     def run(self, edit, fname=None):
         path = self.path
@@ -210,7 +210,7 @@ class DiredOpenExternalCommand(TextCommand, DiredBaseCommand):
             self.view.window().run_command("open_dir", {"dir": path})
 
 
-class DiredOpenInNewWindowCommand(TextCommand, DiredBaseCommand):
+class dired_open_in_new_window(TextCommand, DiredBaseCommand):
     def run(self, edit, project_folder=False):
         if project_folder:
             files = project_folder
@@ -246,7 +246,7 @@ class DiredOpenInNewWindowCommand(TextCommand, DiredBaseCommand):
         subprocess.Popen(items, cwd=None if NT else self.path)
 
 
-class DiredToggleAutoRefresh(TextCommand):
+class dired_toggle_auto_refresh(TextCommand):
     def is_enabled(self):
         return self.view.score_selector(0, "text.dired") > 0
 
@@ -374,7 +374,7 @@ class dired_filter_by_extension(TextCommand, DiredBaseCommand):
         self.view.run_command('dired_refresh')
 
 
-class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
+class dired_preview_directory(TextCommand, DiredBaseCommand):
     '''Show properties and content of directory in popup'''
     def run(self, edit, fqn=None, point=0):
         if not fqn:
@@ -496,7 +496,7 @@ class DiredPreviewDirectoryCommand(TextCommand, DiredBaseCommand):
         case[msg](path)
 
 
-class DiredFilePropertiesCommand(TextCommand, DiredBaseCommand):
+class dired_file_properties(TextCommand, DiredBaseCommand):
     '''Show properties of file in popup'''
     def run(self, edit, fqn=None, point=0):
         if not fqn:
@@ -679,7 +679,7 @@ class DiredContextProvider(EventListener):
 
 # TOOLS #############################################################
 
-class DiredCallVcs(TextCommand):
+class dired_call_vcs(TextCommand):
     '''Command allows to call it from other module(s)'''
     def run(self, edit, path):
         self.view.run_command("dired_draw_vcs_marker")
@@ -787,7 +787,7 @@ class CallVCS(DiredBaseCommand):
         return (join(root, filename), item[0])
 
 
-class DiredDrawVcsMarkerCommand(TextCommand, DiredBaseCommand):
+class dired_draw_vcs_marker(TextCommand, DiredBaseCommand):
     def run(self, edit):
         if not self.view.settings().has('dired_index'):
             return  # view was closed

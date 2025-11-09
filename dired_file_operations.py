@@ -26,7 +26,7 @@ if NT:
     from Default.send2trash.plat_win import SHFILEOPSTRUCTW
 
 
-class DiredCreateCommand(TextCommand, DiredBaseCommand):
+class dired_create(TextCommand, DiredBaseCommand):
     def run(self, edit, which=None):
         assert which in ('file', 'directory'), "which: " + which
         emit_event('ignore_view', self.view.id())
@@ -65,7 +65,7 @@ class DiredCreateCommand(TextCommand, DiredBaseCommand):
         return fqn
 
 
-class DiredCreateAndOpenCommand(DiredCreateCommand):
+class dired_create_and_open(dired_create):
     '''Being called with ctrl+enter while user is in Create prompt
     So self.view is prompt view
     '''
@@ -133,7 +133,7 @@ class dired_delete(TextCommand, DiredBaseCommand):
         view.run_command('dired_refresh')
 
 
-class DiredRenameCommand(TextCommand, DiredBaseCommand):
+class dired_rename(TextCommand, DiredBaseCommand):
     def run(self, edit):
         if not self.filecount():
             return sublime.status_message('Directory seems empty, nothing could be renamed')
@@ -168,7 +168,7 @@ class DiredRenameCommand(TextCommand, DiredBaseCommand):
         self.view.add_regions('rename', [r], '', '', MARK_OPTIONS)
 
 
-class DiredRenameCancelCommand(TextCommand, DiredBaseCommand):
+class dired_rename_cancel(TextCommand, DiredBaseCommand):
     """Cancel rename mode"""
     def run(self, edit):
         emit_event('watch_view', self.view.id())
@@ -178,7 +178,7 @@ class DiredRenameCancelCommand(TextCommand, DiredBaseCommand):
         self.view.run_command('dired_refresh')
 
 
-class DiredRenameCommitCommand(TextCommand, DiredBaseCommand):
+class dired_rename_commit(TextCommand, DiredBaseCommand):
     def run(self, edit):
         if not self.view.settings().has('rename'):
             # Shouldn't happen, but we want to cleanup when things go wrong.
@@ -313,7 +313,7 @@ def retarget(a, b, window=None):
             return
 
 
-class DiredCopyFilesCommand(TextCommand, DiredBaseCommand):
+class dired_copy_files(TextCommand, DiredBaseCommand):
     '''Store filename(s) in settings, when user copy or cut'''
     def run(self, edit, cut=False):
         self.index = self.get_all()

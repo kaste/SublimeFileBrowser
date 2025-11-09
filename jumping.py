@@ -35,7 +35,7 @@ def jump_names():
     return {t: n for n, t in load_jump_points().items()}
 
 
-class DiredJumpCommand(TextCommand, DiredBaseCommand):
+class dired_jump(TextCommand, DiredBaseCommand):
     def run(self, edit, new_window=False):
         jp = jump_points()
         if not jp:
@@ -82,7 +82,7 @@ class DiredJumpCommand(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_refresh')
 
 
-class DiredEditJumpPointCommand(TextCommand, DiredBaseCommand):
+class dired_edit_jump_point(TextCommand, DiredBaseCommand):
     def run(self, edit, item=False):
         self.names = jump_names()
         self.project_path = item and item[1] or self.path
@@ -120,7 +120,7 @@ class DiredEditJumpPointCommand(TextCommand, DiredBaseCommand):
             self.view.run_command('dired_refresh')
 
 
-class DiredJumpListRenderCommand(TextCommand):
+class dired_jump_list_render(TextCommand):
     def run(self, edit):
         self.view.erase(edit, Region(0, self.view.size()))
         self.view.insert(edit, 0, self.render())
@@ -162,7 +162,7 @@ class DiredJumpListRenderCommand(TextCommand):
         return " " * self.col_padding + display
 
 
-class DiredJumpListCommand(TextCommand):
+class dired_jump_list(TextCommand):
     def run(self, edit, reuse=False):
         if reuse:
             view = self.view
@@ -180,7 +180,7 @@ class DiredJumpListCommand(TextCommand):
         sublime.active_window().focus_view(view)
 
 
-class DiredProjectNextLineCommand(TextCommand, DiredBaseCommand):
+class dired_project_next_line(TextCommand, DiredBaseCommand):
     def run(self, edit, forward=None):
         assert forward in (True, False), 'forward must be set to True or False'
 
@@ -197,7 +197,7 @@ class DiredProjectNextLineCommand(TextCommand, DiredBaseCommand):
         self.view.sel().add(Region(line.a, line.a))
 
 
-class DiredProjectSelectCommand(TextCommand):
+class dired_project_select(TextCommand):
     def run(self, edit):
         pt = self.view.sel()[0].a
         row, col = self.view.rowcol(pt)
@@ -213,7 +213,7 @@ class DiredProjectSelectCommand(TextCommand):
         sublime.set_timeout(self.view.close, 100)
 
 
-class DiredProjectEditJumpPointCommand(TextCommand):
+class dired_project_edit_jump_point(TextCommand):
     def run(self, edit):
         pt = self.view.sel()[0].a
         row, _ = self.view.rowcol(pt)
