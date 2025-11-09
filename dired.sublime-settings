@@ -78,6 +78,12 @@
   // make FileBrowser views look more like a file browser than an editor
   // This plugin does not change font and font size, but it's
   // highly recommended to customize them in your user files.
+  // We ship a thTheme actually and you could turn it on here.
+  // However, your normal color-scheme should look okay and should fit
+  // your design.  Just note that you might want to add some scopes to
+  // it.  Namely: `dired.marked`, `dired.copied`, and `dired.cut` are
+  // use as highlightings and for sure not defined by default in your scheme.
+  // Also the vcs markers `item.modified.dired` and `item.untracked.dired`.
   // "color_scheme": "Packages/FileBrowser/dired.hidden-tmTheme",
   "line_numbers": false,
   "word_wrap": false,
