@@ -585,24 +585,28 @@ class DiredBaseCommand:
     def _build_regions_for_paths(self, paths):
         """Return line regions covering filename spans for given absolute paths.
 
-        Matches each path against the current view content, confirming via
-        get_fullpath_for to avoid false positives. Regions cover only the name
-        portion (from name start to end-of-line) to match mark styling.
+        Uses `self.index` (row -> full path) for a direct lookup.
         """
-        regions = []
         if not paths:
-            return regions
+            return []
+
+        # Ensure we have the up-to-date index
+        self.index = self.get_all()
+
+        # Build path -> row map, skipping header and parent entries
+        row_by_path = {
+            p: i for i, p in enumerate(self.index) if p and p != PARENT_SYM
+        }
+
+        regions = []
         for item in set(paths):
-            for region in self._find_in_view(item):
-                try:
-                    full = self.get_fullpath_for(region)
-                except Exception:
-                    continue
-                if full == item:
-                    line = self.view.line(region.a)
-                    name_point = self._get_name_point(line)
-                    regions.append(Region(name_point, line.b))
-                    break
+            row = row_by_path.get(item)
+            if row is None:
+                continue
+            pt = self.view.text_point(row, 0)
+            line = self.view.line(pt)
+            name_point = self._get_name_point(line)
+            regions.append(Region(name_point, line.b))
         return regions
 
     def refresh_clipboard_highlights(self, copied=None, cut=None):
