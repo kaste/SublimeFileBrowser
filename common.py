@@ -297,49 +297,6 @@ class DiredBaseCommand:
                 names.append(text)
         return names
 
-    def _mark(self, mark, regions):
-        """
-        Marks the requested files.
-
-        mark
-            True, False, or a function with signature `func(oldmark, filename)`.
-            The function should return True or False.
-
-        regions
-            List of region(s).  Only files within the region will be modified.
-        """
-        filergn = self.fileregion()
-        if not filergn:
-            return
-
-        self.index = self.get_all()
-        # We can't update regions for a key, only replace, so we need to record the existing marks.
-        marked = {
-            self.get_fullpath_for(r): r
-            for r in self.view.get_regions('marked') if not r.empty()
-        }
-
-        for line in self._get_lines(regions, filergn):
-            filename = self.get_fullpath_for(line)
-
-            if mark not in (True, False):
-                newmark = mark(filename in marked, filename)
-                assert newmark in (True, False), 'Invalid mark: {0}'.format(newmark)
-            else:
-                newmark = mark
-
-            if newmark:
-                name_point = self._get_name_point(line)
-                marked[filename] = Region(name_point, line.b)
-            else:
-                marked.pop(filename, None)
-
-        if marked:
-            r = sorted(list(marked.values()), key=lambda region: region.a)
-            self.view.add_regions('marked', r, 'dired.marked', '', MARK_OPTIONS)
-        else:
-            self.view.erase_regions('marked')
-
     def _get_lines(self, regions, within):
         '''
         regions is a list of non-overlapping region(s), each may have many lines
@@ -476,24 +433,6 @@ class DiredBaseCommand:
             items = [n for n in items if isdir(join(path, n))]
         return (items, error)
 
-    def restore_marks(self, marked=None):
-        if marked:
-            # Even if we have the same filenames, they may have moved so we have to manually
-            # find them again.
-            path = self.get_path()
-            regions = []
-            for mark in marked:
-                matches = self._find_in_view(mark)
-                for region in matches:
-                    filename = self.get_parent(region, path)
-                    if filename == mark:
-                        regions.append(region)
-                        # if it is found, no need to check other matches, so break
-                        break
-            self._mark(mark=True, regions=regions)
-        else:
-            self.view.erase_regions('marked')
-
     def restore_sels(self, sels=None):
         '''
         sels is tuple of two elements:
@@ -582,6 +521,7 @@ class DiredBaseCommand:
         self.view.show(s, False)
 
     # --- Clipboard highlight helpers -----------------------------------------
+
     def _build_regions_for_paths(self, paths):
         """Return line regions covering filename spans for given absolute paths.
 
@@ -629,6 +569,19 @@ class DiredBaseCommand:
         cut_regions = self._build_regions_for_paths(cut)
         self.view.add_regions('copied', copied_regions, 'dired.copied', '', MARK_OPTIONS)
         self.view.add_regions('cut', cut_regions, 'dired.cut', '', MARK_OPTIONS)
+
+    def refresh_mark_highlights(self):
+        """Re-create marked item highlights from source-of-truth paths.
+
+        Reads absolute paths from `dired_marked_paths` on the view and draws
+        regions using the current index. Keeps visuals in sync after any redraw.
+        """
+        marks = self.view.settings().get('dired_marked_paths') or []
+        regions = self._build_regions_for_paths(marks)
+        if regions:
+            self.view.add_regions('marked', regions, 'dired.marked', '', MARK_OPTIONS)
+        else:
+            self.view.erase_regions('marked')
 
     def display_path(self, folder):
         return display_path(folder)

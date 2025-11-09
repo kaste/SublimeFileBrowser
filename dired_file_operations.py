@@ -347,7 +347,8 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
 
         # If marks were used, clear all marks (same effect as pressing 'u')
         if used_marked:
-            self.view.erase_regions('marked')
+            self.view.settings().set('dired_marked_paths', [])
+            self.refresh_mark_highlights()
 
         # If there are multiple selections, collapse to the last one first
         if not used_marked:

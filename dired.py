@@ -272,6 +272,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         items = self.correcting_index(path, tree)
         self.write(edit, items)
         self.restore_selections(path)
+        self.refresh_mark_highlights()
         self.refresh_clipboard_highlights()
         # Persist expanded paths for future refreshes
         try:
@@ -302,6 +303,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         items = self.correcting_index(path, self.prepare_filelist(names, path, '', ''))
         self.write(edit, items)
         self.restore_selections(path)
+        self.refresh_mark_highlights()
         self.refresh_clipboard_highlights()
         self.view.run_command('dired_call_vcs', {'path': path})
 
@@ -436,8 +438,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         return text + fileslist
 
     def restore_selections(self, path):
-        '''Set cursor(s) and mark(s)'''
-        self.restore_marks(self.marked)
+        '''Set cursor(s)'''
         if self.goto:
             if self.goto[~0] != os.sep:
                 self.goto += (os.sep if isdir(join(path, self.goto)) else '')
@@ -675,13 +676,22 @@ class dired_expand(TextCommand, DiredBaseCommand):
             return sublime.status_message('Item cannot be expanded')
 
     def expand_single_directory(self, edit, path, toggle):
-        '''Expand one directory is save and fast, thus we do it here,
-        but for many directories calling refresh command'''
-        marked = self.get_marked()
-        seled  = self.get_selected()
+        '''Expand one directory is safe and fast, thus we do it here,
+        but for many directories call refresh command'''
+        # Capture current marks and selection (by path) for later restoration
+        marked_paths = self.view.settings().get('dired_marked_paths') or []
+        current_sel = list(self.view.sel())[0]
 
-        self.sel     = self.view.get_regions('marked')[0] if marked else list(self.view.sel())[0]
-        line         = self.view.line(self.sel)
+        # Use the index to find the exact line for `path`
+        self.index = self.get_all()
+        row_by_path = {p: i for i, p in enumerate(self.index) if p}
+        row = row_by_path.get(path)
+        if row is not None:
+            pt = self.view.text_point(row, 0)
+            line = self.view.line(pt)
+        else:
+            line = self.view.line(current_sel)
+        self.sel = Region(line.a, line.a)
         line_content = self.view.substr(line)
         if line_content.lstrip().startswith('▾'):
             if toggle:
@@ -716,8 +726,10 @@ class dired_expand(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_expanded_paths', list(expanded))
         except Exception:
             pass
-        self.restore_marks(marked)
-        self.restore_sels((seled, [self.sel]))
+        # Restore marks and keep the cursor on the expanded directory line
+        self.view.settings().set('dired_marked_paths', marked_paths)
+        self.refresh_mark_highlights()
+        self.restore_sels(([path.replace(self.path, '', 1)], [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
         self.update_filter_highlight()
         self.refresh_clipboard_highlights()
@@ -778,7 +790,7 @@ class dired_fold(TextCommand, DiredBaseCommand):
         for line in lines:
             self.fold(edit, line)
 
-        self.restore_marks(self.marked)
+        self.refresh_mark_highlights()
         self.restore_sels(self.sels)
         self.view.run_command("dired_draw_vcs_marker")
         self.refresh_clipboard_highlights()
@@ -949,8 +961,13 @@ class dired_mark_extension(TextCommand, DiredBaseCommand):
             return
         if not ext.startswith('.'):
             ext = '.' + ext
-        self._mark(mark=lambda oldmark, filename: filename.endswith(ext) or oldmark,
-                   regions=[self.fileregion()])
+        # Mark all files matching the extension plus keep existing marks
+        self.index = self.get_all()
+        paths = set(self.view.settings().get('dired_marked_paths') or [])
+        matches = [p for p in self.index if p and p != PARENT_SYM and p.endswith(ext)]
+        paths.update(matches)
+        self.view.settings().set('dired_marked_paths', sorted(paths))
+        self.refresh_mark_highlights()
 
 
 class dired_mark(TextCommand, DiredBaseCommand):
@@ -980,17 +997,32 @@ class dired_mark(TextCommand, DiredBaseCommand):
         if filergn.empty():
             return
 
-        if not mark and markall:
-            self.view.erase_regions('marked')
-            return
+        # Compute target paths
+        self.index = self.get_all()
+        if markall:
+            targets = [p for p in self.index if p and p != PARENT_SYM]
+        else:
+            targets = self.get_selected(parent=False, full=True)
 
-        # If markall is set, mark/unmark all files.  Otherwise only those that are selected.
-        regions = [filergn] if markall else list(self.view.sel())
+        paths = set(self.view.settings().get('dired_marked_paths') or [])
 
         if mark == 'toggle':
-            mark = lambda oldmark, filename: not oldmark
+            for p in targets:
+                if p in paths:
+                    paths.discard(p)
+                else:
+                    paths.add(p)
+        elif mark is True:
+            paths.update(targets)
+        else:  # mark is False
+            if markall:
+                paths.clear()
+            else:
+                for p in targets:
+                    paths.discard(p)
 
-        self._mark(mark=mark, regions=regions)
+        self.view.settings().set('dired_marked_paths', sorted(paths))
+        self.refresh_mark_highlights()
 
         if should_move and forward:
             self.move(forward)
