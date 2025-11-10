@@ -786,7 +786,6 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.update = update
         self.index  = index or self.get_all()
         # Marks should not influence collapse; only actual selections count
-        self.sels  = (self.get_selected(), list(self.view.sel()))
         sels = list(v.sel())
 
         last_child_by_parent = self.view.settings().get('dired_last_child_by_parent') or {}
@@ -819,10 +818,12 @@ class dired_fold(TextCommand, DiredBaseCommand):
         # Focus the parent directory
         if parents:
             names, line_starts = map(list, zip(*parents))
-            self.sels = (names, line_starts)
+            sel_info = (names, line_starts)
+        else:
+            sel_info = None
 
         self.refresh_mark_highlights()
-        self.restore_sels(self.sels)
+        self.restore_sels(sel_info)
         self.view.run_command("dired_draw_vcs_marker")
         self.refresh_clipboard_highlights()
         # Update persisted expanded paths based on current view state
