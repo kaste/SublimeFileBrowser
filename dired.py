@@ -726,10 +726,16 @@ class dired_expand(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_expanded_paths', list(expanded))
         except Exception:
             pass
-        # Restore marks and keep the cursor on the expanded directory line
+        # Restore marks and try to focus last selected child under this parent
         self.view.settings().set('dired_marked_paths', marked_paths)
         self.refresh_mark_highlights()
-        self.restore_sels(([path.replace(self.path, '', 1)], [self.sel]))
+        last_child = (self.view.settings().get('dired_last_child_by_parent') or {}).get(path)
+        if last_child:
+            child_rel = last_child.replace(self.path, '', 1)
+            self.restore_sels(([child_rel], None))
+        else:
+            # Fallback to focusing the parent directory line
+            self.restore_sels(([path.replace(self.path, '', 1)], [self.sel]))
         self.view.run_command("dired_draw_vcs_marker")
         self.update_filter_highlight()
         self.refresh_clipboard_highlights()
@@ -786,18 +792,28 @@ class dired_fold(TextCommand, DiredBaseCommand):
             self.marked = self.get_marked()
         sels = virt_sels or list(v.sel())
 
+        last_child_by_parent = self.view.settings().get('dired_last_child_by_parent') or {}
+
+        base_path = self.get_path()
+        parents = []
         lines = [v.line(s.a) for s in reversed(sels)]
-        parent_lines = []
         for line in lines:
+            # Child path under the cursor before we modify the view
+            child_full = self.get_fullpath_for(line)
             parent_line = self.fold(edit, line)
             if parent_line is not None:
-                parent_lines.append(parent_line)
+                parent_rel = self.get_parent(parent_line, base_path)
+                parents.append((parent_rel, Region(parent_line.a)))
+                parent_full = base_path + parent_rel
+                last_child_by_parent[parent_full] = child_full
+
+        # Persist last-child mapping
+        self.view.settings().set('dired_last_child_by_parent', last_child_by_parent)
+
         # Focus the parent directory
-        if parent_lines:
-            path = self.get_path()
-            names = [self.get_parent(line, path) for line in parent_lines]
-            regions = [Region(line.a, line.a) for line in parent_lines]
-            self.sels = (names, regions)
+        if parents:
+            names, line_starts = map(list, zip(*parents))
+            self.sels = (names, line_starts)
 
         self.refresh_mark_highlights()
         self.restore_sels(self.sels)
