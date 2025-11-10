@@ -220,15 +220,14 @@ class dired_refresh(TextCommand, DiredBaseCommand):
 
         self.number_line = 0
         if reset_sels and not to_expand:
-            self.index, self.marked, self.sels = [], None, None
+            self.index, self.sels = [], None
             self.populate_view(edit, path, names)
         else:
             if not reset_sels:
                 self.index  = self.get_all()
-                self.marked = self.get_marked()
                 self.sels   = (self.get_selected(), list(self.view.sel()))
             else:
-                self.marked, self.sels = None, None
+                self.sels = None
             self.re_populate_view(edit, path, names, expanded, to_expand, toggle)
 
         if self.view.settings().get('dired_autorefresh', True):
@@ -786,7 +785,6 @@ class dired_fold(TextCommand, DiredBaseCommand):
         v = self.view
         self.update = update
         self.index  = index or self.get_all()
-        self.marked = None
         # Marks should not influence collapse; only actual selections count
         self.sels  = (self.get_selected(), list(self.view.sel()))
         sels = list(v.sel())
@@ -916,14 +914,6 @@ class dired_fold(TextCommand, DiredBaseCommand):
             end_line   = start_line + removed_count
             self.index = self.index[:start_line] + self.index[end_line:]
             v.settings().set('dired_index', self.index)
-
-        if self.marked or self.sels:
-            path = self.path
-            folded_name = self.get_parent(line, path)
-            if self.marked:
-                self.marked.append(folded_name)
-            elif self.sels and self.sels[0]:
-                self.sels[0].append(folded_name)
 
         name_point  = self._get_name_point(line)
         icon_region = Region(name_point - 2, name_point - 1)
