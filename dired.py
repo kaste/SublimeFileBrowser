@@ -394,8 +394,23 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             '''
         header  = self.view.settings().get('dired_header', False)
         name    = jump_names().get(path or self.path)
-        caption = "{0} → {1}".format(name, path) if name else path or self.path
-        text    = [caption, len(caption) * '—'] if header else []
+        caption_base = "{0} → {1}".format(name, path) if name else path or self.path
+        extras = ''
+        # If filters are active, show them in the header, e.g. [*.py] [foo]
+        if header:
+            s = self.view.settings()
+            if s.get('dired_filter_enabled', True):
+                ext = s.get('dired_filter_extension') or ''
+                if ext:
+                    extras += "  [*{0}]".format(ext)
+                flt = s.get('dired_filter') or ''
+                if flt:
+                    extras += "  [{0}]".format(flt)
+        caption_full = caption_base + extras
+        if header:
+            text = [caption_full, '—' * len(caption_base)]
+        else:
+            text = []
         icon    = self.view.name()[:2]
         if not path:
             title = '%s%s' % (icon, name or 'This PC')

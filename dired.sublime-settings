@@ -4,7 +4,7 @@
   "dired_show_parent": true,
 
   // If you want to see header (underlined full path) on top of file list
-  "dired_header": false,
+  "dired_header": true,
 
   // If you want to see full path in tab title and thus in window title
   // if tab is focused
