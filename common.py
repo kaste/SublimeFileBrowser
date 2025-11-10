@@ -236,7 +236,7 @@ class DiredBaseCommand:
             return None
         return Region(all_items[0].a, all_items[~0].b)
 
-    def get_parent(self, line, path):
+    def get_parent(self, line: Region, path: str) -> str:
         '''
         Returns relative path for line
             • line is a region
@@ -245,7 +245,7 @@ class DiredBaseCommand:
         '''
         return self.get_fullpath_for(line).replace(path, '', 1)
 
-    def get_fullpath_for(self, line):
+    def get_fullpath_for(self, line: Region) -> str:
         return self.index[self.view.rowcol(line.a)[0]]
 
     def get_all(self):

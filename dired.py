@@ -787,8 +787,17 @@ class dired_fold(TextCommand, DiredBaseCommand):
         sels = virt_sels or list(v.sel())
 
         lines = [v.line(s.a) for s in reversed(sels)]
+        parent_lines = []
         for line in lines:
-            self.fold(edit, line)
+            parent_line = self.fold(edit, line)
+            if parent_line is not None:
+                parent_lines.append(parent_line)
+        # Focus the parent directory
+        if parent_lines:
+            path = self.get_path()
+            names = [self.get_parent(line, path) for line in parent_lines]
+            regions = [Region(line.a, line.a) for line in parent_lines]
+            self.sels = (names, regions)
 
         self.refresh_mark_highlights()
         self.restore_sels(self.sels)
@@ -812,13 +821,16 @@ class dired_fold(TextCommand, DiredBaseCommand):
         except Exception:
             pass
 
-    def fold(self, edit, line):
-        '''line is a Region, on which folding is supposed to happen (or not)'''
+    def fold(self, edit, line: Region) -> Region | None:
+        '''
+        line is a Region, on which folding is supposed to happen (or not).
+        Returns the parent directory line region if a fold was performed, else None.
+        '''
         line, indented_region = self.get_indented_region(line)
         if not indented_region:
-            return  # folding is not supposed to happen, so we exit
-
+            return None  # folding is not supposed to happen, so we exit
         self.apply_change_into_view(edit, line, indented_region)
+        return line
 
     def get_indented_region(self, line):
         '''Return tuple:
