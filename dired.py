@@ -726,9 +726,21 @@ class dired_expand(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_expanded_paths', list(expanded))
         except Exception:
             pass
-        # Restore marks and try to focus last selected child under this parent
+
+        # Re-expand subfolders previously expanded under this parent
+        saved_sub_expansions = self.view.settings().get('dired_saved_sub_expansions') or {}
+        sub_expanded = saved_sub_expansions.get(path) or []
+        if sub_expanded:
+            for sub in sorted(sub_expanded, key=lambda p: p.count(os.sep)):
+                self.expand_single_directory(edit, sub, toggle=False)
+            saved_sub_expansions.pop(path, None)
+            self.view.settings().set('dired_saved_sub_expansions', saved_sub_expansions)
+
+        # Restore marks
         self.view.settings().set('dired_marked_paths', marked_paths)
         self.refresh_mark_highlights()
+
+        # Try to focus last selected child under this parent
         last_child = (self.view.settings().get('dired_last_child_by_parent') or {}).get(path)
         if last_child:
             child_rel = last_child.replace(self.path, '', 1)
@@ -736,6 +748,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         else:
             # Fallback to focusing the parent directory line
             self.restore_sels(([path.replace(self.path, '', 1)], [self.sel]))
+
         self.view.run_command("dired_draw_vcs_marker")
         self.update_filter_highlight()
         self.refresh_clipboard_highlights()
@@ -793,6 +806,8 @@ class dired_fold(TextCommand, DiredBaseCommand):
         sels = virt_sels or list(v.sel())
 
         last_child_by_parent = self.view.settings().get('dired_last_child_by_parent') or {}
+        saved_sub_expansions = self.view.settings().get('dired_saved_sub_expansions') or {}
+        expanded_paths = self.view.settings().get('dired_expanded_paths') or []
 
         base_path = self.get_path()
         parents = []
@@ -807,8 +822,15 @@ class dired_fold(TextCommand, DiredBaseCommand):
                 parent_full = base_path + parent_rel
                 last_child_by_parent[parent_full] = child_full
 
-        # Persist last-child mapping
+                # Save which subfolders were expanded under this parent
+                saved_sub_expansions[parent_full] = [
+                    p for p in expanded_paths
+                    if p.startswith(parent_full) and p != parent_full
+                ]
+
+        # Persist mappings
         self.view.settings().set('dired_last_child_by_parent', last_child_by_parent)
+        self.view.settings().set('dired_saved_sub_expansions', saved_sub_expansions)
 
         # Focus the parent directory
         if parents:
