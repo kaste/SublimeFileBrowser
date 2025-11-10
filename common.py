@@ -432,6 +432,29 @@ class DiredBaseCommand:
         sort_nicely(items)
         return items, error
 
+    def try_listing_directory_raw(self, path):
+        '''Like try_listing_directory but without applying name/extension filters.
+        Respects hidden-file setting and returns sorted names.'''
+        items, error = [], ''
+        if not path:
+            items = [f"{s}:" for s in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if isdir(f"{s}:")]
+        else:
+            try:
+                items = os.listdir(path)
+            except OSError as e:
+                error = str(e)
+                if NT:
+                    error = (
+                        error
+                        .split(':')[0]
+                        .replace('[Error 5] ', 'Access denied')
+                        .replace('[Error 3] ', 'Not exists, press r to refresh')
+                    )
+        if not self.show_hidden:
+            items = [name for name in items if not self.is_hidden(name, path)]
+        sort_nicely(items)
+        return items, error
+
     def try_listing_only_dirs(self, path):
         '''Same as self.try_listing_directory, but items contains only directories.
         Used for prompt completion'''

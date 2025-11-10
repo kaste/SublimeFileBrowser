@@ -12,7 +12,7 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, calc_width, display_path, emit_event, get_group, hijack_window,
-    set_proper_scheme, NT, PARENT_SYM)
+    set_proper_scheme, NT, PARENT_SYM, rx_fuzzy_match)
 from . import prompt
 from .show import show
 from .jumping import jump_names
@@ -260,15 +260,89 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         else:
             expanded.extend(to_expand or [])
         self.expanded = expanded
-        # we need prev index to setup expanded list — done, so reset index
-        self.index = []
+        # Build view in three phases using a flat list model
+        expanded_set = set(self.expanded)
 
-        tree = self.traverse_tree(root, root, '', names, expanded)
-        if not tree:
+        class _Entry:
+            __slots__ = ("path", "name", "is_dir", "depth", "expanded")
+
+            def __init__(self, path, name, is_dir, depth, expanded):
+                self.path = path
+                self.name = name
+                self.is_dir = is_dir
+                self.depth = depth
+                self.expanded = expanded
+
+        def _ensure_dir(p: str) -> str:
+            return p if p.endswith(os.sep) else (p + os.sep)
+
+        def _visit(dir_path: str, depth: int):
+            items_raw, err = self.try_listing_directory_raw(dir_path)
+            if err:
+                return []
+
+            entries = []
+
+            dirs, files = [], []
+            for name in items_raw:
+                full = join(dir_path, name)
+                (dirs if isdir(full) else files).append((name, full))
+
+            # Directories first
+            for nm, full in dirs:
+                dir_full = _ensure_dir(full)
+                bname = os.path.basename(os.path.abspath(dir_full)) or dir_full.rstrip(os.sep)
+                entries.append(_Entry(dir_full, bname, True, depth, dir_full in expanded_set))
+                if dir_full in expanded_set:
+                    entries += _visit(dir_full, depth + 1)
+
+            # Files
+            for nm, full in files:
+                entries.append(_Entry(full, nm, False, depth, False))
+            return entries
+
+        entries = _visit(root, 0)
+
+        # Phase 2: filter bottom-up
+        s = self.view.settings()
+        enabled = s.get('dired_filter_enabled', True)
+        ext = s.get('dired_filter_extension', '').lower()
+        flt = s.get('dired_filter', '').strip()
+
+        new_entries = []
+        for e in reversed(entries):
+            ok_name = not enabled or not flt or rx_fuzzy_match(flt, e.name)
+            if e.is_dir:
+                children_present = new_entries and new_entries[-1].path.startswith(e.path)
+                ok_ext = not enabled or not ext
+                keep_dir = ok_ext and ok_name or children_present
+                if keep_dir:
+                    new_entries.append(e)
+            else:
+                ok_ext = not enabled or not ext or os.path.splitext(e.name)[1].lower() == ext
+                keep_file = ok_ext and ok_name
+                if keep_file:
+                    new_entries.append(e)
+
+        # Phase 3: render and build index
+        lines = []
+        new_index = []
+        for e in reversed(new_entries):
+            indent = '\t' * e.depth
+            if e.is_dir:
+                icon = '▾' if e.expanded else '▸'
+                lines.append(f"{indent}{icon} {e.name}{os.sep}")
+                new_index.append(e.path)
+            else:
+                lines.append(f"{indent}≡ {e.name}")
+                new_index.append(e.path)
+
+        if not lines:
             return self.populate_view(edit, path, names)
 
         self.set_status()
-        items = self.correcting_index(path, tree)
+        self.index = new_index
+        items = self.correcting_index(path, lines)
         self.write(edit, items)
         self.restore_selections(path)
         self.refresh_mark_highlights()
@@ -317,6 +391,36 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             tree = []
 
         else:
+            s = self.view.settings()
+            expanded_set = set(expanded)
+            def _has_visible_children(dir_path: str) -> bool:
+                names, _ = self.try_listing_directory_raw(dir_path)
+                if not names:
+                    return False
+                # Files
+                files = [n for n in names if not isdir(join(dir_path, n))]
+                # Apply combined ext + name filter to files
+                ext = (s.get('dired_filter_extension') or '').lower() if s.get('dired_filter_enabled', True) else ''
+                flt = (s.get('dired_filter') or '').strip() if s.get('dired_filter_enabled', True) else ''
+                def file_matches(n: str) -> bool:
+                    if ext and os.path.splitext(n)[1].lower() != ext:
+                        return False
+                    if flt and not rx_fuzzy_match(flt, n):
+                        return False
+                    return True
+                if any(file_matches(n) for n in files):
+                    return True
+                # Directories: recurse only into expanded ones; or allow if name matches
+                dirs = [n for n in names if isdir(join(dir_path, n))]
+                for d in dirs:
+                    child_abs = join(dir_path, d)
+                    child_path = (child_abs.rstrip(os.sep) + os.sep)
+                    if child_path in expanded_set and _has_visible_children(child_abs):
+                        return True
+                    if flt and rx_fuzzy_match(flt, d):
+                        return True
+                return False
+
             if indent:  # this happens during recursive call, i.e. path in expanded
                 # basename return funny results for c:\\ so it is tricky
                 bname = os.path.basename(os.path.abspath(path)) or path.rstrip(os.sep)
@@ -327,16 +431,20 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             if error:
                 tree[~0] += '\t<%s>' % error
                 return
-            # Ensure expanded child directories remain visible even if they do not
-            # match the current filter, so users can search within expanded trees.
+            # Ensure expanded child directories remain visible to allow searching
+            # within expanded trees.
             forced = []
+            # Only force if the sub folder currently has visible children
             for e in expanded:
                 parent = dirname(e.rstrip(os.sep)) + os.sep
                 if parent == path:
                     b = os.path.basename(os.path.abspath(e)) or e.rstrip(os.sep)
                     name = b.rstrip(os.sep)
                     if (name not in items) and isdir(join(path, name)):
-                        forced.append(name)
+                        sub_path = join(path, name)
+                        if _has_visible_children(sub_path):
+                            forced.append(name)
+
             if forced:
                 items += forced
                 try:
@@ -344,6 +452,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                     _sn(items)
                 except Exception:
                     pass
+
             if not items:
                 if path == root:
                     return []
@@ -356,7 +465,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                     # If a live filter is active and this node was "forced in" to
                     # evetually show matching children, omit it entirely.
                     # T.i. undo the forcing.
-                    if indent and was_forced:
+                    drop_empty = not _has_visible_children(path)
+                    if indent and (was_forced or drop_empty):
                         if tree:
                             tree.pop()
                         if self.index:
