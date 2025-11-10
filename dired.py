@@ -652,17 +652,10 @@ class dired_expand(TextCommand, DiredBaseCommand):
         toggle  if True, state of directory(s) will be toggled (i.e. expand/collapse)
         '''
         self.index = self.get_all()
-        # - If marks exist and consist only of directories, expand those marks.
-        # - Otherwise, combine marks + selections and expand any directories in that union.
+        # Marks should not influence expand; only actual selections count
         selected = self.get_selected(parent=False, full=True) or []
-        marked = self.get_marked(full=True) or []
 
-        def is_dir(p):
-            return p.endswith(os.sep)
-
-        paths = [p for p in marked if is_dir(p)]
-        if not paths or len(marked) != len(paths):  # <= marked was mixed files and folders
-            paths += [p for p in selected if is_dir(p) and p not in paths]
+        paths = [p for p in selected if p.endswith(os.sep)]
 
         if len(paths) == 1:
             return self.expand_single_directory(edit, paths[0], toggle)
@@ -794,16 +787,9 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.update = update
         self.index  = index or self.get_all()
         self.marked = None
+        # Marks should not influence collapse; only actual selections count
         self.sels  = (self.get_selected(), list(self.view.sel()))
-        marks       = self.view.get_regions('marked')
-        virt_sels   = []
-
-        if marks:
-            for m in marks:
-                if 'directory' in self.view.scope_name(m.a):
-                    virt_sels.append(Region(m.a, m.a))
-            self.marked = self.get_marked()
-        sels = virt_sels or list(v.sel())
+        sels = list(v.sel())
 
         last_child_by_parent = self.view.settings().get('dired_last_child_by_parent') or {}
         saved_sub_expansions = self.view.settings().get('dired_saved_sub_expansions') or {}
