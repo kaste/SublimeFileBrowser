@@ -320,25 +320,25 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         ext = s.get('dired_filter_extension', '').lower()
         flt = s.get('dired_filter', '').strip()
 
-        new_entries = []
+        filtered_entries = []
         for e in reversed(entries):
             ok_name = not enabled or not flt or rx_fuzzy_match(flt, e.name)
             if e.is_dir:
-                children_present = new_entries and new_entries[-1].path.startswith(e.path)
+                children_present = filtered_entries and filtered_entries[-1].path.startswith(e.path)
                 ok_ext = not enabled or not ext
                 keep_dir = ok_ext and ok_name or children_present
                 if keep_dir:
-                    new_entries.append(e)
+                    filtered_entries.append(e)
             else:
                 ok_ext = not enabled or not ext or os.path.splitext(e.name)[1].lower() == ext
                 keep_file = ok_ext and ok_name
                 if keep_file:
-                    new_entries.append(e)
+                    filtered_entries.append(e)
 
         # Phase 3: render and build index
         lines = []
         new_index = []
-        for e in reversed(new_entries):
+        for e in reversed(filtered_entries):
             indent = '\t' * e.depth
             if e.is_dir:
                 icon = '▾' if e.expanded else '▸'
