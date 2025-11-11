@@ -264,14 +264,15 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         expanded_set = set(self.expanded)
 
         class _Entry:
-            __slots__ = ("path", "name", "is_dir", "depth", "expanded")
+            __slots__ = ("path", "name", "is_dir", "depth", "expanded", "note")
 
-            def __init__(self, path, name, is_dir, depth, expanded):
+            def __init__(self, path, name, is_dir, depth, expanded, note=""):
                 self.path = path
                 self.name = name
                 self.is_dir = is_dir
                 self.depth = depth
                 self.expanded = expanded
+                self.note = note
 
         def _ensure_dir(p: str) -> str:
             return p if p.endswith(os.sep) else (p + os.sep)
@@ -279,7 +280,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         def _visit(dir_path: str, depth: int):
             items_raw, err = self.try_listing_directory_raw(dir_path)
             if err:
-                return []
+                return [], err
 
             entries = []
 
@@ -291,17 +292,22 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             # Directories first
             for nm, full in dirs:
                 dir_full = _ensure_dir(full)
-                bname = os.path.basename(os.path.abspath(dir_full)) or dir_full.rstrip(os.sep)
-                entries.append(_Entry(dir_full, bname, True, depth, dir_full in expanded_set))
                 if dir_full in expanded_set:
-                    entries += _visit(dir_full, depth + 1)
+                    sub_entries, sub_err = _visit(dir_full, depth + 1)
+                    note = sub_err or 'empty' if not sub_entries else ''
+                    entries.append(_Entry(dir_full, nm, True, depth, True, note))
+                    entries += sub_entries
+                else:
+                    entries.append(_Entry(dir_full, nm, True, depth, False))
 
             # Files
             for nm, full in files:
                 entries.append(_Entry(full, nm, False, depth, False))
-            return entries
+            return entries, err
 
-        entries = _visit(root, 0)
+        entries, _ = _visit(root, 0)
+        if not entries:
+            return self.populate_view(edit, path, names)
 
         # Phase 2: filter bottom-up
         s = self.view.settings()
@@ -331,14 +337,12 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             indent = '\t' * e.depth
             if e.is_dir:
                 icon = '▾' if e.expanded else '▸'
-                lines.append(f"{indent}{icon} {e.name}{os.sep}")
+                note = f'\t<{e.note}>' if e.note else ''
+                lines.append(f"{indent}{icon} {e.name}{os.sep}{note}")
                 new_index.append(e.path)
             else:
                 lines.append(f"{indent}≡ {e.name}")
                 new_index.append(e.path)
-
-        if not lines:
-            return self.populate_view(edit, path, names)
 
         self.set_status()
         self.index = new_index
