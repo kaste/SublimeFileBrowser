@@ -495,6 +495,9 @@ class dired_select(TextCommand, DiredBaseCommand):
             return False
         fqn = filenames[0]
         if len(filenames) == 1 and isdir(fqn):
+            # Clear any persisted marks when navigating into a directory
+            self.view.settings().set('dired_marked_paths', [])
+            self.refresh_mark_highlights()
             # Disable active filter when traversing into a subdirectory
             s = self.view.settings()
             s.set('dired_filter_enabled', False)
@@ -937,8 +940,10 @@ class dired_up(TextCommand, DiredBaseCommand):
             else:
                 return
 
-        # Disable any active filter when navigating to the parent directory
+        # Clear any persisted marks and disable active filter when navigating up
         s = self.view.settings()
+        s.set('dired_marked_paths', [])
+        self.refresh_mark_highlights()
         s.set('dired_filter_enabled', False)
 
         view_id = (self.view.id() if reuse_view() else None)
