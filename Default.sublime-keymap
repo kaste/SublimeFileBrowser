@@ -83,9 +83,18 @@
       ]
   },
   {
-      "keys": ["m"],
+      "keys": [" "],
       "command": "dired_mark",
       "args": { "mark": "toggle" },
+      "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
+      "keys": ["m"],
+      "command": "dired_mark",
+      "args": { "mark": "toggle", "move_cursor": false },
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
@@ -398,14 +407,7 @@
         { "key": "setting.dired_rename_mode", "operand": true }
       ]
   },
-  {
-    "keys": [" "],
-    "command": "dired_quick_look",
-    "context": [
-      { "key": "selector", "operator": "equal", "operand": "text.dired" },
-      { "key": "setting.dired_rename_mode", "operand": false }
-    ]
-  },
+
 
   // PROJECTS
 

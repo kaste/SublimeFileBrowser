@@ -1007,12 +1007,17 @@ class dired_mark(TextCommand, DiredBaseCommand):
     If there is no selection and mark is '*', the cursor is moved to the next line so
     successive files can be marked by repeating the mark key binding (e.g. 'm').
     """
-    def run(self, edit, mark=True, markall=False, forward=True):
+    def run(self, edit, mark=True, markall=False, forward=True, move_cursor=True):
         assert mark in (True, False, 'toggle')
 
         # If there is no selection, move the cursor so the user can keep pressing 'm'
         # to mark or toggle successive files.
-        should_move = not markall and len(self.view.sel()) == 1 and self.view.sel()[0].empty()
+        should_move = (
+            move_cursor
+            and not markall
+            and len(self.view.sel()) == 1
+            and self.view.sel()[0].empty()
+        )
 
         if should_move and not forward:
             self.move(forward)

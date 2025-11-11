@@ -4,19 +4,18 @@
 | Move to next                  | j or down                 |
 | Expand directory              | l or right                |
 | Collapse directory            | h or left                 |
-| Toggle expand/collapse        | o                         |
 | Go to parent directory        | backspace                 |
 | Go to first                   | super+up or ctrl+home     |
 | Go to last                    | super+down or ctrl+end    |
 |                               |                           |
-| Fuzzy search                  | / or i                    |
-| Toggle fuzzy filter           | I                         |
+| Fuzzy filter                  | / or i                    |
 | Filter by extension           | *                         |
+| Toggle filter                 | I                         |
 | Find in files                 | s                         |
 |                               |                           |
-| Toggle mark                   | m                         |
-| Toggle mark and move down     | shift+down or m           |
+| Toggle mark and move down     | space or shift+down       |
 | Toggle mark and move up       | shift+up                  |
+| Toggle mark                   | m                         |
 | Toggle all marks              | t                         |
 | Unmark all                    | u                         |
 |                               |                           |
@@ -47,7 +46,7 @@
 | Toggle add folder to project  | f                         |
 | Set current folder as         | F                         |
 | only one for the project      |                           |
-| Quicklook for Mac or open in  | space                     |
+| Quicklook for Mac or open in  | O                         |
 | default app on other OSs      |                           |
 
  In Rename Mode:

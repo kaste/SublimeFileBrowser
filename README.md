@@ -116,20 +116,20 @@ e.g. to completely mimic sidebar, it would be:
 | Move to next                                          | <kbd>j</kbd> or <kbd>↓</kbd>               |
 | Expand directory                                      | <kbd>l</kbd> or <kbd>→</kbd>               |
 | Collapse directory                                    | <kbd>h</kbd> or <kbd>←</kbd>               |
-| Toggle expand/collapse                                | <kbd>o</kbd>                               |
 | Go to parent directory                                | <kbd>backspace</kbd>                       |
 | Go to first                                           | <kbd>⌘+↑</kbd> or <kbd>ctrl+home</kbd>     |
 | Go to last                                            | <kbd>⌘+↓</kbd> or <kbd>ctrl+end</kbd>      |
-| Jump to                                               | <kbd>/</kbd>                               |
+| Fuzzy filter                                          | <kbd>/</kbd> or <kbd>i</kbd>               |
+| Filter by extension                                   | <kbd>*</kbd>                               |
+| Toggle filter                                         | <kbd>I</kbd>                               |
 | Go to directory                                       | <kbd>g</kbd>                               |
 | Quick jump to directory                               | <kbd>p</kbd>                               |
 | Find in files                                         | <kbd>s</kbd>                               |
-| Toggle mark                                           | <kbd>m</kbd>                               |
-| Toggle mark and move down                             | <kbd>shift+↓</kbd>                         |
+| Toggle mark and move down                             | <kbd>space</kbd> or <kbd>shift+↓</kbd>     |
 | Toggle mark and move up                               | <kbd>shift+↑</kbd>                         |
+| Toggle mark                                           | <kbd>m</kbd>                               |
 | Toggle all marks                                      | <kbd>t</kbd>                               |
 | Unmark all                                            | <kbd>u</kbd>                               |
-| Mark by extension                                     | <kbd>\*</kbd>                              |
 
 ##### Action Shortcuts
 | Command                                               | Shortcut                                   |
@@ -150,15 +150,15 @@ e.g. to completely mimic sidebar, it would be:
 | Preview file in another group                         | <kbd>shift+enter</kbd>                     |
 | Toggle add directory to project                       | <kbd>f</kbd>                               |
 | Set current directory as the only one for the project | <kbd>F</kbd>                               |
-| Quicklook for Mac or open in default app on other OSs | <kbd>space</kbd>                           |
+| Quicklook for Mac or open in default app on other OSs | <kbd>O</kbd>                               |
 
-If you prefer to open file(s) on Mac in default app instead of Quicklook, add the following code in 
-your user key bindings file:
+If you prefer to open file(s) on Mac in the default app instead of Quick Look, add the following code in
+your user key bindings file (binds <kbd>O</kbd> to open in the default app):
 
 ```js
 {
-  "keys": [" "],
-  "command": "dired_quick_look", "args": { "preview": false},
+  "keys": ["O"],
+  "command": "dired_quick_look", "args": { "preview": false },
   "context": [
     { "key": "selector", "operator": "equal", "operand": "text.dired" },
     { "key": "setting.dired_rename_mode", "operand": false }
@@ -180,13 +180,13 @@ your user key bindings file:
 ## Usage
 
 ### Selecting Files and Directories
-You can select files and/or directories by marking them with <kbd>m</kbd>, or <kbd>Shift + ↑/↓</kbd>
-or just use SublimeText multiple cursor feature and extend your cursor to the line that has those
+You can select files and/or directories by marking them with <kbd>m</kbd> (no move),
+<kbd>space</kbd> or <kbd>Shift + ↑/↓</kbd>.
+You can also use Sublime Text multiple cursors to extend your cursor to the line that has those
 files/directories.
 
 You can expand or collapse a directory (or multiple directories using marking or multiple cursors)
-by pressing <kbd>o</kbd>. <kbd>l</kbd> or <kbd>→</kbd> will also expand directories inline and
-<kbd>h</kbd> or <kbd>←</kbd> will collapse.
+using <kbd>l</kbd>/<kbd>→</kbd> to expand and <kbd>h</kbd>/<kbd>←</kbd> to collapse.
 
 ### Search
 Besides incremental search available by <kbd>/</kbd>, you also may use build-in "Goto Symbol…"
