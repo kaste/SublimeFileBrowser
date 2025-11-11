@@ -125,7 +125,7 @@ class dired_complete(TextCommand, DiredBaseCommand):
             .settings()
             .get('dired_show_hidden_files', True)
         )
-        dirs, error = self.try_listing_only_dirs(path)
+        dirs, error = self.list_only_dirs(path)
         if error:
             sublime.error_message(
                 'FileBrowser:\n\n'

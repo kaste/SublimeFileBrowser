@@ -275,7 +275,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             return p if p.endswith(os.sep) else (p + os.sep)
 
         def _visit(dir_path: str, depth: int):
-            items_raw, err = self.try_listing_directory_raw(dir_path)
+            items_raw, err = self.list_directory(dir_path)
             if err:
                 return [], err
 
@@ -688,7 +688,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         root = line_content.split(os.sep)[0].replace('▸', '▾', 1) + os.sep
 
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
-        items, error = self.try_listing_directory(path)
+        items, error = self.list_directory_filtered(path)
         if error:
             replacement = ['%s\t<%s>' % (root, error)]
         elif items:

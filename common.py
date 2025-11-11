@@ -396,9 +396,9 @@ class DiredBaseCommand:
             result = False
         return result
 
-    def try_listing_directory(self, path) -> tuple[list[str], str]:
+    def list_directory_filtered(self, path) -> tuple[list[str], str]:
         '''Return (items, error) using raw listing plus optional filtering.'''
-        items, error = self.try_listing_directory_raw(path)
+        items, error = self.list_directory(path)
         # Apply optional filters on top of the raw listing
         s = self.view.settings()
         enabled = s.get('dired_filter_enabled', True)
@@ -409,7 +409,7 @@ class DiredBaseCommand:
                 items = rx_fuzzy_filter(flt, items)
         return items, error
 
-    def try_listing_directory_raw(self, path) -> tuple[list[str], str]:
+    def list_directory(self, path) -> tuple[list[str], str]:
         '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''
         items, error = [], ''
@@ -432,10 +432,10 @@ class DiredBaseCommand:
         sort_nicely(items)
         return items, error
 
-    def try_listing_only_dirs(self, path) -> tuple[list[str], str]:
+    def list_only_dirs(self, path) -> tuple[list[str], str]:
         '''List all directories (unfiltered by name/extension), respecting hidden setting.
         Used for prompt completion.'''
-        items, error = self.try_listing_directory_raw(path)
+        items, error = self.list_directory(path)
         if items:
             items = [n for n in items if isdir(join(path, n))]
         return items, error
