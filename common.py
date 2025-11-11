@@ -432,13 +432,13 @@ class DiredBaseCommand:
         sort_nicely(items)
         return items, error
 
-    def try_listing_only_dirs(self, path):
-        '''Same as self.try_listing_directory, but items contains only directories.
-        Used for prompt completion'''
-        items, error = self.try_listing_directory(path)
+    def try_listing_only_dirs(self, path) -> tuple[list[str], str]:
+        '''List all directories (unfiltered by name/extension), respecting hidden setting.
+        Used for prompt completion.'''
+        items, error = self.try_listing_directory_raw(path)
         if items:
             items = [n for n in items if isdir(join(path, n))]
-        return (items, error)
+        return items, error
 
     def restore_sels(self, sels=None):
         '''
