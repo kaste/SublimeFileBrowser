@@ -396,31 +396,10 @@ class DiredBaseCommand:
             result = False
         return result
 
-    def try_listing_directory(self, path):
-        '''Return tuple of two element
-            items  sorted list of filenames in path, or empty list
-            error  exception message, or empty string
-        '''
-        items, error = [], ''
-        # Special root: ThisPC (empty path) → list drives on Windows
-        if not path:
-            items = [f"{s}:" for s in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if isdir(f"{s}:")]
-        else:
-            try:
-                items = os.listdir(path)
-            except OSError as e:
-                error = str(e)
-                if NT:
-                    error = (
-                        error
-                        .split(':')[0]
-                        .replace('[Error 5] ', 'Access denied')
-                        .replace('[Error 3] ', 'Not exists, press r to refresh')
-                    )
-
-        if not self.show_hidden:
-            items = [name for name in items if not self.is_hidden(name, path)]
-        # Apply optional filters
+    def try_listing_directory(self, path) -> tuple[list[str], str]:
+        '''Return (items, error) using raw listing plus optional filtering.'''
+        items, error = self.try_listing_directory_raw(path)
+        # Apply optional filters on top of the raw listing
         s = self.view.settings()
         enabled = s.get('dired_filter_enabled', True)
         if enabled:
@@ -428,12 +407,10 @@ class DiredBaseCommand:
                 items = [n for n in items if os.path.splitext(n)[1].lower() == ext_filter]
             if flt := s.get('dired_filter'):
                 items = rx_fuzzy_filter(flt, items)
-
-        sort_nicely(items)
         return items, error
 
-    def try_listing_directory_raw(self, path):
-        '''Like try_listing_directory but without applying name/extension filters.
+    def try_listing_directory_raw(self, path) -> tuple[list[str], str]:
+        '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''
         items, error = [], ''
         if not path:
