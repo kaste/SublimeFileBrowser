@@ -342,11 +342,17 @@ class DiredBaseCommand:
         settings        = self.view.settings()
         copied_items    = settings.get('dired_to_copy', [])
         cut_items       = settings.get('dired_to_move', [])
-        status = " 𝌆 [?: Help] {0}Hidden: {1}{2}{3}".format(
-            'Project root, ' if path_in_project else '',
-            'On' if self.show_hidden else 'Off',
-            ', copied(%d)' % len(copied_items) if copied_items else '',
-            ', cut(%d)' % len(cut_items) if cut_items else ''
+        # Show filter toggle only if a filter is actually active
+        enabled = settings.get('dired_filter_enabled', True)
+        has_flt = settings.get('dired_filter') or settings.get('dired_filter_extension')
+        filter_active = enabled and has_flt
+        help_segment = " 𝌆 [?: Help{0}] ".format(', I: Disable Filter' if filter_active else '')
+        status = "{help}{root}Hidden: {hidden}{copied}{cut}".format(
+            help=help_segment,
+            root='Project root, ' if path_in_project else '',
+            hidden='On' if self.show_hidden else 'Off',
+            copied=', copied(%d)' % len(copied_items) if copied_items else '',
+            cut=', cut(%d)' % len(cut_items) if cut_items else ''
         )
         self.view.set_status("__FileBrowser__", status)
 
