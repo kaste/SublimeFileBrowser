@@ -57,6 +57,22 @@
       ]
   },
   {
+      "keys": ["primary+."] ,
+      "command": "dired_expand_all",
+      "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
+      "keys": ["primary+,"] ,
+      "command": "dired_collapse_all",
+      "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
       "keys": ["c", "d"],
       "command": "dired_create",
       "args": { "which": "directory" },

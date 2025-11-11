@@ -116,6 +116,8 @@ e.g. to completely mimic sidebar, it would be:
 | Move to next                                          | <kbd>j</kbd> or <kbd>↓</kbd>               |
 | Expand directory                                      | <kbd>l</kbd> or <kbd>→</kbd>               |
 | Collapse directory                                    | <kbd>h</kbd> or <kbd>←</kbd>               |
+| Expand all visible directories                        | <kbd>ctrl+.</kbd>                          |
+| Collapse deepest expanded directories                 | <kbd>ctrl+,</kbd>                          |
 | Go to parent directory                                | <kbd>backspace</kbd>                       |
 | Go to first                                           | <kbd>⌘+↑</kbd> or <kbd>ctrl+home</kbd>     |
 | Go to last                                            | <kbd>⌘+↓</kbd> or <kbd>ctrl+end</kbd>      |

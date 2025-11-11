@@ -1055,6 +1055,88 @@ class dired_mark(TextCommand, DiredBaseCommand):
             self.move(forward)
 
 
+class dired_expand_all(TextCommand, DiredBaseCommand):
+    def run(self, edit):
+        # Expand all: behavior depends on filter state.
+        # - If no filter is active, expand all visible directories.
+        # - If a filter is active, expand one level deeper under currently
+        #   expanded directories to surface matches from subfolders.
+        # Ensure hidden-files preference is available for list operations
+        s = self.view.settings()
+        self.show_hidden = s.get('dired_show_hidden_files', True)
+        enabled = s.get('dired_filter_enabled', True)
+        filter_active = enabled and (s.get('dired_filter') or s.get('dired_filter_extension'))
+        expanded_paths = s.get('dired_expanded_paths') or []
+        expanded_set = set(expanded_paths)
+
+        def is_dot_dir(path: str) -> bool:
+            return os.path.basename(path.rstrip(os.sep)).startswith('.')
+
+        if not filter_active:
+            self.index = self.get_all()
+            dir_paths = [
+                p for p in self.index
+                if p and p.endswith(os.sep)
+                if p not in expanded_set
+                if not is_dot_dir(p)
+            ]
+            if not dir_paths:
+                return sublime.status_message('No directories to expand')
+            self.view.run_command('dired_refresh', {'to_expand': dir_paths, 'toggle': False})
+            return
+
+        # Filter active: expand children of already expanded directories
+        # If nothing is expanded yet, start from the current root path
+        if not expanded_paths:
+            expanded_paths = [self.path]
+        to_expand = set()
+        for parent in expanded_paths:
+            names, _ = self.list_directory(parent)
+            for nm in names:
+                # Build child path and normalize to dir-with-trailing-sep
+                if parent:
+                    child = join(parent, nm)
+                    if isdir(child):
+                        child_dir = child.rstrip(os.sep) + os.sep
+                    else:
+                        continue
+                else:
+                    # ThisPC root on Windows: names like "C:"; synthesize a
+                    # directory path with a trailing separator
+                    child_dir = nm.rstrip(os.sep) + os.sep
+                if not is_dot_dir(child_dir) and child_dir not in expanded_set:
+                    to_expand.add(child_dir)
+
+        if not to_expand:
+            return sublime.status_message('No child directories to expand')
+
+        self.view.run_command('dired_refresh', {'to_expand': sorted(to_expand), 'toggle': False})
+
+
+class dired_collapse_all(TextCommand, DiredBaseCommand):
+    def run(self, edit):
+        s = self.view.settings()
+        # Collapse the deepest expanded directories (one level up)
+        expanded = s.get('dired_expanded_paths') or []
+        if not expanded:
+            return sublime.status_message('No directories to collapse')
+
+        def depth(p: str) -> int:
+            return p.rstrip(os.sep).count(os.sep)
+
+        # Find the maximum depth among expanded paths
+        max_depth = max((depth(p) for p in expanded), default=-1)
+
+        # Directly update the persisted expanded set and trigger a full
+        # refresh. This is robust in the presence of live filters and
+        # view/index drift.
+        new_expanded = [p for p in expanded if depth(p) < max_depth]
+        if len(new_expanded) == len(expanded):
+            return sublime.status_message('Nothing to collapse')
+        s.set('dired_expanded_paths', new_expanded)
+        self.view.run_command('dired_refresh')
+
+
 # OTHER #############################################################
 
 class dired_toggle_hidden_files(TextCommand):

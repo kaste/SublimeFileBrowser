@@ -4,6 +4,8 @@
 | Move to next                  | j or down                 |
 | Expand directory              | l or right                |
 | Collapse directory            | h or left                 |
+| Expand all visible directories| ctrl+.                    |
+| Collapse deepest expanded dirs| ctrl+,                    |
 | Go to parent directory        | backspace                 |
 | Go to first                   | super+up or ctrl+home     |
 | Go to last                    | super+down or ctrl+end    |
