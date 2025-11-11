@@ -806,16 +806,17 @@ class dired_fold(TextCommand, DiredBaseCommand):
                     if p.startswith(parent_full) and p != parent_full
                 ]
 
+        # If nothing was folded, keep selection and inform the user
+        if not parents:
+            return sublime.status_message('Nothing to collapse')
+
         # Persist mappings
         self.view.settings().set('dired_last_child_by_parent', last_child_by_parent)
         self.view.settings().set('dired_saved_sub_expansions', saved_sub_expansions)
 
         # Focus the parent directory
-        if parents:
-            names, line_starts = map(list, zip(*parents))
-            sel_info = (names, line_starts)
-        else:
-            sel_info = None
+        names, line_starts = map(list, zip(*parents))
+        sel_info = (names, line_starts)
 
         self.refresh_mark_highlights()
         self.restore_sels(sel_info)
