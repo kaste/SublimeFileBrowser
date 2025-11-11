@@ -385,7 +385,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                     extras += "  [{0}]".format(flt)
         caption_full = caption_base + extras
         if header:
-            text = [caption_full, '—' * len(caption_base)]
+            text = [caption_full, '—' * len(caption_full)]
         else:
             text = []
         icon    = self.view.name()[:2]

@@ -26,7 +26,10 @@ contexts:
       scope: dired.item.parent_dir
       captures:
         1: punctuation.definition.rename_mode.dired
-    - match: (\S(.+)?$)
+    - match: '\S(.*?)(\[.+)?$'
+      captures:
+        0: header.dired
+        2: keyword.control.filtered.dired
       push:
         - meta_scope: header.dired
         - match: '^(—+)(\[RENAME MODE\]){0,1}(—*)\n'
