@@ -356,10 +356,10 @@ class DiredBaseCommand:
         )
         self.view.set_status("__FileBrowser__", status)
 
-    def prepare_filelist(self, names, path, goto, indent):
-        '''About self.index see DiredRefreshCommand
-        could be called from  DiredExpand.expand_single_folder
-                     or from  DiredRefresh.continue_refresh
+    def prepare_filelist(self, names, path, goto, indent, insert_at):
+        '''
+        Splice the corresponding absolute paths into `self.index` at the
+        given `insert_at` row so row→path mapping stays correct.
         '''
         items   = []
         tab     = self.view.settings().get('tab_size')
@@ -379,7 +379,7 @@ class DiredBaseCommand:
                 index_files.append(full_name)
                 files.append(''.join([level, "≡ ", name]))
         index = index_dirs + index_files
-        self.index = self.index[:self.number_line] + index + self.index[self.number_line:]
+        self.index = self.index[:insert_at] + index + self.index[insert_at:]
         items += files
         return items
 

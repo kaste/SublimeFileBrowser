@@ -217,7 +217,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         if os.sep in goto:
             to_expand = self.expand_goto(to_expand)
 
-        self.number_line = 0
         if not reset_sels:
             self.index = self.get_all()
             self.sels = (self.get_selected(), list(self.view.sel()))
@@ -422,10 +421,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         if path and (not fileslist or self.show_parent()):
             text.append(PARENT_SYM)
             self.index = [PARENT_SYM] + self.index
-            self.number_line += 1
         if header:
             self.index = ['', ''] + self.index
-            self.number_line += 2
         return text + fileslist
 
     def restore_selections(self, path):
@@ -685,8 +682,8 @@ class dired_expand(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_fold')
             return
 
-        # number of next line to make slicing work properly
-        self.number_line = 1 + self.view.rowcol(line.a)[0]
+        # Compute insert point for splicing children into the index
+        insert_at = 1 + self.view.rowcol(line.a)[0]
         # line may have inline error msg after os.sep
         root = line_content.split(os.sep)[0].replace('▸', '▾', 1) + os.sep
 
@@ -695,7 +692,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         if error:
             replacement = ['%s\t<%s>' % (root, error)]
         elif items:
-            replacement = [root] + self.prepare_filelist(items, '', path, '\t')
+            replacement = [root] + self.prepare_filelist(items, '', path, '\t', insert_at)
             dired_count = self.view.settings().get('dired_count', 0)
             self.view.settings().set('dired_count', dired_count + len(items))
         else:  # expanding empty folder, so notify that it is empty
