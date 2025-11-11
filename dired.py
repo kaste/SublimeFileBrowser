@@ -219,16 +219,14 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             to_expand = self.expand_goto(to_expand)
 
         self.number_line = 0
-        if reset_sels and not to_expand:
-            self.index, self.sels = [], None
-            self.populate_view(edit, path, names)
+        if not reset_sels:
+            self.index = self.get_all()
+            self.sels = (self.get_selected(), list(self.view.sel()))
         else:
-            if not reset_sels:
-                self.index  = self.get_all()
-                self.sels   = (self.get_selected(), list(self.view.sel()))
-            else:
-                self.sels = None
-            self.re_populate_view(edit, path, names, expanded, to_expand, toggle)
+            # When resetting, clear selections and initialize index
+            self.index = []
+            self.sels = None
+        self.re_populate_view(edit, path, names, expanded, to_expand, toggle)
 
         if self.view.settings().get('dired_autorefresh', True):
             emit_event(
