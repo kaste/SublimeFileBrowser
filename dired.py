@@ -192,7 +192,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.view.settings().add_on_change('color_scheme', lambda: set_proper_scheme(self.view))
 
         path = self.path
-        names = []
         if path == 'ThisPC\\':
             path = ''
         if path and not exists(path):
@@ -226,7 +225,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             # When resetting, clear selections and initialize index
             self.index = []
             self.sels = None
-        self.populate_view(edit, path, names, expanded, to_expand, toggle)
+        self.populate_view(edit, path, expanded, to_expand, toggle)
 
         if self.view.settings().get('dired_autorefresh', True):
             emit_event(
@@ -248,7 +247,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             goto = parent.rstrip(os.sep)
         return to_expand
 
-    def populate_view(self, edit, path, names, expanded, to_expand, toggle):
+    def populate_view(self, edit, path, expanded, to_expand, toggle):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
         # `expanded` already contains absolute paths collected from settings
