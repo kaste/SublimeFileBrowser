@@ -303,9 +303,17 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                 entries.append(_Entry(full, nm, False, depth, False))
             return entries, err
 
-        entries, _ = _visit(root, 0)
-        if not entries:
-            return self.populate_view(edit, path, names)
+        entries, err = _visit(root, 0)
+        if err:
+            self.view.run_command("dired_up")
+            self.view.set_read_only(False)
+            self.view.insert(
+                edit,
+                self.view.line(self.view.sel()[0]).b,
+                '\t<%s>' % err
+            )
+            self.view.set_read_only(True)
+            return
 
         # Phase 2: filter bottom-up
         s = self.view.settings()
@@ -354,32 +362,6 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_expanded_paths', self.expanded)
         except Exception:
             pass
-        self.view.run_command('dired_call_vcs', {'path': path})
-
-    def populate_view(self, edit, path, names):
-        '''Called when no directories were (or/and need to be) expanded'''
-        items, error = self.try_listing_directory(path)
-        if error:
-            self.view.run_command("dired_up")
-            self.view.set_read_only(False)
-            self.view.insert(
-                edit,
-                self.view.line(self.view.sel()[0]).b,
-                '\t<%s>' % error
-            )
-            self.view.set_read_only(True)
-        else:
-            self.continue_populate(edit, path, items)
-
-    def continue_populate(self, edit, path, names):
-        '''Called if there is no exception in self.populate_view'''
-        self.sel = None
-        self.set_status()
-        items = self.correcting_index(path, self.prepare_filelist(names, path, '', ''))
-        self.write(edit, items)
-        self.restore_selections(path)
-        self.refresh_mark_highlights()
-        self.refresh_clipboard_highlights()
         self.view.run_command('dired_call_vcs', {'path': path})
 
     def traverse_tree(self, root, path, indent, tree, expanded, was_forced=False):
