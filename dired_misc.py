@@ -282,6 +282,9 @@ class dired_filter(TextCommand, DiredBaseCommand):
         current = self.view.settings().get('dired_filter') or ''
         enabled = self.view.settings().get('dired_filter_enabled', True)
         filter_extension = self.view.settings().get('dired_filter_extension', '')
+        self.index = self.get_all()
+        initial_sels = (self.get_selected(), [Region(r.a, r.b) for r in self.view.sel()])
+        initial_viewport = self.view.viewport_position()
 
         def apply_filter(text: str):
             if text:
@@ -306,6 +309,8 @@ class dired_filter(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_filter_enabled', enabled)
             self.view.settings().set('dired_filter_extension', filter_extension)
             self.view.run_command('dired_refresh')
+            self.restore_sels(initial_sels)
+            self.view.set_viewport_position(initial_viewport, False)
 
         self.view.settings().set('dired_filter_live', True)
         self.view.settings().set('dired_filter_enabled', True)
