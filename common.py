@@ -479,7 +479,7 @@ class DiredBaseCommand:
             if ext_filter := settings.get('dired_filter_extension', '').lower():
                 entries = [e for e in entries if os.path.splitext(e.name)[1].lower() == ext_filter]
             if flt := settings.get('dired_filter'):
-                entries = [e for e in entries if (m := rx_fuzzy_match(flt, e.name))]
+                entries = [e for e in entries if rx_fuzzy_match(flt, e.name)]
         return entries
 
     def _our_scandir(self, path: str, sortfunc=NATURAL_SORT) -> list[EntryInfo]:
@@ -737,7 +737,6 @@ class DiredBaseCommand:
             'viewport': self.view.viewport_position(),
         }
 
-
     def _apply_history_entry(self, entry):
         """Restore a saved history entry: path, expanded dirs, selections, viewport."""
         window = self.view.window()
@@ -749,8 +748,8 @@ class DiredBaseCommand:
         self.restore_sels((entry['selection'], [Region(a, b) for a, b in entry['regions']]))
         self.view.set_viewport_position(entry['viewport'], False)
 
-
     # --- Live filter highlight -------------------------------------------------
+
     def update_filter_highlight(self):
         """Highlight occurrences of the active filter within visible item names.
 
@@ -855,4 +854,4 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
 
 
 def rx_fuzzy_filter(term: str, items: list[str]) -> list[str]:
-    return [s for s in items if (m := rx_fuzzy_match(term, s))]
+    return [s for s in items if rx_fuzzy_match(term, s)]

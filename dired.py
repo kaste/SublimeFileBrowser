@@ -408,7 +408,7 @@ class dired_delegate_call(TextCommand):
             window = self.view.window()
             if not window:
                 return
-            target = window.active_view()
+            target = window.active_view()  # type: ignore[assignment]
             if not target:
                 return
         target.run_command(command, args or {})
@@ -997,7 +997,7 @@ class dired_history_forward(TextCommand, DiredBaseCommand):
     """Navigate forward to the next directory state in history."""
     def run(self, edit):
         s = self.view.settings()
-        history = s.get('dired_history', [])
+        history: list = s.get('dired_history', [])
         cursor = s.get('dired_history_cursor', 0)
         if cursor >= len(history) - 1:
             return sublime.status_message('No next location')
