@@ -70,6 +70,8 @@
       "args": { "command": "dired_expand_all" },
       "context": [
         { "key": "setting.dired_input_panel" },
+        { "key": "setting.dired_rename_mode", "operand": false },
+        { "key": "setting.command_mode", "operand": false }
       ]
   },
   {
@@ -86,6 +88,8 @@
       "args": { "command": "dired_collapse_all" },
       "context": [
         { "key": "setting.dired_input_panel" },
+        { "key": "setting.dired_rename_mode", "operand": false },
+        { "key": "setting.command_mode", "operand": false }
       ]
   },
   {
@@ -419,6 +423,15 @@
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
+      "keys": ["S"],
+      "command": "dired_toggle_stats",
+      "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false },
+        { "key": "setting.command_mode", "operand": false }
       ]
   },
 

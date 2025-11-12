@@ -381,6 +381,19 @@ class dired_filter_by_extension(TextCommand, DiredBaseCommand):
         self.view.run_command('dired_refresh')
 
 
+class dired_toggle_stats(TextCommand, DiredBaseCommand):
+    def is_enabled(self):
+        return self.view.score_selector(0, "text.dired") > 0
+
+    def run(self, edit):
+        settings = self.view.settings()
+        current = settings.get('dired_show_stats', False)
+        settings.set('dired_show_stats', not current)
+        state = 'On' if not current else 'Off'
+        sublime.status_message('FileBrowser: Stats {}'.format(state))
+        self.view.run_command('dired_refresh')
+
+
 class dired_preview_directory(TextCommand, DiredBaseCommand):
     '''Show properties and content of directory in popup'''
     def run(self, edit, fqn=None, point=0):

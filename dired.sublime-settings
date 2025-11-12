@@ -16,6 +16,9 @@
   // Showing hidden files by default
   "dired_show_hidden_files": true,
 
+  // Show full file stats (size, last modified date) by default
+  "dired_show_stats": true,
+
   // Customize the patterns used to determine if a file should be hidden
   // e.g. [".*", "__pycache__", "*.pyc"]
   "dired_hidden_files_patterns": [".*"],
@@ -96,6 +99,7 @@
   "margin": 0,
   "tab_size": 3,
   "rulers": [],
+  "draw_unicode_white_space": "none",
   "caret_extra_width": 0 // extra caret width causes partially hidden chars
   // "font_face": "comic sans",
   // "font_size": 13,

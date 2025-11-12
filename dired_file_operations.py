@@ -225,6 +225,9 @@ class dired_rename_commit(TextCommand, DiredBaseCommand):
         new_name = self.view.substr(Region(self._get_name_point(line), line.b))
         if os.sep in new_name:  # ignore trailing errors, e.g. <empty>
             new_name = new_name.split(os.sep)[0] + os.sep
+        SEPARATOR = '\u200b'
+        if SEPARATOR in new_name:
+            new_name = new_name.split(SEPARATOR)[0].rstrip()
         return join(parent, new_name)
 
     def report_conflicts(self, before, after):

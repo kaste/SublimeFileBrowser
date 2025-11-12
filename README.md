@@ -148,6 +148,7 @@ e.g. to completely mimic sidebar, it would be:
 | Create file and open it                               | <kbd>cf</kbd>, <kbd>⌘+enter</kbd>          |
 | Create/Edit/Remove jump point                         | <kbd>P</kbd>                               |
 | Toggle hidden files                                   | <kbd>H</kbd>                               |
+| Toggle stats column (size & modified time)            | <kbd>S</kbd>                               |
 | Open in Finder/File Explorer                          | <kbd>\\</kbd>                              |
 | Open in new window                                    | <kbd>W</kbd>                               |
 | Open all marked items in new tabs                     | <kbd>⌘+enter</kbd> / <kbd>ctrl+enter</kbd> |
@@ -167,6 +168,17 @@ your user key bindings file (binds <kbd>O</kbd> to open in the default app):
     { "key": "selector", "operator": "equal", "operand": "text.dired" },
     { "key": "setting.dired_rename_mode", "operand": false }
   ]
+}
+```
+
+### File statistics column
+Press <kbd>S</kbd> to toggle an inline stats column that shows each entry’s size and last modified
+timestamp. The feature is backed by the `dired_show_stats` setting (enabled by default). Set it to
+`false` if you prefer a compact listing or want stats only when you press <kbd>S</kbd>:
+
+```json
+{
+  "dired_show_stats": false
 }
 ```
 

@@ -7,7 +7,7 @@ file_extensions:
 scope: text.dired
 contexts:
   main:
-    - match: '^(\s*)([▸▾] )([^\\/]*)(\\|/)?(.*)?$'
+    - match: '^(\s*)([▸▾] )([^\/]*?)([/\\])?(<.*>)?(\s*\x{200B}(.*))?$'
       scope: dired.item.directory
       captures:
         1: indent
@@ -15,13 +15,15 @@ contexts:
         3: string.name.directory.dired
         4: punctuation.definition.directory.slash.dired
         5: string.error.dired
-    - match: '^(\s*)(≡ )(\S.*?(\.[^\.\n]+)?)$'
+        6: string.name.directory.stats.dired
+    - match: '^(\s*)(≡ )(.*?(\.[^\.\n]+?)?)(\s*\x{200B}(.*))?$'
       scope: dired.item.file
       captures:
         1: indent
         2: punctuation.definition.file.symbol.dired
         3: string.name.file.dired
         4: string.name.file.extension.dired
+        5: string.name.file.stats.dired
     - match: '^⠤(\s*\[.+\]){0,1}$'
       scope: dired.item.parent_dir
       captures:

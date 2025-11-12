@@ -42,6 +42,7 @@
 | Create file and open it       | cf, super+enter           |
 | Create/Edit/Remove jump point | P                         |
 | Toggle hidden files           | H                         |
+| Toggle stats column           | S                         |
 | Open in Finder/Explorer       | \                         |
 | Open in new window            | W                         |
 | Open all marked items         | super+enter or ctrl+enter |

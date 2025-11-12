@@ -5,7 +5,7 @@ import os
 from os.path import isdir, join, basename
 import fnmatch
 from itertools import chain, repeat
-from typing import Iterable
+from typing import Iterable, NamedTuple
 
 import sublime
 from sublime import Region
@@ -20,6 +20,25 @@ PLATFORM = sublime.platform()
 NT = PLATFORM == 'windows'
 LIN = PLATFORM == 'linux'
 OSX = PLATFORM == 'osx'
+
+
+class EntryInfo(NamedTuple):
+    name: str
+    full_path: str
+    is_dir: bool
+    size: int | None
+    mtime: float | None
+
+
+class ListingItem(NamedTuple):
+    name: str
+    full_path: str
+    is_dir: bool
+    size: int | None
+    mtime: float | str | None
+    depth: int
+    expanded: bool
+    note: str
 
 if NT:
     import ctypes
@@ -36,13 +55,21 @@ def first(seq, pred):
     return next((item for item in seq if pred(item)), None)
 
 
+def natural_sort_key(value: str):
+    """Return a key for human-friendly sorting (numbers in numerical order)."""
+    return [
+        int(chunk) if chunk.isdigit() else chunk.lower()
+        for chunk in re.split('([0-9]+)', value)
+    ]
+
+
+def NATURAL_SORT(info):
+    return -info.is_dir, natural_sort_key(info.name)
+
+
 def sort_nicely(names):
-    """ Sort the given list in the way that humans expect.
-    Source: http://www.codinghorror.com/blog/2007/12/sorting-for-humans-natural-sort-order.html
-    """
-    convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
-    names.sort(key=alphanum_key)
+    """Sort the given list in the way that humans expect."""
+    names.sort(key=natural_sort_key)
 
 
 def set_proper_scheme(view):
@@ -418,24 +445,13 @@ class DiredBaseCommand:
     def list_directory(self, path) -> tuple[list[str], str]:
         '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''
-        items, error = [], ''
-        if not path:
-            items = [f"{s}:" for s in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if isdir(f"{s}:")]
-        else:
-            try:
-                items = os.listdir(path)
-            except OSError as e:
-                error = str(e)
-                if NT:
-                    error = (
-                        error
-                        .split(':')[0]
-                        .replace('[Error 5] ', 'Access denied')
-                        .replace('[Error 3] ', 'Not exists, press r to refresh')
-                    )
-        if not self.show_hidden:
-            items = [name for name in items if not self.is_hidden(name, path)]
-        sort_nicely(items)
+        try:
+            entries = self._our_scandir(path)
+            items = [info.name for info in entries]
+            error = ''
+        except OSError as e:
+            items = []
+            error = self._format_os_error(e)
         return items, error
 
     def list_only_dirs(self, path) -> tuple[list[str], str]:
@@ -445,6 +461,88 @@ class DiredBaseCommand:
         if items:
             items = [n for n in items if isdir(join(path, n))]
         return items, error
+
+    def _format_os_error(self, error: OSError) -> str:
+        message = str(error)
+        if NT:
+            message = (
+                message
+                .split(':')[0]
+                .replace('[Error 5] ', 'Access denied')
+                .replace('[Error 3] ', 'Not exists, press r to refresh')
+            )
+        return message
+
+    def _filter_entries(self, entries, settings):
+        enabled = settings.get('dired_filter_enabled', True)
+        if enabled:
+            if ext_filter := settings.get('dired_filter_extension', '').lower():
+                entries = [e for e in entries if os.path.splitext(e.name)[1].lower() == ext_filter]
+            if flt := settings.get('dired_filter'):
+                entries = [e for e in entries if (m := rx_fuzzy_match(flt, e.name))]
+        return entries
+
+    def _our_scandir(self, path: str, sortfunc=NATURAL_SORT) -> list[EntryInfo]:
+        """Return EntryInfo objects for the given directory, respecting hidden settings."""
+        show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
+
+        if not path:
+            entries = [
+                EntryInfo(f"{drive}:", f"{drive}:", True, None, None)
+                for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                if isdir(f"{drive}:")
+            ]
+            entries.sort(key=lambda info: natural_sort_key(info.name))
+            return entries
+
+        items: list[EntryInfo] = []
+        with os.scandir(path) as iterator:
+            for entry in iterator:
+                name = entry.name
+                if not show_hidden and self.is_hidden(name, path):
+                    continue
+                is_directory = entry.is_dir(follow_symlinks=False)
+                stat_res = None
+                try:
+                    stat_res = entry.stat(follow_symlinks=False)
+                except OSError:
+                    stat_res = None
+                size = stat_res.st_size if stat_res and not is_directory else None
+                mtime = stat_res.st_mtime if stat_res else None
+                full_path = entry.path
+                if is_directory and not full_path.endswith(os.sep):
+                    full_path += os.sep
+                items.append(EntryInfo(name, full_path, is_directory, size, mtime))
+
+        items.sort(key=sortfunc)
+        return items
+
+    def walkdir(
+        self,
+        dir_path: str,
+        expanded: set[str] | None = None,
+        depth: int = 0,
+        sortfunc=NATURAL_SORT
+    ) -> tuple[list[ListingItem], str]:
+        """Return a flattened tree of ListingItem objects for the given root."""
+        expanded = expanded or set()
+        target = dir_path.rstrip(os.sep) if dir_path else dir_path
+        try:
+            infos = self._our_scandir(target, sortfunc=sortfunc)
+        except OSError as error:
+            return [], self._format_os_error(error)
+
+        entries: list[ListingItem] = []
+        for info in infos:
+            if info.is_dir and info.full_path in expanded:
+                sub_entries, sub_err = self.walkdir(info.full_path, expanded, depth + 1)
+                note = sub_err or ('empty' if not sub_entries else '')
+                entries.append(ListingItem(*info, depth, True, note))
+                entries.extend(sub_entries)
+            else:
+                entries.append(ListingItem(*info, depth, False, ""))
+
+        return entries, ''
 
     def restore_sels(self, sels=None):
         '''

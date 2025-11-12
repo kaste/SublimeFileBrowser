@@ -5,17 +5,21 @@ import os
 from os.path import basename, dirname, isdir, exists, join
 import sys
 from textwrap import dedent
-
+from datetime import datetime
 import sublime
 from sublime import Region
 from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
-    DiredBaseCommand, calc_width, display_path, emit_event, get_group, hijack_window,
+    DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
     set_proper_scheme, NT, PARENT_SYM, rx_fuzzy_match)
 from . import prompt
 from .show import show
 from .jumping import jump_names
+
+
+SEPARATOR = '\u200b'
+STATS_PADDING = 2
 
 
 def reuse_view():
@@ -257,52 +261,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         else:
             expanded.extend(to_expand or [])
         self.expanded = expanded
-        # Build view in three phases using a flat list model
-        expanded_set = set(self.expanded)
-
-        class _Entry:
-            __slots__ = ("path", "name", "is_dir", "depth", "expanded", "note")
-
-            def __init__(self, path, name, is_dir, depth, expanded, note=""):
-                self.path = path
-                self.name = name
-                self.is_dir = is_dir
-                self.depth = depth
-                self.expanded = expanded
-                self.note = note
-
-        def _ensure_dir(p: str) -> str:
-            return p if p.endswith(os.sep) else (p + os.sep)
-
-        def _visit(dir_path: str, depth: int):
-            items_raw, err = self.list_directory(dir_path)
-            if err:
-                return [], err
-
-            entries = []
-
-            dirs, files = [], []
-            for name in items_raw:
-                full = join(dir_path, name)
-                (dirs if isdir(full) else files).append((name, full))
-
-            # Directories first
-            for nm, full in dirs:
-                dir_full = _ensure_dir(full)
-                if dir_full in expanded_set:
-                    sub_entries, sub_err = _visit(dir_full, depth + 1)
-                    note = sub_err or 'empty' if not sub_entries else ''
-                    entries.append(_Entry(dir_full, nm, True, depth, True, note))
-                    entries += sub_entries
-                else:
-                    entries.append(_Entry(dir_full, nm, True, depth, False))
-
-            # Files
-            for nm, full in files:
-                entries.append(_Entry(full, nm, False, depth, False))
-            return entries, err
-
-        entries, err = _visit(root, 0)
+        entries, err = self.walkdir(root, expanded=set(expanded))
         if err:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)
@@ -320,11 +279,12 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         ext = s.get('dired_filter_extension', '').lower()
         flt = s.get('dired_filter', '').strip()
 
-        filtered_entries = []
+        filtered_entries: list[ListingItem] = []
         for e in reversed(entries):
             ok_name = not enabled or not flt or rx_fuzzy_match(flt, e.name)
             if e.is_dir:
-                children_present = filtered_entries and filtered_entries[-1].path.startswith(e.path)
+                children_present = (
+                    filtered_entries and filtered_entries[-1].full_path.startswith(e.full_path))
                 ok_ext = not enabled or not ext
                 keep_dir = ok_ext and ok_name or children_present
                 if keep_dir:
@@ -336,18 +296,24 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                     filtered_entries.append(e)
 
         # Phase 3: render and build index
-        lines = []
-        new_index = []
-        for e in reversed(filtered_entries):
-            indent = '\t' * e.depth
-            if e.is_dir:
-                icon = '▾' if e.expanded else '▸'
-                note = f'\t<{e.note}>' if e.note else ''
-                lines.append(f"{indent}{icon} {e.name}{os.sep}{note}")
-                new_index.append(e.path)
-            else:
-                lines.append(f"{indent}≡ {e.name}")
-                new_index.append(e.path)
+        show_stats = s.get('dired_show_stats', False)
+        tab_setting = self.view.settings().get('tab_size')
+        try:
+            tab_size = int(tab_setting) if tab_setting else 4
+        except (TypeError, ValueError):
+            tab_size = 4
+
+        rendered, new_index = format_items(reversed(filtered_entries), show_stats, tab_size)
+        max_name_width = max((display_len for _, display_len, _, _ in rendered), default=0)
+        max_size_width = max((len(size_part) for _, _, size_part, _ in rendered), default=0)
+        lines = render_items(rendered, max_name_width, max_size_width, show_stats)
+
+        if show_stats:
+            s.set('dired_name_col_width', max_name_width)
+            s.set('dired_size_col_width', max_size_width)
+        else:
+            s.erase('dired_name_col_width')
+            s.erase('dired_size_col_width')
 
         self.set_status()
         self.index = new_index
@@ -696,27 +662,64 @@ class dired_expand(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_fold')
             return
 
+        settings = self.view.settings()
+        self.show_hidden = settings.get('dired_show_hidden_files', True)
+        show_stats = settings.get('dired_show_stats', False)
+        name_width_setting = settings.get('dired_name_col_width', 0)
+        size_width_setting = settings.get('dired_size_col_width', 0)
+        tab_setting = self.view.settings().get('tab_size')
+        try:
+            tab_size = int(tab_setting) if tab_setting else 4
+        except (TypeError, ValueError):
+            tab_size = 4
+        indentation_level = self.view.indentation_level(line.a)
+
+        entries, err = self.walkdir(path, depth=indentation_level + 1)
+        _base_timestamp = None
+        if SEPARATOR in line_content:
+            _base_timestamp = line_content.split(SEPARATOR)[1].strip().split(' ', 1)[1].strip()
+        root_entry = ListingItem(
+            basename(path.rstrip(os.sep)),
+            path,
+            True,
+            9999,  # size not shown for dirs
+            _base_timestamp,
+            indentation_level,
+            expanded=True,
+            note=err or ('empty' if not entries else '')
+        )
+        entries = self._filter_entries(entries, settings)
+        entries = [root_entry] + entries
+        rendered, new_index = format_items(entries, show_stats, tab_size)
+        max_name_width = max((display_len for _, display_len, _, _ in rendered), default=0)
+        max_size_width = max((len(size_part) for _, _, size_part, _ in rendered), default=0)
+        if show_stats and (
+            max_name_width > name_width_setting or max_size_width > size_width_setting
+        ):
+            expanded = set(settings.get('dired_expanded_paths') or [])
+            expanded.add(path)
+            settings.set('dired_expanded_paths', list(expanded))
+            settings.set('dired_name_col_width', max(max_name_width, name_width_setting))
+            settings.set('dired_size_col_width', max(max_size_width, size_width_setting))
+            self.view.run_command('dired_refresh')
+            return
+
+        replacement = render_items(rendered, name_width_setting, size_width_setting, show_stats)
+
         # Compute insert point for splicing children into the index
         insert_at = 1 + self.view.rowcol(line.a)[0]
-        # line may have inline error msg after os.sep
-        root = line_content.split(os.sep)[0].replace('▸', '▾', 1) + os.sep
+        # Note that we exclude the root/path at the front of new_index ("[1:]").
+        self.index = self.index[:insert_at] + new_index[1:] + self.index[insert_at:]
+        self.view.settings().set('dired_index', self.index)
 
-        self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
-        items, error = self.list_directory_filtered(path)
-        if error:
-            replacement = ['%s\t<%s>' % (root, error)]
-        elif items:
-            replacement = [root] + self.prepare_filelist(items, '', path, '\t', insert_at)
-            dired_count = self.view.settings().get('dired_count', 0)
-            self.view.settings().set('dired_count', dired_count + len(items))
-        else:  # expanding empty folder, so notify that it is empty
-            replacement = ['%s\t<empty>' % root]
+        dired_count = self.view.settings().get('dired_count', 0)
+        # - 1 for the root/path which was already in the index before
+        self.view.settings().set('dired_count', dired_count + len(new_index) - 1)
 
         self.view.set_read_only(False)
         self.view.replace(edit, line, '\n'.join(replacement))
         self.view.set_read_only(True)
 
-        self.view.settings().set('dired_index', self.index)
         # Persist expanded paths
         expanded = set(self.view.settings().get('dired_expanded_paths') or [])
         expanded.add(path)
@@ -1204,3 +1207,50 @@ class dired_doubleclick(TextCommand, DiredBaseCommand):
                 view.run_command("dired_expand", {"toggle": True})
             else:
                 view.run_command("dired_select", {"other_group": True})
+
+
+def format_stats(entry: ListingItem, show_stats: bool, date_format='%d.%m.%Y %H:%M'):
+    if not show_stats:
+        return '', ''
+    if entry.is_dir:
+        size_part = 'DIR'
+    elif entry.size is not None:
+        size_part = f"{entry.size:,}".replace(",", ".")
+    else:
+        return '', ''
+    if isinstance(entry.mtime, float):
+        timestamp = datetime.fromtimestamp(entry.mtime).strftime(date_format)
+    else:
+        timestamp = entry.mtime or ''
+    return size_part, timestamp
+
+
+def format_items(items, show_stats, tab_size):
+    rendered = []
+    new_index = []
+    for e in items:
+        indent = '\t' * e.depth
+        if e.is_dir:
+            icon = '▾' if e.expanded else '▸'
+            note = f'\t<{e.note}>' if e.note else ''
+            base_line = f"{indent}{icon} {e.name}{os.sep}{note}"
+        else:
+            base_line = f"{indent}≡ {e.name}"
+        display_len = len(base_line.expandtabs(tab_size))
+        size_part, timestamp = format_stats(e, show_stats)
+        rendered.append((base_line, display_len, size_part, timestamp))
+        new_index.append(e.full_path)
+    return rendered, new_index
+
+
+def render_items(items, name_width, size_width, show_stats):
+    lines = []
+    for base_line, display_len, size_part, timestamp in items:
+        if show_stats and size_part:
+            padding = max(name_width - display_len + STATS_PADDING, STATS_PADDING)
+            size_aligned = size_part.rjust(size_width)
+            stats_segment = size_aligned if not timestamp else f"{size_aligned}  {timestamp}"
+            lines.append(f"{base_line}{' ' * padding}{SEPARATOR}{stats_segment}")
+        else:
+            lines.append(base_line)
+    return lines
