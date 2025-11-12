@@ -356,10 +356,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.refresh_mark_highlights()
         self.refresh_clipboard_highlights()
         # Persist expanded paths for future refreshes
-        try:
-            self.view.settings().set('dired_expanded_paths', self.expanded)
-        except Exception:
-            pass
+        self.view.settings().set('dired_expanded_paths', self.expanded)
         self.view.run_command('dired_call_vcs', {'path': path})
 
     def set_title(self, path):
@@ -704,12 +701,9 @@ class dired_expand(TextCommand, DiredBaseCommand):
 
         self.view.settings().set('dired_index', self.index)
         # Persist expanded paths
-        try:
-            expanded = set(self.view.settings().get('dired_expanded_paths') or [])
-            expanded.add(path)
-            self.view.settings().set('dired_expanded_paths', list(expanded))
-        except Exception:
-            pass
+        expanded = set(self.view.settings().get('dired_expanded_paths') or [])
+        expanded.add(path)
+        self.view.settings().set('dired_expanded_paths', list(expanded))
 
         # Re-expand subfolders previously expanded under this parent
         saved_sub_expansions = self.view.settings().get('dired_saved_sub_expansions') or {}
@@ -819,23 +813,20 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.restore_sels(sel_info)
         self.view.run_command("dired_draw_vcs_marker")
         self.refresh_clipboard_highlights()
+
         # Update persisted expanded paths based on current view state
-        try:
-            # Collect current expanded directory paths from visible arrows
-            regions = self.view.find_all(r'^\s*▾')
-            if regions:
-                self.index = self.get_all()
-                paths = []
-                for r in regions:
-                    try:
-                        paths.append(self.get_fullpath_for(r))
-                    except Exception:
-                        continue
-                self.view.settings().set('dired_expanded_paths', paths)
-            else:
-                self.view.settings().set('dired_expanded_paths', [])
-        except Exception:
-            pass
+        # Collect current expanded directory paths from visible arrows
+        regions = self.view.find_all(r'^\s*▾')
+        if regions:
+            self.index = self.get_all()
+            paths = []
+            for r in regions:
+                row = self.view.rowcol(r.a)[0]
+                if 0 <= row < len(self.index):
+                    paths.append(self.index[row])
+            self.view.settings().set('dired_expanded_paths', paths)
+        else:
+            self.view.settings().set('dired_expanded_paths', [])
 
     def fold(self, edit, line: Region) -> Region | None:
         '''
