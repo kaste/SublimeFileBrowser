@@ -3,30 +3,9 @@
 
 Ditch sidebar and browse your files in a normal tab with keyboard, like a pro!
 
-![SublimeFileBrowser Screenshot](assets/6253230706d2e706e67.png)
+![Screenshot](<assets/Screenshot 2025-11-13 001309.png>)
 
-You can also use it as a sidebar that you can put on right or left side
-
-![SublimeFileBrowser Screenshot2](assets/8253230706d2e706e67.png)
-
-### DISCLAIMER:
-
-The pictures advertise a sidebar like layout.  Well, likely that has bugs.  Not
-terrible bugs but glitches.  I actually don't even know, I just read the code.
-
-The main challenge here is it to write code that reliable opens and closes such
-sidebars -- think a specialized Origami --, and then detects them e.g. after
-restarting Sublime Text.  And .. well, I doubt that this implemented 100%
-correct.
-
-Just file the bugs or even better fix'em with pull requests.  I did not write
-all of the code.  I'm just the maintainer and use dired only in the full view
-mode, to browse the directories, and to create and rename and copy and paste
-files.
-
-This "main" functionality should just work fine.  And with the sidebar thing,
-... well, maybe the original authors had not the right, generalized, approach
-in mind but "hacked" through it.
+![Screenshot](<assets/Screenshot 2025-11-13 002109.png>)
 
 ## Installation
 
