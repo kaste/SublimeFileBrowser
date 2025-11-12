@@ -434,6 +434,20 @@ class dired_refresh(TextCommand, DiredBaseCommand):
 
 # NAVIGATION #####################################################
 
+class dired_delegate_call(TextCommand):
+    def run(self, edit, command, args=None):
+        if target_id := self.view.settings().get('dired_target_view_id'):
+            target = sublime.View(target_id)
+        else:
+            window = self.view.window()
+            if not window:
+                return
+            target = window.active_view()
+            if not target:
+                return
+        target.run_command(command, args or {})
+
+
 class dired_next_line(TextCommand, DiredBaseCommand):
     def run(self, edit, forward=None):
         self.move(forward)

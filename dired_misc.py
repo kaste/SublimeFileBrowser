@@ -318,6 +318,8 @@ class dired_filter(TextCommand, DiredBaseCommand):
             self.view.settings().erase('dired_filter_extension')
 
         pv = window.show_input_panel('Filter:', current if enabled else "", on_done, on_change, on_cancel)
+        pv.settings().set('dired_input_panel', True)
+        pv.settings().set('dired_target_view_id', self.view.id())
         if enabled:
             pv.run_command('select_all')
 

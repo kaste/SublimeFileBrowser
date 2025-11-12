@@ -65,11 +65,27 @@
       ]
   },
   {
+      "keys": ["primary+."] ,
+      "command": "dired_delegate_call",
+      "args": { "command": "dired_expand_all" },
+      "context": [
+        { "key": "setting.dired_input_panel" },
+      ]
+  },
+  {
       "keys": ["primary+,"] ,
       "command": "dired_collapse_all",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
+      "keys": ["primary+,"] ,
+      "command": "dired_delegate_call",
+      "args": { "command": "dired_collapse_all" },
+      "context": [
+        { "key": "setting.dired_input_panel" },
       ]
   },
   {
@@ -358,6 +374,15 @@
         { "key": "setting.command_mode", "operand": false }
       ]
   },
+  {
+      "keys": ["down"],
+      "command": "dired_delegate_call",
+      "args": { "command": "dired_next_line", "args": { "forward": true } },
+      "context": [
+        { "key": "setting.dired_input_panel" },
+        { "key": "setting.command_mode", "operand": false }
+      ]
+  },
 
   {
       "keys": ["k"],
@@ -376,6 +401,15 @@
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false },
+        { "key": "setting.command_mode", "operand": false }
+      ]
+  },
+  {
+      "keys": ["up"],
+      "command": "dired_delegate_call",
+      "args": { "command": "dired_next_line", "args": { "forward": false } },
+      "context": [
+        { "key": "setting.dired_input_panel" },
         { "key": "setting.command_mode", "operand": false }
       ]
   },
