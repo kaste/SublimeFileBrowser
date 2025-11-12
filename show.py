@@ -68,7 +68,8 @@ def show(
     ignore_existing=False,
     single_pane=False,
     goto='',
-    other_group=''
+    other_group='',
+    to_expand=None
 ):
     """
     Determines the correct view to use, creating one if necessary, and prepares it.
@@ -100,6 +101,6 @@ def show(
 
     # forcibly shoot on_activated, because when view was created it didnot have any settings
     window.show_quick_panel(['a', 'b'], None)
-    view.run_command('dired_refresh', {'goto': goto, 'reset_sels': reset_sels})
+    view.run_command('dired_refresh', {'goto': goto, 'reset_sels': reset_sels, 'to_expand': to_expand})
     window.run_command('hide_overlay')
     window.focus_view(view)

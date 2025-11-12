@@ -161,6 +161,22 @@
       ]
   },
   {
+      "keys": ["alt+left"],
+      "command": "dired_history_back",
+      "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
+      "keys": ["alt+right"],
+      "command": "dired_history_forward",
+      "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+      ]
+  },
+  {
       "keys": ["alt+shift+d"],
       "command": "dired_delete",
       "context": [

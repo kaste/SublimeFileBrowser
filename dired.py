@@ -177,7 +177,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             Optional filename to put the cursor on; used only from "dired_up"
 
         to_expand
-            List of relative paths for directories which shall be expanded
+            List of absolute directory paths (with trailing os.sep) that shall
+            be expanded.
 
         toggle
             If true, marked/selected directories shall switch state,
@@ -495,6 +496,8 @@ class dired_select(TextCommand, DiredBaseCommand):
             # Disable active filter when traversing into a subdirectory
             s = self.view.settings()
             s.set('dired_filter_enabled', False)
+            # Prepare history: replace current, cut forward, append destination on refresh
+            self.history_push()
             show(window, fqn, view_id=self.view.id())
             return True
         elif fqn == PARENT_SYM:
@@ -937,6 +940,7 @@ class dired_up(TextCommand, DiredBaseCommand):
 
         view_id = (self.view.id() if reuse_view() else None)
         goto = basename(path.rstrip(os.sep)) or path
+        self.history_push()
         show(self.view.window(), parent, view_id, goto=goto)
 
 
@@ -952,6 +956,44 @@ class dired_goto(TextCommand, DiredBaseCommand):
 
 
 # MARKING ###########################################################
+
+class dired_history_back(TextCommand, DiredBaseCommand):
+    """Navigate back to the previous directory state in history."""
+    def run(self, edit):
+        s = self.view.settings()
+        history = s.get('dired_history', [])
+        cursor = s.get('dired_history_cursor', 0)
+        if cursor < 1:
+            return sublime.status_message('No previous location')
+
+        # Replace current entry with any edits before leaving
+        history = self.history_replace()
+
+        # Move back based on pre-snapshot position
+        next_cursor = cursor - 1
+        target = history[next_cursor]
+        s.set('dired_history_cursor', next_cursor)
+        self._apply_history_entry(target)
+
+
+class dired_history_forward(TextCommand, DiredBaseCommand):
+    """Navigate forward to the next directory state in history."""
+    def run(self, edit):
+        s = self.view.settings()
+        history = s.get('dired_history', [])
+        cursor = s.get('dired_history_cursor', 0)
+        if cursor >= len(history) - 1:
+            return sublime.status_message('No next location')
+
+        # Replace current entry with any edits before leaving
+        history = self.history_replace()
+
+        # Move forward based on pre-snapshot position
+        next_cursor = cursor + 1
+        target = history[next_cursor]
+        s.set('dired_history_cursor', next_cursor)
+        self._apply_history_entry(target)
+
 
 class dired_mark_extension(TextCommand, DiredBaseCommand):
     def run(self, edit):

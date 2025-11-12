@@ -7,6 +7,9 @@
 | Expand all visible directories| ctrl+.                    |
 | Collapse deepest expanded dirs| ctrl+,                    |
 | Go to parent directory        | backspace                 |
+| Visit file or directory       | enter                     |
+| Back (history)                | alt+left                  |
+| Forward (history)             | alt+right                 |
 | Go to first                   | super+up or ctrl+home     |
 | Go to last                    | super+down or ctrl+end    |
 |                               |                           |
@@ -41,7 +44,6 @@
 | Toggle hidden files           | H                         |
 | Open in Finder/Explorer       | \                         |
 | Open in new window            | W                         |
-| Open file in another group    | enter                     |
 | Open all marked items         | super+enter or ctrl+enter |
 | Open file in preview          | shift+enter               |
 | (a.k.a transient) mode        |                           |

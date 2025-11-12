@@ -2,13 +2,13 @@
 from __future__ import annotations
 import re
 import os
+from os.path import isdir, join, basename
 import fnmatch
 from itertools import chain, repeat
 from typing import Iterable
 
 import sublime
 from sublime import Region
-from os.path import isdir, join, basename
 
 try:  # unavailable dependencies shall not break basic functionality
     import package_events
@@ -598,6 +598,59 @@ class DiredBaseCommand:
 
     def display_path(self, folder):
         return display_path(folder)
+
+    # --- History management ----------------------------------------------------
+
+    def history_push(self):
+        s = self.view.settings()
+        entry = self._build_history_entry()
+        history = s.get('dired_history', [])
+        cursor = s.get('dired_history_cursor', 0)
+        history = history[:cursor] + [entry]
+        cursor = len(history)
+        s.set('dired_history', history)
+        s.set('dired_history_cursor', cursor)
+        return history, cursor
+
+
+    def history_replace(self):
+        s = self.view.settings()
+        entry = self._build_history_entry()
+        history = s.get('dired_history')
+        cursor = s.get('dired_history_cursor')
+        if history is None:
+            raise RuntimeError("history_replace called before any `history` is recorded")
+        if cursor is None:
+            raise RuntimeError("history_replace called before `history_cursor` is initialized")
+
+        history = history[:cursor] + [entry] + history[cursor + 1:]
+        s.set('dired_history', history)
+        return history
+
+
+    def _build_history_entry(self):
+        s = self.view.settings()
+        self.index = self.get_all()  # hidden dependency
+        return {
+            'path': self.path,
+            'expanded': s.get('dired_expanded_paths', []),
+            'selection': self.get_selected(parent=False, full=False),
+            'regions': [(r.a, r.b) for r in self.view.sel()],
+            'viewport': self.view.viewport_position(),
+        }
+
+
+    def _apply_history_entry(self, entry):
+        """Restore a saved history entry: path, expanded dirs, selections, viewport."""
+        window = self.view.window()
+        if not window:
+            return   # view has been closed already
+
+        from .show import show
+        show(window, entry['path'], view_id=self.view.id(), to_expand=entry['expanded'])
+        self.restore_sels((entry['selection'], [Region(a, b) for a, b in entry['regions']]))
+        self.view.set_viewport_position(entry['viewport'], False)
+
 
     # --- Live filter highlight -------------------------------------------------
     def update_filter_highlight(self):

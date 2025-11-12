@@ -118,7 +118,10 @@ e.g. to completely mimic sidebar, it would be:
 | Collapse directory                                    | <kbd>h</kbd> or <kbd>←</kbd>               |
 | Expand all visible directories                        | <kbd>ctrl+.</kbd>                          |
 | Collapse deepest expanded directories                 | <kbd>ctrl+,</kbd>                          |
+| Open file or directory                                | <kbd>enter</kbd>                           |
 | Go to parent directory                                | <kbd>backspace</kbd>                       |
+| Back (history)                                        | <kbd>alt+left</kbd>                        |
+| Forward (history)                                     | <kbd>alt+right</kbd>                       |
 | Go to first                                           | <kbd>⌘+↑</kbd> or <kbd>ctrl+home</kbd>     |
 | Go to last                                            | <kbd>⌘+↓</kbd> or <kbd>ctrl+end</kbd>      |
 | Fuzzy filter                                          | <kbd>/</kbd> or <kbd>i</kbd>               |
@@ -147,7 +150,6 @@ e.g. to completely mimic sidebar, it would be:
 | Toggle hidden files                                   | <kbd>H</kbd>                               |
 | Open in Finder/File Explorer                          | <kbd>\\</kbd>                              |
 | Open in new window                                    | <kbd>W</kbd>                               |
-| Open file in another group                            | <kbd>enter</kbd>                           |
 | Open all marked items in new tabs                     | <kbd>⌘+enter</kbd> / <kbd>ctrl+enter</kbd> |
 | Preview file in another group                         | <kbd>shift+enter</kbd>                     |
 | Toggle add directory to project                       | <kbd>f</kbd>                               |
@@ -167,6 +169,10 @@ your user key bindings file (binds <kbd>O</kbd> to open in the default app):
   ]
 }
 ```
+
+### Navigation History
+
+Use Alt+Left (Back) and Alt+Right (Forward) to walk a per‑view navigation history.
 
 ##### *Rename Mode* Shortcuts
 | Command          | Shortcut           |
