@@ -600,16 +600,22 @@ class DiredBaseCommand:
         return self.view.find_all('%s%s%s' % (pattern, fname, sep))
 
     def _add_sels(self, sels=None):
+        fbs = self.view.find_by_selector
         self.view.sel().clear()
 
+        def bof_():
+            if header := fbs('text.dired header.dired'):
+                return header[0].b
+            return 0
+
         if sels:
+            bof = bof_()
             eof = self.view.size()
             for s in sels:
-                if s.begin() <= eof:
+                if bof < s.begin() <= eof:
                     self.view.sel().add(s)
 
         if not sels or not list(self.view.sel()):  # all sels more than eof
-            fbs = self.view.find_by_selector
             # Prefer first real item when a live filter is active
             flt = self.view.settings().get('dired_filter')
             enabled = self.view.settings().get('dired_filter_enabled', True)
