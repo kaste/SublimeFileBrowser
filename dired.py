@@ -470,15 +470,16 @@ class dired_select(TextCommand, DiredBaseCommand):
             return False
         fqn = filenames[0]
         if len(filenames) == 1 and isdir(fqn):
+            s = self.view.settings()
             # Clear any persisted marks when navigating into a directory
-            self.view.settings().set('dired_marked_paths', [])
+            s.set('dired_marked_paths', [])
             self.refresh_mark_highlights()
             # Disable active filter when traversing into a subdirectory
-            s = self.view.settings()
             s.set('dired_filter_enabled', False)
             # Prepare history: replace current, cut forward, append destination on refresh
             self.history_push()
-            show(window, fqn, view_id=self.view.id())
+            remembered_child = s.get('dired_last_selection_by_dir', {}).get(fqn, '')
+            show(window, fqn, view_id=self.view.id(), goto=remembered_child)
             return True
         elif fqn == PARENT_SYM:
             window.run_command("dired_up")
@@ -940,6 +941,13 @@ class dired_up(TextCommand, DiredBaseCommand):
             self.view.run_command('dired_refresh')
             return
 
+        remembered_selection = None
+        if path:
+            self.index = self.get_all()
+            selections = self.get_selected(parent=False, full=False)
+            if selections:
+                remembered_selection = selections[0]
+
         parent = dirname(path.rstrip(os.sep))
         if not parent.endswith(os.sep):
             parent += os.sep
@@ -949,8 +957,14 @@ class dired_up(TextCommand, DiredBaseCommand):
             else:
                 return
 
-        # Clear any persisted marks and disable active filter when navigating up
         s = self.view.settings()
+        # Remember position
+        if remembered_selection:
+            data = s.get('dired_last_selection_by_dir', {})
+            data[path] = remembered_selection
+            s.set('dired_last_selection_by_dir', data)
+
+        # Clear any persisted marks and disable active filter when navigating up
         s.set('dired_marked_paths', [])
         self.refresh_mark_highlights()
         s.set('dired_filter_enabled', False)
