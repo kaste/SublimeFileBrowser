@@ -429,19 +429,6 @@ class DiredBaseCommand:
             result = False
         return result
 
-    def list_directory_filtered(self, path) -> tuple[list[str], str]:
-        '''Return (items, error) using raw listing plus optional filtering.'''
-        items, error = self.list_directory(path)
-        # Apply optional filters on top of the raw listing
-        s = self.view.settings()
-        enabled = s.get('dired_filter_enabled', True)
-        if enabled:
-            if ext_filter := s.get('dired_filter_extension', '').lower():
-                items = [n for n in items if os.path.splitext(n)[1].lower() == ext_filter]
-            if flt := s.get('dired_filter'):
-                items = rx_fuzzy_filter(flt, items)
-        return items, error
-
     def list_directory(self, path) -> tuple[list[str], str]:
         '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''
