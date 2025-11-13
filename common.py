@@ -622,15 +622,15 @@ class DiredBaseCommand:
             filter_extension = self.view.settings().get('dired_filter_extension')
             if enabled and (flt or filter_extension):
                 item = (
-                    fbs('text.dired dired.item.directory string.name.directory.dired ')
-                    or fbs('text.dired dired.item.file string.name.file.dired ')
+                    fbs('text.dired dired.item.file string.name.file.dired ')
+                    or fbs('text.dired dired.item.directory string.name.directory.dired ')
                     or fbs('text.dired dired.item.parent_dir ')
                 )
             else:
                 item = (
-                    fbs('text.dired dired.item.parent_dir ')
-                    or fbs('text.dired dired.item.directory string.name.directory.dired ')
+                    fbs('text.dired dired.item.directory string.name.directory.dired ')
                     or fbs('text.dired dired.item.file string.name.file.dired ')
+                    or fbs('text.dired dired.item.parent_dir ')
                 )
             s = Region(item[0].a, item[0].a) if item else Region(0, 0)
             self.view.sel().add(s)
