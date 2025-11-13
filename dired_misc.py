@@ -270,7 +270,7 @@ class dired_toggle_auto_refresh(TextCommand):
 
 # FILTER ############################################################
 
-class dired_filter(TextCommand, DiredBaseCommand):
+class dired_fuzzy_search(TextCommand, DiredBaseCommand):
     def is_enabled(self):
         return self.view.score_selector(0, "text.dired") > 0
 

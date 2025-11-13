@@ -254,7 +254,7 @@
   },
   {
     "keys": ["/"],
-    "command": "dired_filter",
+    "command": "dired_fuzzy_search",
     "context": [
       { "key": "selector", "operator": "equal", "operand": "text.dired" },
       { "key": "setting.dired_rename_mode", "operand": false }
@@ -262,7 +262,7 @@
   },
   {
     "keys": ["i"],
-    "command": "dired_filter",
+    "command": "dired_fuzzy_search",
     "context": [
       { "key": "selector", "operator": "equal", "operand": "text.dired" },
       { "key": "setting.dired_rename_mode", "operand": false }
