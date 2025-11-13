@@ -531,6 +531,21 @@ class DiredBaseCommand:
 
         return entries, ''
 
+    def recreate_dired_expanded_paths_from_view(self):
+        # Update persisted expanded paths based on current view state
+        # Collect current expanded directory paths from visible arrows
+        regions = self.view.find_all(r'^\s*▾')
+        if regions:
+            self.index = self.get_all()
+            paths = []
+            for r in regions:
+                row = self.view.rowcol(r.a)[0]
+                if 0 <= row < len(self.index):
+                    paths.append(self.index[row])
+            self.view.settings().set('dired_expanded_paths', paths)
+        else:
+            self.view.settings().set('dired_expanded_paths', [])
+
     def restore_sels(self, sels=None):
         '''
         sels is tuple of two elements:

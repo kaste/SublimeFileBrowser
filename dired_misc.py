@@ -285,6 +285,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
         self.index = self.get_all()
         initial_sels = (self.get_selected(), [Region(r.a, r.b) for r in self.view.sel()])
         initial_viewport = self.view.viewport_position()
+        initial_expanded_folders: list[str] = self.view.settings().get('dired_expanded_paths', [])
 
         def apply_filter(text: str):
             if text:
@@ -295,6 +296,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
 
         def on_done(text: str):
             self.view.settings().set('dired_filter_live', False)
+            self.recreate_dired_expanded_paths_from_view()
             apply_filter(text)
 
         def on_change(text: str):
@@ -308,6 +310,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
                 self.view.settings().erase('dired_filter')
             self.view.settings().set('dired_filter_enabled', enabled)
             self.view.settings().set('dired_filter_extension', filter_extension)
+            self.view.settings().set('dired_expanded_paths', initial_expanded_folders)
             self.view.run_command('dired_refresh')
             self.restore_sels(initial_sels)
             self.view.set_viewport_position(initial_viewport, False)

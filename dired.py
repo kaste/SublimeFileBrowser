@@ -834,20 +834,7 @@ class dired_fold(TextCommand, DiredBaseCommand):
         self.restore_sels(sel_info)
         self.view.run_command("dired_draw_vcs_marker")
         self.refresh_clipboard_highlights()
-
-        # Update persisted expanded paths based on current view state
-        # Collect current expanded directory paths from visible arrows
-        regions = self.view.find_all(r'^\s*▾')
-        if regions:
-            self.index = self.get_all()
-            paths = []
-            for r in regions:
-                row = self.view.rowcol(r.a)[0]
-                if 0 <= row < len(self.index):
-                    paths.append(self.index[row])
-            self.view.settings().set('dired_expanded_paths', paths)
-        else:
-            self.view.settings().set('dired_expanded_paths', [])
+        self.recreate_dired_expanded_paths_from_view()
 
     def fold(self, edit, line: Region) -> Region | None:
         '''
