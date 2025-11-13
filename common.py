@@ -844,7 +844,3 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
     if m := re.search(pattern, text, re.IGNORECASE):
         return [m.start(i + 1) for i in range(len(term))]
     return []
-
-
-def rx_fuzzy_filter(term: str, items: list[str]) -> list[str]:
-    return [s for s in items if rx_fuzzy_match(term, s)]
