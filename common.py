@@ -507,7 +507,9 @@ class DiredBaseCommand:
     def walkdir(
         self,
         dir_path: str,
+        *,
         expanded: set[str] | None = None,
+        auto_expand: int = 0,
         depth: int = 0,
         sortfunc=NATURAL_SORT
     ) -> tuple[list[ListingItem], str]:
@@ -521,8 +523,9 @@ class DiredBaseCommand:
 
         entries: list[ListingItem] = []
         for info in infos:
-            if info.is_dir and info.full_path in expanded:
-                sub_entries, sub_err = self.walkdir(info.full_path, expanded, depth + 1)
+            if info.is_dir and (depth < auto_expand or info.full_path in expanded):
+                sub_entries, sub_err = self.walkdir(
+                    info.full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1)
                 note = sub_err or ('empty' if not sub_entries else '')
                 entries.append(ListingItem(*info, depth, True, note))
                 entries.extend(sub_entries)
