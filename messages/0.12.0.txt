@@ -1,0 +1,26 @@
+0.12.0
+------
+
+All new in November.
+
+-
+
+I think mostly I reworked the visuals.  By default, I now show the basic
+file stats, like mtime and size.  Norton Commander vibes.
+
+The default can be changed by the setting `dired_show_stats`, and dynamically
+using `S`.
+
+I also highlight, stylize copied or cut files, and generally show more help
+in the heading line and status bar.
+
+If you're using your standard theme, you might want to define the scopes
+`dired.copied` and `dired.cut`.  Maybe take a look at the README to see
+how all of that might look like.
+
+https://github.com/kaste/SublimeFileBrowser/blob/master/README.md
+
+-
+
+I implement back and forth navigation, bound to `alt+left` and `alt+right`.  And
+a quick way to expand or collapse folder with `ctrl+.` and `ctrl+,`.
