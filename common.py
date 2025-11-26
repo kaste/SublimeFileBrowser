@@ -2,6 +2,7 @@
 from __future__ import annotations
 import re
 import os
+import time
 from os.path import isdir, join, basename
 import fnmatch
 from itertools import chain, repeat
@@ -48,6 +49,25 @@ EVENT_TOPIC = 'FileBrowser'
 MARK_OPTIONS = sublime.DRAW_NO_OUTLINE
 RE_FILE = re.compile(r'^(\s*)([^\\//].*)$')
 PARENT_SYM = "⠤"
+
+
+def format_size_short(num_bytes: int) -> str:
+    """Return a compact human-readable size like '12kB' or '3MB'."""
+    if num_bytes <= 0:
+        return ""
+    units = ["B", "kB", "MB", "GB", "TB", "PB"]
+    size = float(num_bytes)
+    unit = 0
+    while size >= 1024.0 and unit < len(units) - 1:
+        size /= 1024.0
+        unit += 1
+    rounded = int(size + 0.5)
+    return f"{rounded}{units[unit]}"
+
+# Maximum acceptable time (seconds) for a single os.path.getsize call when
+# computing summary sizes for status-bar display. If a call exceeds this,
+# we abort size computation and show counts only.
+SIZE_STAT_TIMEOUT = 0.005
 
 
 def first(seq, pred):
@@ -386,13 +406,40 @@ class DiredBaseCommand:
             help_segments.append('ctrl+z: Clear Clipboard')
         help_segment = " 𝌆 [{0}] ".format(', '.join(help_segments))
 
+        def format_mark(items, name):
+            if not items:
+                return ''
+            size = _total_size(items)
+            segments = [str(len(items))]
+            if size > 0:
+                segments.append(format_size_short(size))
+            return f', {name}({"; ".join(segments)})'
+
+        def _total_size(paths):
+            total = 0
+            for p in paths:
+                if isdir(p):
+                    return 0
+                start = time.monotonic()
+                try:
+                    total += os.path.getsize(p)
+                except OSError:
+                    continue
+                else:
+                    if time.monotonic() - start > SIZE_STAT_TIMEOUT:
+                        return 0
+            return total
+
+        marked_info = format_mark(marked_items, 'marked')
+        copied_info = format_mark(copied_items, 'copied')
+        cut_info = format_mark(cut_items, 'cut')
         status = "{help}{root}Hidden: {hidden}{marked}{copied}{cut}".format(
             help=help_segment,
             root='Project root, ' if path_in_project else '',
             hidden='On' if show_hidden else 'Off',
-            marked=', marked(%d)' % len(marked_items) if marked_items else '',
-            copied=', copied(%d)' % len(copied_items) if copied_items else '',
-            cut=', cut(%d)' % len(cut_items) if cut_items else ''
+            marked=marked_info,
+            copied=copied_info,
+            cut=cut_info
         )
         self.view.set_status("__FileBrowser__", status)
 
