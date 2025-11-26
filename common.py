@@ -361,23 +361,29 @@ class DiredBaseCommand:
         self.view.insert(edit, start, new_text)
 
     def set_status(self):
-        '''Update status-bar;
-        self.show_hidden must be assigned before call it'''
-        # if view isnot focused, view.window() may be None
+        '''Update status-bar'''
+        # if view is not focused, view.window() may be None
         window          = self.view.window() or sublime.active_window()
         path_in_project = any(folder == self.path[:-1] for folder in window.folders())
         settings        = self.view.settings()
         copied_items    = settings.get('dired_to_copy', [])
         cut_items       = settings.get('dired_to_move', [])
+        marked_items    = settings.get('dired_marked_paths') or []
+
+        # Derive hidden-files flag view settings if not set
+        show_hidden = getattr(self, 'show_hidden', settings.get('dired_show_hidden_files', True))
+
         # Show filter toggle only if a filter is actually active
         enabled = settings.get('dired_filter_enabled', True)
         has_flt = settings.get('dired_filter') or settings.get('dired_filter_extension')
         filter_active = enabled and has_flt
+
         help_segment = " 𝌆 [?: Help{0}] ".format(', I: Disable Filter' if filter_active else '')
-        status = "{help}{root}Hidden: {hidden}{copied}{cut}".format(
+        status = "{help}{root}Hidden: {hidden}{marked}{copied}{cut}".format(
             help=help_segment,
             root='Project root, ' if path_in_project else '',
-            hidden='On' if self.show_hidden else 'Off',
+            hidden='On' if show_hidden else 'Off',
+            marked=', marked(%d)' % len(marked_items) if marked_items else '',
             copied=', copied(%d)' % len(copied_items) if copied_items else '',
             cut=', cut(%d)' % len(cut_items) if cut_items else ''
         )

@@ -340,7 +340,6 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
         settings.set('dired_to_copy', list(set(copy_list)))
         sublime.save_settings('dired.sublime-settings')
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
-        self.set_status()
 
         # Inform the user how to clear the internal clipboard
         sublime.status_message('ctrl+z to empty the clipboard')
@@ -369,6 +368,9 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
                 self.view.run_command('dired_next_line', {"forward": True})
             except Exception:
                 pass
+
+        # Update status bar to reflect current clipboard and mark counts
+        self.set_status()
 
 
 class dired_paste_files(TextCommand, DiredBaseCommand):

@@ -1041,6 +1041,7 @@ class dired_mark_extension(TextCommand, DiredBaseCommand):
         paths.update(matches)
         self.view.settings().set('dired_marked_paths', sorted(paths))
         self.refresh_mark_highlights()
+        self.set_status()
 
 
 class dired_mark(TextCommand, DiredBaseCommand):
@@ -1101,6 +1102,7 @@ class dired_mark(TextCommand, DiredBaseCommand):
 
         self.view.settings().set('dired_marked_paths', sorted(paths))
         self.refresh_mark_highlights()
+        self.set_status()
 
         if should_move and forward:
             self.move(forward)
