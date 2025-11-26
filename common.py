@@ -373,12 +373,17 @@ class DiredBaseCommand:
         # Derive hidden-files flag view settings if not set
         show_hidden = getattr(self, 'show_hidden', settings.get('dired_show_hidden_files', True))
 
-        # Show filter toggle only if a filter is actually active
+        # Show contextual help hints in the status bar
         enabled = settings.get('dired_filter_enabled', True)
         has_flt = settings.get('dired_filter') or settings.get('dired_filter_extension')
         filter_active = enabled and has_flt
+        help_segments = ['?: Help']
+        if filter_active:
+            help_segments.append('I: Disable Filter')
+        if marked_items:
+            help_segments.append('u: Unmark All')
+        help_segment = " 𝌆 [{0}] ".format(', '.join(help_segments))
 
-        help_segment = " 𝌆 [?: Help{0}] ".format(', I: Disable Filter' if filter_active else '')
         status = "{help}{root}Hidden: {hidden}{marked}{copied}{cut}".format(
             help=help_segment,
             root='Project root, ' if path_in_project else '',
