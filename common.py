@@ -382,6 +382,8 @@ class DiredBaseCommand:
             help_segments.append('I: Disable Filter')
         if marked_items:
             help_segments.append('u: Unmark All')
+        if copied_items or cut_items:
+            help_segments.append('ctrl+z: Clear Clipboard')
         help_segment = " 𝌆 [{0}] ".format(', '.join(help_segments))
 
         status = "{help}{root}Hidden: {hidden}{marked}{copied}{cut}".format(

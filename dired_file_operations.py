@@ -341,9 +341,6 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
         sublime.save_settings('dired.sublime-settings')
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
 
-        # Inform the user how to clear the internal clipboard
-        sublime.status_message('ctrl+z to empty the clipboard')
-
         # Highlight items currently in the internal clipboard (copied/cut)
         self.refresh_clipboard_highlights(copied=copy_list, cut=cut_list)
 
