@@ -286,13 +286,15 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
         initial_sels = (self.get_selected(), [Region(r.a, r.b) for r in self.view.sel()])
         initial_viewport = self.view.viewport_position()
         initial_expanded_folders: list[str] = self.view.settings().get('dired_expanded_paths', [])
+        auto_expand = 0
+        auto_expand_trigger = ''
 
         def apply_filter(text: str):
             if text:
                 self.view.settings().set('dired_filter', text.strip())
             else:
                 self.view.settings().erase('dired_filter')
-            self.view.run_command('dired_refresh')
+            self.view.run_command('dired_refresh', {'auto_expand': auto_expand})
 
         def on_done(text: str):
             self.view.settings().set('dired_filter_live', False)
@@ -300,7 +302,31 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             apply_filter(text)
 
         def on_change(text: str):
+            nonlocal auto_expand, auto_expand_trigger
+
+            text = text.strip()
+
+            # If the current term still starts with the trigger that caused
+            # auto expansion, keep the current auto_expand depth and just
+            # re-apply the filter.
+            if auto_expand_trigger and text.startswith(auto_expand_trigger):
+                apply_filter(text)
+                return
+
+            # Reset auto expansion state whenever the term diverges from the
+            # previous trigger (including backspacing below it).
+            auto_expand = 0
+            auto_expand_trigger = ''
+
+            # First try without auto expansion.
             apply_filter(text)
+
+            # If live fuzzy filtering yields no matches at the current depth,
+            # enable auto expansion up to three levels and try again.
+            if self.view.settings().get('dired_count', 0) == 0:
+                auto_expand = 3
+                auto_expand_trigger = text
+                apply_filter(text)
 
         def on_cancel():
             self.view.settings().set('dired_filter_live', False)

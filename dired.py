@@ -175,7 +175,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     """
     sels: tuple[list[str] | None, list[Region] | None] | None
 
-    def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None):
+    def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None, auto_expand=0):
         """
         goto
             Optional filename to put the cursor on; used only from "dired_up"
@@ -229,7 +229,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             # When resetting, clear selections and initialize index
             self.index = []
             self.sels = None
-        self.populate_view(edit, path, expanded, to_expand, toggle)
+        self.populate_view(edit, path, expanded, to_expand, toggle, auto_expand)
 
         if self.view.settings().get('dired_autorefresh', True):
             emit_event(
@@ -251,7 +251,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             goto = parent.rstrip(os.sep)
         return to_expand
 
-    def populate_view(self, edit, path, expanded, to_expand, toggle):
+    def populate_view(self, edit, path, expanded, to_expand, toggle, auto_expand=0):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
         # `expanded` already contains absolute paths collected from settings
@@ -261,7 +261,9 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         else:
             expanded.extend(to_expand or [])
         self.expanded = expanded
-        entries, err = self.walkdir(root, expanded=set(expanded))
+
+        # Phase 1: build the tree
+        entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
         if err:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)
