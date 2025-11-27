@@ -18,6 +18,7 @@ from .show import show
 from .jumping import jump_names
 
 
+ICON    = '𝌆'
 SEPARATOR = '\u200b'
 STATS_PADDING = 2
 
@@ -353,15 +354,14 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             text = [caption_full, '—' * len(caption_full)]
         else:
             text = []
-        icon    = self.view.name()[:2]
         if not path:
-            title = '%s%s' % (icon, name or 'This PC')
+            title = '%s %s' % (ICON, name or 'This PC')
         else:
             norm_path = path.rstrip(os.sep)
             if self.view.settings().get('dired_show_full_path', False):
-                title = '%s%s (%s)' % (icon, name or basename(norm_path), norm_path)
+                title = '%s %s (%s)' % (ICON, name or basename(norm_path), norm_path)
             else:
-                title = '%s%s' % (icon, name or basename(norm_path))
+                title = '%s %s' % (ICON, name or basename(norm_path))
         self.view.set_name(title)
         return (text, header)
 
