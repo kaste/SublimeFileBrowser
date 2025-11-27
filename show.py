@@ -58,18 +58,17 @@ def set_active_group(window, view, other_group):
     return (nag, group)
 
 
-def get_or_create_dired_view(view, window, ignore_existing, path, single_pane) -> sublime.View:
-    if not view and not ignore_existing:
+def get_or_create_dired_view(window, ignore_existing, path, single_pane) -> sublime.View:
+    """Return a suitable dired view for `path`, creating one if necessary."""
+    view = None
+    if not ignore_existing:
         # See if a view for this path already exists.
         same_path = lambda v: v.settings().get('dired_path') == path
         # See if any reusable view exists in case of single_pane argument
         any_path = lambda v: v.score_selector(0, "text.dired") > 0
         view = first(window.views(), any_path if single_pane else same_path)
 
-    if not view:
-        view = create_dired_view(window)
-
-    return view
+    return view or create_dired_view(window)
 
 
 def show(
@@ -96,7 +95,7 @@ def show(
     if not path.endswith(os.sep):
         path += os.sep
 
-    view = get_or_create_dired_view(reuse_view, window, ignore_existing, path, single_pane)
+    view = reuse_view or get_or_create_dired_view(window, ignore_existing, path, single_pane)
     set_active_group(window, view, other_group)
     if other_group and prev_focus:
         window.focus_view(prev_focus)
