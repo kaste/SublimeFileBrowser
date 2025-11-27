@@ -815,7 +815,7 @@ class DiredBaseCommand:
             return   # view has been closed already
 
         from .show import show
-        show(window, entry['path'], view_id=self.view.id(), to_expand=entry['expanded'])
+        show(window, entry['path'], view=self.view, to_expand=entry['expanded'])
         self.restore_sels((entry['selection'], [Region(a, b) for a, b in entry['regions']]))
         self.view.set_viewport_position(entry['viewport'], False)
 

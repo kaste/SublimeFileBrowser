@@ -481,7 +481,7 @@ class dired_select(TextCommand, DiredBaseCommand):
             # Prepare history: replace current, cut forward, append destination on refresh
             self.history_push()
             remembered_child = s.get('dired_last_selection_by_dir', {}).get(fqn, '')
-            show(window, fqn, view_id=self.view.id(), goto=remembered_child)
+            show(window, fqn, view=self.view, goto=remembered_child)
             return True
         elif fqn == PARENT_SYM:
             window.run_command("dired_up")
@@ -958,10 +958,10 @@ class dired_up(TextCommand, DiredBaseCommand):
         self.refresh_mark_highlights()
         s.set('dired_filter_enabled', False)
 
-        view_id = (self.view.id() if reuse_view() else None)
+        view_for_reuse = (self.view if reuse_view() else None)
         goto = basename(path.rstrip(os.sep)) or path
         self.history_push()
-        show(self.view.window(), parent, view_id, goto=goto)
+        show(self.view.window(), parent, view=view_for_reuse, goto=goto)
 
 
 class dired_goto(TextCommand, DiredBaseCommand):
@@ -972,7 +972,7 @@ class dired_goto(TextCommand, DiredBaseCommand):
         prompt.start('Goto:', self.view.window(), self.path, self.goto)
 
     def goto(self, path):
-        show(self.view.window(), path, view_id=self.view.id())
+        show(self.view.window(), path, view=self.view)
 
 
 # MARKING ###########################################################

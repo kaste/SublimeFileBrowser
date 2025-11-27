@@ -68,7 +68,7 @@ class dired_jump(TextCommand, DiredBaseCommand):
             if self.new_window is True or ((not smart_jump) and auto) or (smart_jump and auto and len(self.view.window().views()) > 0):
                 self.view.run_command("dired_open_in_new_window", {"project_folder": [target]})
             else:
-                show(self.view.window(), target, view_id=self.view.id())
+                show(self.view.window(), target, view=self.view)
                 status_message("Jumping to point '{0}' complete".format(name))
         else:
             # workaround ST3 bug https://github.com/SublimeText/Issues/issues/39
