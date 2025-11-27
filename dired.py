@@ -14,7 +14,7 @@ from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
     set_proper_scheme, NT, PARENT_SYM, rx_fuzzy_match)
 from . import prompt
-from .show import show
+from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
 
 
@@ -535,7 +535,67 @@ class dired_preview(dired_select):
         fqn = filenames[0]
 
         if isdir(fqn) or fqn == PARENT_SYM:
-            self.view.run_command('dired_preview_directory', {'fqn': fqn})
+            # Preview directories by opening a dired view for the selected
+            # folder in the "other" group, toggling it on repeated use.
+            window = self.view.window()
+            if not window:
+                return
+
+            # Resolve target directory path
+            target_path = fqn if fqn != PARENT_SYM else self.get_path()
+            if not target_path:
+                return
+
+            dired_view = self.view
+            will_create_preview_group = window.num_groups() == 1
+            group = self._other_group(window, window.active_group())
+
+            open_views = window.views_in_group(group)
+            # Find an existing preview container in the other group (file or dired).
+            preview_view = next(
+                (v for v in open_views if v.settings().get("dired_preview_container")),
+                None
+            )
+
+            # Toggle behavior: if the preview already shows this folder,
+            # close that view instead of opening another one.
+            if (
+                preview_view
+                and preview_view.settings().get('dired_path') == target_path
+                and preview_view.score_selector(0, "text.dired") > 0
+            ):
+                window.focus_view(preview_view)
+                preview_view.close()
+                sublime.set_timeout(lambda: window.focus_view(dired_view))
+                return
+
+            # Otherwise, reuse the existing preview view if possible, or create one.
+            close_empty_preview_group = (
+                will_create_preview_group
+                or (
+                    open_views and all(
+                        v.settings().get("dired_preview_view")
+                        for v in open_views
+                    )
+                )
+            )
+
+            if preview_view is None:
+                preview_view = create_dired_view(window)
+
+            # Place the view in the target group
+            window.set_view_index(preview_view, group, 0)
+
+            # Mark as a preview view so the handler can manage empty panes
+            preview_view.settings().set("dired_preview_view", True)
+            preview_view.settings().set("dired_preview_container", True)
+            preview_view.settings().set(
+                "dired_close_empty_preview_pane", close_empty_preview_group)
+
+            # Initialize/reuse as dired view rooted at target_path
+            retarget_dired_view(preview_view, target_path)
+
+            when_loaded(preview_view, lambda: window.focus_view(dired_view))
             return
 
         if exists(fqn):
