@@ -69,7 +69,7 @@ def set_active_group(window, view, other_group):
     return (nag, group)
 
 
-def set_view(view_id, window, ignore_existing, path, single_pane):
+def set_view(view_id, window, ignore_existing, path, single_pane) -> sublime.View:
     view = None
     if view_id:
         # The Goto command was used so the view is already known and its contents should be
@@ -85,11 +85,8 @@ def set_view(view_id, window, ignore_existing, path, single_pane):
 
     if not view:
         view = create_dired_view(window)
-        reset_sels = True
-    else:
-        reset_sels = path != view.settings().get('dired_path', '')
 
-    return (view, reset_sels)
+    return view
 
 
 def show(
@@ -115,13 +112,13 @@ def show(
     if not path.endswith(os.sep):
         path += os.sep
 
-    view, reset_sels = set_view(view_id, window, ignore_existing, path, single_pane)
+    view = set_view(view_id, window, ignore_existing, path, single_pane)
     set_active_group(window, view, other_group)
     if other_group and prev_focus:
         window.focus_view(prev_focus)
 
     # forcibly shoot on_activated, because when view was created it didnot have any settings
     window.show_quick_panel(['a', 'b'], None)
-    retarget_dired_view(view, path, goto=goto, to_expand=to_expand, reset_sels=reset_sels)
+    retarget_dired_view(view, path, goto=goto, to_expand=to_expand)
     window.run_command('hide_overlay')
     window.focus_view(view)
