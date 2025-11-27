@@ -81,9 +81,8 @@ def show(
     Determines the correct view to use, creating one if necessary, and prepares it.
     """
     if other_group:
-        prev_focus = window.active_view()
-        # simulate 'toggle sidebar':
-        if prev_focus and 'dired' in prev_focus.scope_name(0):
+        av = window.active_view()
+        if av and 'dired' in av.scope_name(0):
             window.run_command('close_file')
             return
 
