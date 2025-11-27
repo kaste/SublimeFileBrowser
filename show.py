@@ -60,7 +60,7 @@ def set_active_group(window, view, other_group):
     return (nag, group)
 
 
-def set_view(view_id, window, ignore_existing, path, single_pane) -> sublime.View:
+def get_or_create_dired_view(view_id, window, ignore_existing, path, single_pane) -> sublime.View:
     view = None
     if view_id:
         # The Goto command was used so the view is already known and its contents should be
@@ -103,7 +103,7 @@ def show(
     if not path.endswith(os.sep):
         path += os.sep
 
-    view = set_view(view_id, window, ignore_existing, path, single_pane)
+    view = get_or_create_dired_view(view_id, window, ignore_existing, path, single_pane)
     set_active_group(window, view, other_group)
     if other_group and prev_focus:
         window.focus_view(prev_focus)
