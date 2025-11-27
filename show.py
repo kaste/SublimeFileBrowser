@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sublime
 from os.path import basename
 
 from .common import first, set_proper_scheme, calc_width, get_group
@@ -51,6 +52,9 @@ def set_view(view_id, window, ignore_existing, path, single_pane):
 
     if not view:
         view = window.new_file()
+        dired_settings = sublime.load_settings('dired.sublime-settings')
+        if not dired_settings.get('dired_enable_stock_sublime_history', False):
+            view.settings().set('is_widget', True)
         view.settings().add_on_change('color_scheme', lambda: set_proper_scheme(view))
         view.set_syntax_file('Packages/FileBrowser/dired' + SYNTAX_EXTENSION)
         view.set_scratch(True)

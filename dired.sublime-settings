@@ -57,6 +57,11 @@
   // false: the default, always open a new window when jumping
   "dired_smart_jump": false,
 
+  // Enable Sublime's stock history feature ("jump_back/jump_forward") for
+  // dired views.  (Technically, this controls if we set "is_widget" on our
+  // views.)
+  "dired_enable_stock_sublime_history": false,
+
   // Width for FileBrowser column (as sidebar) accepts float or int:
   // float  0.1-0.9   put 1 is a window width, so e.g. 0.5 is half of window
   // int    e.g. 99   pixels, if value will be more than current window width
