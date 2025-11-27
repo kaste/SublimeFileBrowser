@@ -32,30 +32,25 @@ def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_exp
 
 
 def set_active_group(window, view, other_group):
-    nag = window.active_group()
-    if other_group:
+    ag = window.active_group()
+    groups = window.num_groups()
+    if groups == 1:
         group = 0 if other_group == 'left' else 1
-        groups = window.num_groups()
-        if groups == 1:
-            width = calc_width(view)
-            cols = [0.0, width, 1.0] if other_group == 'left' else [0.0, 1-width, 1.0]
-            window.set_layout({
-                "cols": cols,
-                "rows": [0.0, 1.0],
-                "cells": [[0, 0, 1, 1], [1, 0, 2, 1]]
-            })
-        elif view:
-            group = get_group(groups, nag)
-        window.set_view_index(view, group, 0)
+        width = calc_width(view)
+        cols = [0.0, width, 1.0] if other_group == 'left' else [0.0, 1-width, 1.0]
+        window.set_layout({
+            "cols": cols,
+            "rows": [0.0, 1.0],
+            "cells": [[0, 0, 1, 1], [1, 0, 2, 1]]
+        })
     else:
-        group = nag
+        group = get_group(groups, ag)
+    window.set_view_index(view, group, 0)
 
-    # when other_group is left, we need move all views to right except FB view
-    if nag == 0 and other_group == 'left' and group == 0:
-        for v in reversed(window.views_in_group(nag)[1:]):
+    # when other_group is left, we need move all views to right except the dired view
+    if ag == 0 and other_group == 'left' and group == 0:
+        for v in reversed(window.views_in_group(ag)[1:]):
             window.set_view_index(v, 1, 0)
-
-    return (nag, group)
 
 
 def get_or_create_dired_view(window, ignore_existing, path, single_pane) -> sublime.View:
@@ -96,9 +91,10 @@ def show(
         path += os.sep
 
     view = reuse_view or get_or_create_dired_view(window, ignore_existing, path, single_pane)
-    set_active_group(window, view, other_group)
-    if other_group and prev_focus:
-        window.focus_view(prev_focus)
+    if other_group:
+        set_active_group(window, view, other_group)
+        if prev_focus:
+            window.focus_view(prev_focus)
 
     # forcibly shoot on_activated, because when view was created it didnot have any settings
     window.show_quick_panel(['a', 'b'], None)
