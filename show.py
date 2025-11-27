@@ -21,14 +21,13 @@ def create_dired_view(window: sublime.Window) -> sublime.View:
     return view
 
 
-def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_expand=None, reset_sels: bool | None = None) -> None:
+def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_expand=None) -> None:
     """Reuse an existing dired view for a new root path."""
     if not path.endswith(os.sep):
         path += os.sep
 
     old_path = view.settings().get('dired_path', '')
-    if reset_sels is None:
-        reset_sels = path != old_path
+    reset_sels = path != old_path
 
     if path == os.sep:
         view_name = os.sep
