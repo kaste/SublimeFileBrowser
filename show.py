@@ -3,7 +3,6 @@
 
 import os
 import sublime
-from os.path import basename
 
 from .common import first, set_proper_scheme, calc_width, get_group
 SYNTAX_EXTENSION = '.sublime-syntax'
@@ -29,13 +28,6 @@ def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_exp
     old_path = view.settings().get('dired_path', '')
     reset_sels = path != old_path
 
-    if path == os.sep:
-        view_name = os.sep
-    else:
-        view_name = basename(path.rstrip(os.sep))
-
-    name = "𝌆 {0}".format(view_name)
-    view.set_name(name)
     view.settings().set('dired_path', path)
     view.settings().set('dired_rename_mode', False)
     view.run_command('dired_refresh', {'goto': goto, 'reset_sels': reset_sels, 'to_expand': to_expand})
