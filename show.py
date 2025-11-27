@@ -1,6 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
+from __future__ import annotations
 import os
 import sublime
 
@@ -77,11 +75,12 @@ def get_or_create_dired_view(view, window, ignore_existing, path, single_pane) -
 def show(
     window,
     path,
-    view=None,
-    ignore_existing=False,
-    single_pane=False,
-    goto='',
-    other_group='',
+    *,
+    reuse_view: sublime.View | None = None,
+    ignore_existing: bool = False,
+    single_pane: bool = False,
+    goto: str = '',
+    other_group: str = '',
     to_expand=None
 ):
     """
@@ -97,7 +96,7 @@ def show(
     if not path.endswith(os.sep):
         path += os.sep
 
-    view = get_or_create_dired_view(view, window, ignore_existing, path, single_pane)
+    view = get_or_create_dired_view(reuse_view, window, ignore_existing, path, single_pane)
     set_active_group(window, view, other_group)
     if other_group and prev_focus:
         window.focus_view(prev_focus)
