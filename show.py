@@ -93,8 +93,6 @@ def show(
     view = reuse_view or get_or_create_dired_view(window, ignore_existing, path, single_pane)
     if other_group:
         set_active_group(window, view, other_group)
-        if prev_focus:
-            window.focus_view(prev_focus)
 
     # forcibly shoot on_activated, because when view was created it didnot have any settings
     window.show_quick_panel(['a', 'b'], None)
