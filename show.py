@@ -31,13 +31,17 @@ def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_exp
     view.run_command('dired_refresh', {'goto': goto, 'reset_sels': reset_sels, 'to_expand': to_expand})
 
 
-def set_active_group(window, view, other_group):
+def get_or_create_group_for_dired(window, view, other_group):
+    """Ensure a group exists for a side-by-side dired view.
+
+    Returns (active_group, target_group).
+    """
     ag = window.active_group()
     groups = window.num_groups()
     if groups == 1:
         group = 0 if other_group == 'left' else 1
         width = calc_width(view)
-        cols = [0.0, width, 1.0] if other_group == 'left' else [0.0, 1-width, 1.0]
+        cols = [0.0, width, 1.0] if other_group == 'left' else [0.0, 1 - width, 1.0]
         window.set_layout({
             "cols": cols,
             "rows": [0.0, 1.0],
@@ -45,9 +49,13 @@ def set_active_group(window, view, other_group):
         })
     else:
         group = get_group(groups, ag)
-    window.set_view_index(view, group, 0)
+    return ag, group
 
-    # when other_group is left, we need move all views to right except the dired view
+
+def set_active_group(window, view, other_group):
+    ag, group = get_or_create_group_for_dired(window, view, other_group)
+    window.set_view_index(view, group, 0)
+    # when other_group is left, we move all views to right except the dired view
     if ag == 0 and other_group == 'left' and group == 0:
         for v in reversed(window.views_in_group(ag)[1:]):
             window.set_view_index(v, 1, 0)
