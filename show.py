@@ -52,7 +52,7 @@ def get_or_create_group_for_dired(window, view, other_group):
     return ag, group
 
 
-def set_active_group(window, view, other_group):
+def adjust_window_layout_for_dired(window, view, other_group):
     ag, group = get_or_create_group_for_dired(window, view, other_group)
     window.set_view_index(view, group, 0)
     # when other_group is left, we move all views to right except the dired view
@@ -99,7 +99,7 @@ def show(
 
     view = reuse_view or get_or_create_dired_view(window, ignore_existing, path, single_pane)
     if other_group:
-        set_active_group(window, view, other_group)
+        adjust_window_layout_for_dired(window, view, other_group)
 
     # forcibly shoot on_activated, because when view was created it didnot have any settings
     window.show_quick_panel(['a', 'b'], None)
