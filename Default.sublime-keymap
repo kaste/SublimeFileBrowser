@@ -2,7 +2,7 @@
 [
   {
       "keys": ["enter"],
-      "command": "dired_select", "args": {"other_group": true},
+      "command": "dired_select",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }

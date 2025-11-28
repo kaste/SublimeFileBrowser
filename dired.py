@@ -94,7 +94,9 @@ class dired(WindowCommand):
             else:
                 path, goto = os.path.split(fpath)
 
-            show(self.window, path, goto=goto, single_pane=single_pane, other_group=other_group)
+            view = show(self.window, path, goto=goto, single_pane=single_pane, other_group=other_group)
+            if view:
+                view.settings().set('dired_sidebar_mode', bool(other_group))
             return
 
         if project:
@@ -153,10 +155,14 @@ class dired(WindowCommand):
     def _show_folder(self, index, folders, single_pane, other_group):
         if index != -1:
             path = folders[index]
-            show(self.window, path, single_pane=single_pane, other_group=other_group)
+            view = show(self.window, path, single_pane=single_pane, other_group=other_group)
+            if view:
+                view.settings().set('dired_sidebar_mode', bool(other_group))
 
     def _show(self, path, single_pane, other_group):
-        show(self.window, path, single_pane=single_pane, other_group=other_group)
+        view = show(self.window, path, single_pane=single_pane, other_group=other_group)
+        if view:
+            view.settings().set('dired_sidebar_mode', bool(other_group))
 
 
 class dired_refresh(TextCommand, DiredBaseCommand):
@@ -428,12 +434,15 @@ class dired_move(TextCommand, DiredBaseCommand):
 
 class dired_select(TextCommand, DiredBaseCommand):
     '''Common command for opening file/directory in existing view'''
-    def run(self, edit, new_view=False, other_group=False, and_close=0):
+    def run(self, edit, new_view=False, other_group=None, and_close=0):
         '''
         new_view     if True, open directory in new view, rather than existing one
         other_group  if True, create a new group (if need) and open file in this group
         and_close    if True, close FileBrowser view after file was open
         '''
+        if other_group is None:
+            other_group = bool(self.view.settings().get('dired_sidebar_mode', False))
+
         self.index = self.get_all()
         filenames = (self.get_selected(full=True) if not new_view else
                      self.get_marked(full=True) or self.get_selected(full=True))

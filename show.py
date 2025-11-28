@@ -92,7 +92,7 @@ def show(
         av = window.active_view()
         if av and 'dired' in av.scope_name(0):
             window.run_command('close_file')
-            return
+            return None
 
     if not path.endswith(os.sep):
         path += os.sep
@@ -106,3 +106,4 @@ def show(
     retarget_dired_view(view, path, goto=goto, to_expand=to_expand)
     window.run_command('hide_overlay')
     window.focus_view(view)
+    return view
