@@ -122,23 +122,54 @@ def calc_width(view):
         0.0 < width < 1.0 (other values acceptable, but cause unfriendly layout)
     used in show.show() and "dired_select" command with other_group=True
     '''
-    width = view.settings().get('dired_width', 0.3)
+    width = view.settings().get('dired_width', [0.25, 0.5])
     if isinstance(width, float):
-        width -= width // 1  # must be less than 1
+        pass
     elif isinstance(width, int):  # assume it is pixels
-        wport = view.viewport_extent()[0]
-        width = 1 - round((wport - width) / wport, 2)
+        vw, _ = view.viewport_extent()
+        width = 1 - round((vw - width) / vw, 2)
         if width >= 1:
             width = 0.9
     else:
-        sublime.error_message(
-            'FileBrowser:\n\ndired_width set to '
-            'unacceptable type "{0}", please change it.\n\n'
-            'Fallback to default 0.3 for now.'
-            .format(type(width))
-        )
-        width = 0.3
-    return width or 0.1  # avoid 0.0
+        if not isinstance(width, list) or len(width) != 2:
+            sublime.error_message(
+                "FileBrowser:\n\ndired_width must be set to a list of two floats."
+            )
+            width = [0.25, 0.5]
+        width = dynamic_width(view, *sorted(width))
+    width = max(0.1, min(1.0, width))
+    return width
+
+
+def dynamic_width(view, lo=0.25, hi=0.5):
+    '''
+    Compute a reasonable sidebar width for a dired view.
+
+    If stats are shown, use the visual length of the last line (tabular
+    content). Otherwise, assume a ~40 character content width. In both
+    cases, use `em_width()` to convert characters to pixels and cap the
+    result to at most half the window width.
+    '''
+    em_width = view.em_width()
+    viewport_width, _ = view.viewport_extent()
+
+    s = view.settings()
+    show_stats = s.get('dired_show_stats', False)
+
+    if show_stats and view.size():
+        # Use the last line as a proxy for the widest tabular row.
+        last_region = view.line(view.size())
+        line_text = view.substr(last_region).rstrip('\n')
+        line_len = len(line_text)
+        # Cut the date away
+        chars = line_len - 14
+    else:
+        # No stats: assume a compact listing of about 40 characters.
+        chars = 40
+
+    width = (chars * em_width) / viewport_width
+    width = max(lo, min(hi, width))
+    return width
 
 
 def get_group(groups, nag):

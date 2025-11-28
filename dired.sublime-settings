@@ -62,11 +62,12 @@
   // views.)
   "dired_enable_stock_sublime_history": false,
 
-  // Width for FileBrowser column (as sidebar) accepts float or int:
+  // Width for FileBrowser column (as sidebar). Set to two floats for a
+  // dynamic width (the default), or to a single float or int, i.e.
   // float  0.1-0.9   put 1 is a window width, so e.g. 0.5 is half of window
   // int    e.g. 99   pixels, if value will be more than current window width
   //                  then value will be treated as 0.9
-  "dired_width": 0.3,
+  "dired_width": [0.25, 0.5],
 
   // Automatically refresh view(s) in case of any changes in open directories
   "dired_autorefresh": true,
