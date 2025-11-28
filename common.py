@@ -404,7 +404,7 @@ class DiredBaseCommand:
             help_segments.append('u: Unmark All')
         if copied_items or cut_items:
             help_segments.append('ctrl+z: Clear Clipboard')
-        help_segment = " 𝌆 [{0}] ".format(', '.join(help_segments))
+        help_segment = "[{0}] ".format(', '.join(help_segments))
 
         def format_mark(items, name):
             if not items:

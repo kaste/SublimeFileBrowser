@@ -156,7 +156,7 @@ class dired_rename(TextCommand, DiredBaseCommand):
 
         self.view.set_status(
             "__FileBrowser__",
-            " 𝌆 [enter: Apply changes] [escape: Discard changes]"
+            "[enter: Apply changes, escape: Discard changes]"
             + (
                 ' ¡¡¡DO NOT RENAME DISKS!!! you can rename their children though'
                 if path == 'ThisPC\\' else ''
