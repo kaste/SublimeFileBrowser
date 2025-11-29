@@ -22,5 +22,26 @@ https://github.com/kaste/SublimeFileBrowser/blob/master/README.md
 
 -
 
-I implement back and forth navigation, bound to `alt+left` and `alt+right`.  And
-a quick way to expand or collapse folder with `ctrl+.` and `ctrl+,`.
+I implement back and forth navigation, bound to `alt+left` and `alt+right`.
+And a quick way to expand or collapse folder with `ctrl+.` and `ctrl+,`.
+
+The fuzzy searcher (`i`) automatically expands to sub-folders if there is no
+match btw.  That should lead to something useful over time, I think.
+
+-
+
+I removed the popups on the gutter for now; and previewing a directory just
+opens a split view.  That should also lead to something more useful, where
+we maybe have multiple folders open side-by-side and navigate between them
+using `tab`/`shift+tab`.
+
+-
+
+`dired_width` (the setting) and `dired_select` (the command) now have different
+(better, more dynamic) default behavior.  So if you changed their usage before,
+maybe you don't need to anymore.
+
+
+That's enough for this series.
+Pre 🎄 already.
+
