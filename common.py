@@ -502,13 +502,10 @@ class DiredBaseCommand:
         items += files
         return items
 
-    def is_hidden(self, filename, path, stat=None):
+    def is_hidden(self, filename, path, stat=None, exclude_patterns=[]):
         if not path:  # special case for ThisPC
             return False
-        tests = self.view.settings().get('dired_hidden_files_patterns', ['.*'])
-        if isinstance(tests, str):
-            tests = [tests]
-        if any(fnmatch.fnmatch(filename, pattern) for pattern in tests):
+        if any(fnmatch.fnmatch(filename, pattern) for pattern in exclude_patterns):
             return True
         if not NT:
             return False
@@ -563,6 +560,9 @@ class DiredBaseCommand:
     def _our_scandir(self, path: str, sortfunc=NATURAL_SORT) -> list[EntryInfo]:
         """Return EntryInfo objects for the given directory, respecting hidden settings."""
         show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
+        exclude_patterns = self.view.settings().get('dired_hidden_files_patterns', ['.*'])
+        if isinstance(exclude_patterns, str):
+            exclude_patterns = [exclude_patterns]
 
         if not path:
             entries = [
