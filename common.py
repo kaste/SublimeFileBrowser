@@ -501,8 +501,8 @@ class DiredBaseCommand:
         items += files
         return items
 
-    def is_hidden(self, filename, path, goto=''):
-        if not (path or goto):  # special case for ThisPC
+    def is_hidden(self, filename, path):
+        if not path:  # special case for ThisPC
             return False
         tests = self.view.settings().get('dired_hidden_files_patterns', ['.*'])
         if isinstance(tests, str):
@@ -513,7 +513,7 @@ class DiredBaseCommand:
             return False
         # check for attribute on windows:
         try:
-            attrs = ctypes.windll.kernel32.GetFileAttributesW(join(path, goto, filename))
+            attrs = ctypes.windll.kernel32.GetFileAttributesW(join(path, filename))
             assert attrs != -1
             result = bool(attrs & 2)
         except (AttributeError, AssertionError):
