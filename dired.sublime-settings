@@ -14,14 +14,19 @@
   "dired_confirm_deletions": true,
 
   // Showing hidden files by default
-  "dired_show_hidden_files": true,
+  "dired_show_hidden_files": false,
+
+  // Add patterns used to determine if a file should be hidden
+  // e.g. [".*", "__pycache__", "*.pyc"]
+  // Note that we already honor Sublime's standard 'folder_exclude_patterns'
+  // setting, that's why this *additional* dired setting is kept empty
+  // by default.
+  // Also note, that, on Windows, we always read out the actual file-system
+  // hidden attribute.
+  "dired_hidden_files_patterns": [],
 
   // Show full file stats (size, last modified date) by default
   "dired_show_stats": true,
-
-  // Customize the patterns used to determine if a file should be hidden
-  // e.g. [".*", "__pycache__", "*.pyc"]
-  "dired_hidden_files_patterns": [".*"],
 
   // false: hijacking is disabled
   // "jump_list": shows the project jump list

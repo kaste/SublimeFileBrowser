@@ -560,43 +560,6 @@ class DiredBaseCommand:
                 entries = [e for e in entries if rx_fuzzy_match(flt, e.name)]
         return entries
 
-    def _our_scandir(self, path: str, sortfunc=NATURAL_SORT) -> list[EntryInfo]:
-        """Return EntryInfo objects for the given directory, respecting hidden settings."""
-        show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
-        exclude_patterns = self.view.settings().get('dired_hidden_files_patterns', ['.*'])
-        if isinstance(exclude_patterns, str):
-            exclude_patterns = [exclude_patterns]
-
-        if not path:
-            entries = [
-                EntryInfo(f"{drive}:", f"{drive}:", True, None, None)
-                for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                if isdir(f"{drive}:")
-            ]
-            entries.sort(key=lambda info: natural_sort_key(info.name))
-            return entries
-
-        items: list[EntryInfo] = []
-        with os.scandir(path) as iterator:
-            for entry in iterator:
-                name = entry.name
-                try:
-                    stat_res = entry.stat(follow_symlinks=False)
-                except OSError:
-                    stat_res = None
-                if not show_hidden and self.is_hidden(name, path, stat_res):
-                    continue
-                is_directory = entry.is_dir(follow_symlinks=False)
-                size = stat_res.st_size if stat_res and not is_directory else None
-                mtime = stat_res.st_mtime if stat_res else None
-                full_path = entry.path
-                if is_directory and not full_path.endswith(os.sep):
-                    full_path += os.sep
-                items.append(EntryInfo(name, full_path, is_directory, size, mtime))
-
-        items.sort(key=sortfunc)
-        return items
-
     def walkdir(
         self,
         dir_path: str,
@@ -610,7 +573,7 @@ class DiredBaseCommand:
         expanded = expanded or set()
         target = dir_path.rstrip(os.sep) if dir_path else dir_path
         try:
-            infos = self._our_scandir(target, sortfunc=sortfunc)
+            infos = self._our_scandir(target, sortfunc=sortfunc, in_search=auto_expand != 0)
         except OSError as error:
             return [], self._format_os_error(error)
 
@@ -626,6 +589,29 @@ class DiredBaseCommand:
                 entries.append(ListingItem(*info, depth, False, ""))
 
         return entries, ''
+
+    def _our_scandir(self, path: str, sortfunc=NATURAL_SORT, in_search=False) -> list[EntryInfo]:
+        """Return EntryInfo objects for the given directory, respecting hidden settings."""
+        show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
+        exclude_patterns = []
+        if not show_hidden:
+            exclude_patterns = self.view.settings().get('dired_hidden_files_patterns', [])
+            if isinstance(exclude_patterns, str):
+                exclude_patterns = [exclude_patterns]
+
+        dir_patterns = []
+        if not show_hidden:
+            for p in self.view.settings().get('folder_exclude_patterns', []):
+                if "/" not in p:
+                    dir_patterns.append(p)
+        if in_search:
+            for p in self.view.settings().get('binary_file_patterns', []):
+                if p.endswith('/*'):
+                    dir_patterns.append(p[:-2])
+
+        if not in_search:
+            _do_scandir.cache_clear()
+        return _do_scandir(path, show_hidden, tuple(exclude_patterns), tuple(dir_patterns), sortfunc)
 
     def recreate_dired_expanded_paths_from_view(self):
         # Update persisted expanded paths based on current view state
@@ -909,6 +895,58 @@ class DiredBaseCommand:
             )
         else:
             self.view.erase_regions(key)
+
+
+@lru_cache(maxsize=256)
+def _do_scandir(
+    path: str,
+    show_hidden: bool,
+    exclude_patterns: tuple[str],
+    dir_patterns: tuple[str],
+    sortfunc
+) -> list[EntryInfo]:
+    if not path:
+        entries = [
+            EntryInfo(f"{drive}:", f"{drive}:", True, None, None)
+            for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+            if isdir(f"{drive}:")
+        ]
+        entries.sort(key=lambda info: natural_sort_key(info.name))
+        return entries
+
+    items: list[EntryInfo] = []
+    with os.scandir(path) as iterator:
+        for entry in iterator:
+            name = entry.name
+            try:
+                stat_res = entry.stat(follow_symlinks=False)
+            except OSError:
+                stat_res = None
+
+            if any(fnmatch.fnmatch(name, pattern) for pattern in exclude_patterns):
+                continue
+            if NT and stat_res and not show_hidden:
+                try:
+                    attrs = stat_res.st_file_attributes
+                except AttributeError:
+                    pass
+                else:
+                    if attrs & FILE_ATTRIBUTE_HIDDEN:
+                        continue
+
+            is_directory = entry.is_dir(follow_symlinks=False)
+            if is_directory and name in dir_patterns:
+                continue
+
+            size = stat_res.st_size if stat_res and not is_directory else None
+            mtime = stat_res.st_mtime if stat_res else None
+            full_path = entry.path
+            if is_directory and not full_path.endswith(os.sep):
+                full_path += os.sep
+            items.append(EntryInfo(name, full_path, is_directory, size, mtime))
+
+    items.sort(key=sortfunc)
+    return items
 
 
 def display_path(folder):

@@ -331,23 +331,25 @@ When a jump point is opened in *Browse Mode* pressing <kbd>P</kbd> will also do 
 of the jump point.
 
 ### Hidden files
-By default, FileBrowser shows all files in the browsed directory. Pressing <kbd>h</kbd> toggles the
-display of hidden files. For all platforms, any file that starts with a `.` is considered hidden;
-additionally, on Windows, files that have the hidden attribute set are also considered hidden.
+By default FileBrowser shows the same entries as Sublime’s sidebar (including honoring
+`folder_exclude_patterns`). Unlike the sidebar you can press <kbd>H</kbd> to toggle and show *all*
+files/folders.
 
-To set FileBrowser to hide hidden files by default, add the following to your settings:
 
-``` json
-{ "dired_show_hidden_files": false }
+To start dired with all files showing, set:
+
+```json
+{ "dired_show_hidden_files": true }
 ```
 
-You can also customize the patterns used to determine if a file should be hidden with the
-`dired_hidden_files_patterns` setting, which should be either a single pattern string or a list of
-such patterns:
+To add extra hide rules without touching the Sublime setting, use `dired_hidden_files_patterns`:
 
-``` json
+
+```json
 { "dired_hidden_files_patterns": [".*", "__pycache__", "*.pyc"] }
 ```
+Note: On Windows, items with the filesystem "hidden" attribute are always considered hidden.
+That's a deviation from Sublime where the exclude patterns are strictly path operations.
 
 ### VCS integration
 
@@ -433,10 +435,10 @@ to go to parent directory) you can do it in your user settings file (`Preference
 { "dired_show_parent": false }
 ```
 
-If you want to see header (underlined full path) on top of file list:
+If you don't want to see header (underlined full path) on top of file list:
 
 ```json
-{ "dired_header": true }
+{ "dired_header": false }
 ```
 
 If you want to see full path in tab title and thus in window title if tab is focused:
