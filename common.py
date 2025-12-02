@@ -21,6 +21,7 @@ PLATFORM = sublime.platform()
 NT = PLATFORM == 'windows'
 LIN = PLATFORM == 'linux'
 OSX = PLATFORM == 'osx'
+FILE_ATTRIBUTE_HIDDEN = 0x2
 
 
 class EntryInfo(NamedTuple):
@@ -501,7 +502,7 @@ class DiredBaseCommand:
         items += files
         return items
 
-    def is_hidden(self, filename, path):
+    def is_hidden(self, filename, path, stat=None):
         if not path:  # special case for ThisPC
             return False
         tests = self.view.settings().get('dired_hidden_files_patterns', ['.*'])
@@ -509,16 +510,15 @@ class DiredBaseCommand:
             tests = [tests]
         if any(fnmatch.fnmatch(filename, pattern) for pattern in tests):
             return True
-        if sublime.platform() != 'windows':
+        if not NT:
             return False
-        # check for attribute on windows:
+
         try:
-            attrs = ctypes.windll.kernel32.GetFileAttributesW(join(path, filename))
-            assert attrs != -1
-            result = bool(attrs & 2)
-        except (AttributeError, AssertionError):
-            result = False
-        return result
+            attrs = stat.st_file_attributes
+        except AttributeError:
+            return False
+        else:
+            return bool(attrs & FILE_ATTRIBUTE_HIDDEN)
 
     def list_directory(self, path) -> tuple[list[str], str]:
         '''List entries in a directory or return an error.
@@ -577,14 +577,13 @@ class DiredBaseCommand:
         with os.scandir(path) as iterator:
             for entry in iterator:
                 name = entry.name
-                if not show_hidden and self.is_hidden(name, path):
-                    continue
-                is_directory = entry.is_dir(follow_symlinks=False)
-                stat_res = None
                 try:
                     stat_res = entry.stat(follow_symlinks=False)
                 except OSError:
                     stat_res = None
+                if not show_hidden and self.is_hidden(name, path, stat_res):
+                    continue
+                is_directory = entry.is_dir(follow_symlinks=False)
                 size = stat_res.st_size if stat_res and not is_directory else None
                 mtime = stat_res.st_mtime if stat_res else None
                 full_path = entry.path
