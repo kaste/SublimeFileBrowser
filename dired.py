@@ -34,8 +34,7 @@ def plugin_loaded():
     for w in sublime.windows():
         for v in w.views():
             if v.settings() and v.settings().get("dired_path"):
-                # reset sels because dired_index not exists yet, so we can't restore sels
-                v.run_command("dired_refresh", {"reset_sels": True})
+                v.run_command("dired_refresh")
 
     dfsobserver = 'FileBrowser.0_dired_fs_observer'
     if dfsobserver not in sys.modules or sys.modules[dfsobserver].Observer is None:
