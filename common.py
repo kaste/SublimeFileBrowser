@@ -6,6 +6,7 @@ import time
 from os.path import isdir, join, basename
 import fnmatch
 from itertools import chain, repeat
+from functools import lru_cache
 from typing import Iterable, NamedTuple
 
 import sublime
@@ -69,6 +70,7 @@ def format_size_short(num_bytes: int) -> str:
 # computing summary sizes for status-bar display. If a call exceeds this,
 # we abort size computation and show counts only.
 SIZE_STAT_TIMEOUT = 0.005
+_RE_SPLIT_DIGITS = re.compile(r'(\d+)')
 
 
 def first(seq, pred):
@@ -76,11 +78,12 @@ def first(seq, pred):
     return next((item for item in seq if pred(item)), None)
 
 
+@lru_cache(maxsize=8192)
 def natural_sort_key(value: str):
     """Return a key for human-friendly sorting (numbers in numerical order)."""
     return [
         int(chunk) if chunk.isdigit() else chunk.lower()
-        for chunk in re.split('([0-9]+)', value)
+        for chunk in _RE_SPLIT_DIGITS.split(value)
     ]
 
 
