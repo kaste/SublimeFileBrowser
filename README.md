@@ -483,10 +483,11 @@ is using a tab_size of 3 but you can customize it in your user settings file (`P
 ```
 
 ##### Change initial width of FileBrowser column (as sidebar):
-The value can be either `float` as fraction of window width which is `1.0` — so default value `0.3` 
-means that FileBrowser will take slightly less than a third part of window width;  
-or `int` as the exact amount of pixels, however, if value will be more than current window width 
-(e.g. `1920`) then it will fallback to `0.9`.
+You can configure the width in three ways:
+
+- `float` as a fraction of the window width (`1.0` == full width).
+- `int` as an exact pixel width; if the value is larger than the current window width (e.g. `1920`), it falls back to `0.9`.
+- `[lo, hi]` as two floats so FileBrowser can pick a dynamic width between those bounds based on content (this is the default).
 
 ```js
 { "dired_width": 250 }  // approximately 250 pixels
@@ -496,6 +497,12 @@ or
 
 ```js
 { "dired_width": 0.2 }  // fifth part of window
+```
+
+or the dynamic default
+
+```js
+{ "dired_width": [0.25, 0.5] }  // pick a width between 25–50% of the window
 ```
 
 ##### Keep Vintageous enabled in FileBrowser view (beware of keybindings incompatibilities)
