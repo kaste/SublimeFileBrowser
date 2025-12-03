@@ -308,7 +308,9 @@ If you want to save some key stokes you can add the following code in your user 
 
 You can change `f3` in the above code to your custom keyboard shortcut.
 Jump List View can be browsed using the <kbd>up</kbd>/<kbd>down</kbd> or <kbd>j</kbd>/<kbd>k</kbd>.
-Pressing <kbd>enter</kbd> on a jump point will open it in a new window with a Browse Mode view as sidebar or what was configured with `dired_open_on_jump`. Empty windows will be reused if `dired_smart_jump` is set to `true` in your user settings.
+Pressing <kbd>enter</kbd> on a jump point will open it in a new window with a Browse Mode view as
+sidebar or what was configured with `dired_open_on_jump`.
+Empty windows will be reused if `dired_smart_jump` is set to `true` in your user settings.
 
 ##### Jump List in a new empty window e.g. Hijacking
 You can also configure FileBrower to automatically open *Jump List View*  in new empty windows.
