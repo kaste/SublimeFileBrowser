@@ -1,0 +1,15 @@
+0.12.1
+------
+
+A faster incremental search and saner hidden-file defaults.
+
+- First round of search speed-ups: incremental search now reuses cached
+  directory listings, cutting the work per keystroke.
+
+- Hidden files now line up with Sublime’s own sidebar: we honor
+  `folder_exclude_patterns` (and `binary_file_patterns` while searching),
+  so a fresh dired view matches what the sidebar shows. Use
+  `dired_hidden_files_patterns` only for extra excludes.
+
+- Windows: the filesystem hidden attribute still applies while hiding is on.
+
