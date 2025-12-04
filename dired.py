@@ -911,10 +911,10 @@ class dired_fold(TextCommand, DiredBaseCommand):
         line is a Region, on which folding is supposed to happen (or not).
         Returns the parent directory line region if a fold was performed, else None.
         '''
-        line, indented_region = self.get_indented_region(line)
+        line, indented_region, collapse = self.get_indented_region(line)
         if not indented_region:
             return None  # folding is not supposed to happen, so we exit
-        self.apply_change_into_view(edit, line, indented_region)
+        self.apply_change_into_view(edit, line, indented_region, collapse)
         return line
 
     def get_indented_region(self, line):
@@ -923,13 +923,21 @@ class dired_fold(TextCommand, DiredBaseCommand):
                 Region which shall NOT be erased, can be equal to argument line or less if folding
                 was called on indented file item or indented collapsed directory
             indented_region
-                Region which shall be erased
+                Region which shall be erased or blanked
+            collapse
+                True if indented_region shall be removed from the buffer, False
+                if it shall be filled with spaces to preserve alignment.
         '''
         v = self.view
-        eol = line.b - 1
-        if 'error' in v.scope_name(eol):  # remove inline error, e.g. <empty>
-            indented_region = v.extract_scope(eol)
-            return (line, indented_region)
+        error_regions = [
+            r for r in v.find_by_selector('string.error.dired')
+            if line.contains(r)
+        ]
+        if error_regions:
+            err = error_regions[0]
+            # Collapse if the error is at EOL position
+            collapse = (err.b == line.b)
+            return (line, err, collapse)
 
         current_region = v.indented_region(line.b)
         next_region    = v.indented_region(line.b + 2)
@@ -946,7 +954,7 @@ class dired_fold(TextCommand, DiredBaseCommand):
             return collapsed_dir or item_in_root
 
         if __should_exit():
-            return (None, None)
+            return (None, None, False)
 
         elif self.update or (is_dir and not next_empty and not line_in_next):
             indented_region = next_region
@@ -956,17 +964,17 @@ class dired_fold(TextCommand, DiredBaseCommand):
             line = v.line(indented_region.a - 2)
 
         else:
-            return (None, None)
+            return (None, None, False)
 
-        return (line, indented_region)
+        return (line, indented_region, True)
 
-    def apply_change_into_view(self, edit, line, indented_region):
-        '''set count and index, track marks/selections, replace icon, erase indented_region'''
+    def apply_change_into_view(self, edit, line, indented_region, collapse):
+        '''set count and index, track marks/selections, replace icon, and apply change'''
         v = self.view
         start_line = 1 + v.rowcol(line.a)[0]
 
         # do not set count & index on empty directory
-        if not line.contains(indented_region):
+        if collapse and not line.contains(indented_region):
             removed_count = len(v.lines(indented_region))
             dired_count = v.settings().get('dired_count', 0)
             v.settings().set('dired_count', int(dired_count) - removed_count)
@@ -983,7 +991,10 @@ class dired_fold(TextCommand, DiredBaseCommand):
 
         v.set_read_only(False)
         v.replace(edit, icon_region, '▸')
-        v.erase(edit, indented_region)
+        # Apply the change to the indented region: either actually collapse
+        # (remove it) or blank it out with spaces to preserve alignment.
+        replacement = '' if collapse else ' ' * indented_region.size()
+        v.replace(edit, indented_region, replacement)
         v.set_read_only(True)
         if self.view.settings().get('dired_autorefresh', True):
             emit_event('remove_path', (self.view.id(), self.index[start_line - 1]))
