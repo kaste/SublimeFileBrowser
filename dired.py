@@ -21,6 +21,7 @@ from .jumping import jump_names
 ICON    = '𝌆'
 SEPARATOR = '\u200b'
 STATS_PADDING = 2
+MIN_NAME_COL_WIDTH = 10
 
 
 def reuse_view():
@@ -314,10 +315,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         rendered, new_index = format_items(reversed(filtered_entries), show_stats, tab_size)
         max_name_width = max((display_len for _, display_len, _, _ in rendered), default=0)
         max_size_width = max((len(size_part) for _, _, size_part, _ in rendered), default=0)
-        lines = render_items(rendered, max_name_width, max_size_width, show_stats)
+        name_width = max(max_name_width, MIN_NAME_COL_WIDTH) if show_stats else max_name_width
+        lines = render_items(rendered, name_width, max_size_width, show_stats)
 
         if show_stats:
-            s.set('dired_name_col_width', max_name_width)
+            s.set('dired_name_col_width', name_width)
             s.set('dired_size_col_width', max_size_width)
         else:
             s.erase('dired_name_col_width')
@@ -738,6 +740,8 @@ class dired_expand(TextCommand, DiredBaseCommand):
         show_stats = settings.get('dired_show_stats', False)
         name_width_setting = settings.get('dired_name_col_width', 0)
         size_width_setting = settings.get('dired_size_col_width', 0)
+        if show_stats:
+            name_width_setting = max(name_width_setting, MIN_NAME_COL_WIDTH)
         tab_setting = self.view.settings().get('tab_size')
         try:
             tab_size = int(tab_setting) if tab_setting else 4
@@ -772,17 +776,17 @@ class dired_expand(TextCommand, DiredBaseCommand):
         rendered, new_index = format_items(entries, show_stats, tab_size)
         max_name_width = max((display_len for _, display_len, _, _ in rendered), default=0)
         max_size_width = max((len(size_part) for _, _, size_part, _ in rendered), default=0)
+        desired_name_width = max(max_name_width, MIN_NAME_COL_WIDTH) if show_stats else max_name_width
         if show_stats and (
-            max_name_width > name_width_setting or max_size_width > size_width_setting
+            desired_name_width > name_width_setting or max_size_width > size_width_setting
         ):
             expanded = set(settings.get('dired_expanded_paths') or [])
             expanded.add(path)
             settings.set('dired_expanded_paths', list(expanded))
-            settings.set('dired_name_col_width', max(max_name_width, name_width_setting))
+            settings.set('dired_name_col_width', max(desired_name_width, name_width_setting))
             settings.set('dired_size_col_width', max(max_size_width, size_width_setting))
             self.view.run_command('dired_refresh')
             return
-
         replacement = render_items(rendered, name_width_setting, size_width_setting, show_stats)
 
         # Compute insert point for splicing children into the index
