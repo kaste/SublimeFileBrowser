@@ -748,9 +748,17 @@ class dired_expand(TextCommand, DiredBaseCommand):
         entries, err = self.walkdir(path, depth=indentation_level + 1)
         _base_timestamp = None
         if SEPARATOR in line_content:
-            _base_timestamp = line_content.split(SEPARATOR)[1].strip().split(' ', 1)[1].strip()
+            stats_part = line_content.split(SEPARATOR, 1)[1].strip()
+            parts = stats_part.split(' ', 1)
+            if len(parts) == 2:
+                _base_timestamp = parts[1].strip()
+        drive, tail = os.path.splitdrive(path)
+        if tail in (os.sep, ''):
+            display_name = drive
+        else:
+            display_name = basename(path.rstrip(os.sep))
         root_entry = ListingItem(
-            basename(path.rstrip(os.sep)),
+            display_name,
             path,
             True,
             9999,  # size not shown for dirs

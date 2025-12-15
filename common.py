@@ -571,7 +571,13 @@ class DiredBaseCommand:
     ) -> tuple[list[ListingItem], str]:
         """Return a flattened tree of ListingItem objects for the given root."""
         expanded = expanded or set()
-        target = dir_path.rstrip(os.sep) if dir_path else dir_path
+        # Do not strip the separator for drive roots like "C:\", because turning that
+        # into "C:" makes path resolution relative to the drive's CWD.
+        if dir_path:
+            drive, tail = os.path.splitdrive(dir_path)
+            target = dir_path.rstrip(os.sep) if tail not in (os.sep, '') else dir_path
+        else:
+            target = dir_path
         try:
             infos = self._our_scandir(target, sortfunc=sortfunc, in_search=auto_expand != 0)
         except OSError as error:
@@ -907,7 +913,7 @@ def _do_scandir(
 ) -> list[EntryInfo]:
     if not path:
         entries = [
-            EntryInfo(f"{drive}:", f"{drive}:", True, None, None)
+            EntryInfo(f"{drive}:", f"{drive}:{os.sep}", True, None, None)
             for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             if isdir(f"{drive}:")
         ]
