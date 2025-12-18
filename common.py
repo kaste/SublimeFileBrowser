@@ -323,12 +323,22 @@ class DiredBaseCommand:
         Returns relative path for line
             • line is a region
             • path is self.path
-            • self.index is list stored in view settings as 'dired_index'
+            • `self.index` must be assigned before calling this function
         '''
         return self.get_fullpath_for(line).replace(path, '', 1)
 
     def get_fullpath_for(self, line: Region) -> str:
         return self.index[self.view.rowcol(line.a)[0]]
+
+    def ensure_index(self) -> list[str]:
+        """Load `dired_index` from view settings into `self.index` and return it.
+
+        Accessing view state may block on Sublime's UI thread; avoid calling this
+        repeatedly in tight loops. Instead, call once and reuse `self.index`.
+        """
+        index = self.get_all()
+        self.index = index
+        return index
 
     def get_all(self):
         """
@@ -354,7 +364,7 @@ class DiredBaseCommand:
             if True, items in returned list are full paths, else relative
 
         Returns a list of selected filenames.
-        self.index should be assigned before call it
+        `self.index` must be assigned before calling this function
         """
         fileregion = self.fileregion(with_parent_link=parent)
         if not fileregion:
@@ -844,6 +854,11 @@ class DiredBaseCommand:
 
         from .show import show
         show(window, entry['path'], reuse_view=self.view, to_expand=entry['expanded'])
+
+        # Re-assign `self.index` after the refresh triggered by `show()` has rewritten
+        # the buffer and updated `dired_index`.  After that `index` on this command
+        # (=`self`) is not in sync with the actual view's `dired_index`!
+        self.ensure_index()
         self.restore_sels((entry['selection'], [Region(a, b) for a, b in entry['regions']]))
         self.view.set_viewport_position(entry['viewport'], False)
 
