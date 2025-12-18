@@ -7,7 +7,7 @@ file_extensions:
 scope: text.dired
 contexts:
   main:
-    - match: '^(\s*)([▸▾] )([^\/]*?)([/\\])?(<.*>)?(\s*\x{200B}(.*))?$'
+    - match: '^(\s*)([▸▾] )([^\/]*?)([/\\])?\s*(<.*>)?(\s*\x{200B}(.*))?$'
       scope: dired.item.directory
       captures:
         1: indent
