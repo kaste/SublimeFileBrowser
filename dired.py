@@ -312,7 +312,12 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         except (TypeError, ValueError):
             tab_size = 4
 
-        rendered, new_index = format_items(reversed(filtered_entries), show_stats, tab_size)
+        rendered, new_index = format_items(
+            reversed(filtered_entries),
+            show_stats,
+            tab_size,
+            dir_sep=_display_path_separator(s),
+        )
         max_name_width = max((display_len for _, display_len, _, _ in rendered), default=0)
         max_size_width = max((len(size_part) for _, _, size_part, _ in rendered), default=0)
         name_width = max(max_name_width, MIN_NAME_COL_WIDTH) if show_stats else max_name_width
@@ -342,13 +347,14 @@ class dired_refresh(TextCommand, DiredBaseCommand):
                     in view) or empty list
             header  boolean, value of dired_header setting
             '''
-        header  = self.view.settings().get('dired_header', False)
-        name    = jump_names().get(path or self.path)
-        caption_base = "{0} → {1}".format(name, path) if name else path or self.path
+        s = self.view.settings()
+        header = s.get('dired_header', False)
+        name = jump_names().get(path or self.path)
+        display_path = _format_path_for_display(path or self.path, s)
+        caption_base = "{0} → {1}".format(name, display_path) if name else display_path
         extras = ''
         # If filters are active, show them in the header, e.g. [*.py] [foo]
         if header:
-            s = self.view.settings()
             if s.get('dired_filter_enabled', True):
                 ext = s.get('dired_filter_extension') or ''
                 if ext:
@@ -366,7 +372,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         else:
             norm_path = path.rstrip(os.sep)
             if self.view.settings().get('dired_show_full_path', False):
-                title = '%s %s (%s)' % (ICON, name or basename(norm_path), norm_path)
+                title = '%s %s (%s)' % (
+                    ICON,
+                    name or basename(norm_path),
+                    _format_path_for_display(norm_path, s),
+                )
             else:
                 title = '%s %s' % (ICON, name or basename(norm_path))
         self.view.set_name(title)
@@ -773,7 +783,12 @@ class dired_expand(TextCommand, DiredBaseCommand):
         )
         entries = self._filter_entries(entries, settings)
         entries = [root_entry] + entries
-        rendered, new_index = format_items(entries, show_stats, tab_size)
+        rendered, new_index = format_items(
+            entries,
+            show_stats,
+            tab_size,
+            dir_sep=_display_path_separator(settings),
+        )
         max_name_width = max((display_len for _, display_len, _, _ in rendered), default=0)
         max_size_width = max((len(size_part) for _, _, size_part, _ in rendered), default=0)
         desired_name_width = max(max_name_width, MIN_NAME_COL_WIDTH) if show_stats else max_name_width
@@ -1321,7 +1336,25 @@ def format_stats(entry: ListingItem, show_stats: bool, date_format='%d.%m.%Y %H:
     return size_part, timestamp
 
 
-def format_items(items, show_stats, tab_size):
+def _display_path_separator(settings) -> str:
+    value = (settings.get('dired_display_path_separator') or 'native').lower()
+    if value in ('posix', 'unix', '/'):
+        return '/'
+    if value in ('windows', 'nt', '\\'):
+        return '\\'
+    return os.sep
+
+
+def _format_path_for_display(path: str, settings) -> str:
+    value = (settings.get('dired_display_path_separator') or 'native').lower()
+    if value in ('posix', 'unix', '/'):
+        return path.replace('\\', '/')
+    if value in ('windows', 'nt', '\\'):
+        return path.replace('/', '\\')
+    return path
+
+
+def format_items(items, show_stats, tab_size, dir_sep: str):
     rendered = []
     new_index = []
     for e in items:
@@ -1329,7 +1362,7 @@ def format_items(items, show_stats, tab_size):
         if e.is_dir:
             icon = '▾' if e.expanded else '▸'
             note = f'\t<{e.note}>' if e.note else ''
-            base_line = f"{indent}{icon} {e.name}{os.sep}{note}"
+            base_line = f"{indent}{icon} {e.name}{dir_sep}{note}"
         else:
             base_line = f"{indent}≡ {e.name}"
         display_len = len(base_line.expandtabs(tab_size))

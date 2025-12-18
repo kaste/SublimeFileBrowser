@@ -484,6 +484,17 @@ is using a tab_size of 3 but you can customize it in your user settings file (`P
 { "dired_confirm_deletions": false }
 ```
 
+##### Change path separator used for display
+
+Just nerdy or to debug cross-platform path handling, you can also force a specific directory separator
+in the view (e.g. on Windows, show `/` like on macOS/Linux):
+
+```json
+{
+  "dired_display_path_separator": "posix"
+}
+```
+
 ##### Change initial width of FileBrowser column (as sidebar):
 You can configure the width in three ways:
 

@@ -683,7 +683,10 @@ class DiredBaseCommand:
         fname = re.escape(basename(os.path.abspath(item)) or item.rstrip(os.sep))
         if item[~0] == os.sep:
             pattern = r'^\s*[▸▾] '
-            sep = re.escape(os.sep)
+            # The displayed directory separator in the view may be forced via
+            # settings (e.g. always show "/" on Windows). Be tolerant when
+            # locating an item by matching both slashes.
+            sep = r'[/\\]'
         else:
             pattern = r'^\s*≡ '
             sep = ''

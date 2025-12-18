@@ -28,6 +28,12 @@
   // Show full file stats (size, last modified date) by default
   "dired_show_stats": true,
 
+  // Which path separator to display for directories in the view:
+  // - "native": use os.sep for the current platform (default)
+  // - "posix": always display "/" (useful for debugging)
+  // - "windows": always display "\\"
+  "dired_display_path_separator": "native",
+
   // false: hijacking is disabled
   // "jump_list": shows the project jump list
   // "dired"    : shows a normal FileBrower view defaults to user directory
