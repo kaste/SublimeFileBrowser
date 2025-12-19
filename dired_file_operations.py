@@ -30,7 +30,7 @@ class dired_create(TextCommand, DiredBaseCommand):
     def run(self, edit, which=None):
         assert which in ('file', 'directory'), "which: " + which
         emit_event('ignore_view', self.view.id())
-        self.index = self.get_all()
+        self.load_index()
         rel_path   = relative_path(self.get_selected(parent=False) or '')
 
         self.which = which
@@ -100,7 +100,7 @@ class dired_delete(TextCommand, DiredBaseCommand):
         window = view.window()
         assert window
 
-        self.index = self.get_all()
+        self.load_index()
         files = self.get_marked() or self.get_selected(parent=False)
         if not files:
             return sublime.status_message('Nothing selected')
@@ -206,7 +206,7 @@ class dired_rename_commit(TextCommand, DiredBaseCommand):
 
     def get_after(self):
         '''Return list of all filenames in the view'''
-        self.index = self.get_all()
+        self.load_index()
         path = self.path
         lines = self._get_lines(self.view.get_regions('rename'), self.fileregion())
         return [self._new_name(line, path=path) for line in lines]
@@ -319,7 +319,7 @@ def retarget(a, b, window=None):
 class dired_copy_files(TextCommand, DiredBaseCommand):
     '''Store filename(s) in settings, when user copy or cut'''
     def run(self, edit, cut=False):
-        self.index = self.get_all()
+        self.load_index()
         marked = self.get_marked(full=True)
         used_marked = bool(marked)
         filenames = marked or self.get_selected(parent=False, full=True)
@@ -379,7 +379,7 @@ class dired_paste_files(TextCommand, DiredBaseCommand):
         if not (sources_move or sources_copy):
             return sublime.status_message('Nothing to paste')
 
-        self.index  = self.get_all()
+        self.load_index()
         selected = self.get_selected(parent=False, full=True)
         if not selected:
             destination = self.get_path()
@@ -410,7 +410,7 @@ class dired_paste_files_to(TextCommand, DiredBaseCommand):
     '''Init prompt for path where to paste, then init file ops.'''
     def run(self, edit):
         s = self.view.settings()
-        self.index   = self.get_all()
+        self.load_index()
         sources_move = s.get('dired_to_move', [])
         sources_copy = (
             s.get('dired_to_copy')

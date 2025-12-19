@@ -323,22 +323,20 @@ class DiredBaseCommand:
         Returns relative path for line
             • line is a region
             • path is self.path
-            • `self.index` must be assigned before calling this function
+            • `self.index` must be loaded (call `self.load_index()`) before calling
         '''
         return self.get_fullpath_for(line).replace(path, '', 1)
 
     def get_fullpath_for(self, line: Region) -> str:
         return self.index[self.view.rowcol(line.a)[0]]
 
-    def ensure_index(self) -> list[str]:
-        """Load `dired_index` from view settings into `self.index` and return it.
+    def load_index(self) -> None:
+        """Load the view's `dired_index` into `self.index`.
 
         Accessing view state may block on Sublime's UI thread; avoid calling this
         repeatedly in tight loops. Instead, call once and reuse `self.index`.
         """
-        index = self.get_all()
-        self.index = index
-        return index
+        self.index = self.get_all()
 
     def get_all(self):
         """
@@ -364,7 +362,7 @@ class DiredBaseCommand:
             if True, items in returned list are full paths, else relative
 
         Returns a list of selected filenames.
-        `self.index` must be assigned before calling this function
+        `self.index` must be loaded (call `self.load_index()`) before calling
         """
         fileregion = self.fileregion(with_parent_link=parent)
         if not fileregion:
@@ -386,7 +384,7 @@ class DiredBaseCommand:
         """
         if not self.filecount():
             return []
-        self.index = self.get_all()
+        self.load_index()
         marked = set(self.view.settings().get('dired_marked_paths') or [])
         visible = [p for p in self.index if p and p in marked]
         if full:
@@ -634,7 +632,7 @@ class DiredBaseCommand:
         # Collect current expanded directory paths from visible arrows
         regions = self.view.find_all(r'^\s*▾')
         if regions:
-            self.index = self.get_all()
+            self.load_index()
             paths = []
             for r in regions:
                 row = self.view.rowcol(r.a)[0]
@@ -751,7 +749,7 @@ class DiredBaseCommand:
             return []
 
         # Ensure we have the up-to-date index
-        self.index = self.get_all()
+        self.load_index()
 
         # Build path -> row map, skipping header and parent entries
         row_by_path = {
@@ -837,7 +835,7 @@ class DiredBaseCommand:
 
     def _build_history_entry(self):
         s = self.view.settings()
-        self.index = self.get_all()  # hidden dependency
+        self.load_index()  # hidden dependency
         return {
             'path': self.path,
             'expanded': s.get('dired_expanded_paths', []),
@@ -858,7 +856,7 @@ class DiredBaseCommand:
         # Re-assign `self.index` after the refresh triggered by `show()` has rewritten
         # the buffer and updated `dired_index`.  After that `index` on this command
         # (=`self`) is not in sync with the actual view's `dired_index`!
-        self.ensure_index()
+        self.load_index()
         self.restore_sels((entry['selection'], [Region(a, b) for a, b in entry['regions']]))
         self.view.set_viewport_position(entry['viewport'], False)
 

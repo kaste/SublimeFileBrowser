@@ -59,7 +59,7 @@ def get_dates(path):
 
 class dired_find_in_files(TextCommand, DiredBaseCommand):
     def run(self, edit):
-        self.index = self.get_all()
+        self.load_index()
         path = self.path
         if path == 'ThisPC\\':
             path  = ''
@@ -163,7 +163,7 @@ class dired_quick_look(TextCommand, DiredBaseCommand):
     quick look current file in mac or open in default app on other OSs
     """
     def run(self, edit, preview=True, files=None):
-        self.index = self.get_all()
+        self.load_index()
         files = files or self.get_marked() or self.get_selected(parent=False)
         if not files:
             return sublime.status_message('Nothing chosen')
@@ -191,7 +191,7 @@ class dired_open_external(TextCommand, DiredBaseCommand):
     def run(self, edit, fname=None):
         path = self.path
         if not fname:
-            self.index = self.get_all()
+            self.load_index()
             files = self.get_selected(parent=False)
             fname = join(path, files[0] if files else '')
         else:
@@ -215,7 +215,7 @@ class dired_open_in_new_window(TextCommand, DiredBaseCommand):
         if project_folder:
             files = project_folder
         else:
-            self.index = self.get_all()
+            self.load_index()
             files = self.get_marked(full=True) or self.get_selected(parent=False, full=True)
 
         if not files:
@@ -282,7 +282,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
         current = self.view.settings().get('dired_filter') or ''
         enabled = self.view.settings().get('dired_filter_enabled', True)
         filter_extension = self.view.settings().get('dired_filter_extension', '')
-        self.index = self.get_all()
+        self.load_index()
         initial_sels = (self.get_selected(), [Region(r.a, r.b) for r in self.view.sel()])
         initial_viewport = self.view.viewport_position()
         initial_expanded_folders: list[str] = self.view.settings().get('dired_expanded_paths', [])
@@ -338,6 +338,11 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_filter_extension', filter_extension)
             self.view.settings().set('dired_expanded_paths', initial_expanded_folders)
             self.view.run_command('dired_refresh')
+            # After a `dired_refresh` we need to refresh `self.index` by calling
+            # `load_index()`.  Even when we intend to to "just" revert to the
+            # exact same state from before, `dired_refresh` still calls `listdir`
+            # et.al. and hence has a fresh view of the state of the filesystem.
+            self.load_index()
             self.restore_sels(initial_sels)
             self.view.set_viewport_position(initial_viewport, False)
 
@@ -377,7 +382,7 @@ class dired_filter_by_extension(TextCommand, DiredBaseCommand):
 
     def run(self, edit):
         # Determine filename under cursor
-        self.index = self.get_all()
+        self.load_index()
         names = self.get_selected(parent=False) or []
         if not names:
             sublime.status_message('FileBrowser: Nothing selected')

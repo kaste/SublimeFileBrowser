@@ -230,7 +230,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             to_expand = self.expand_goto(to_expand)
 
         if not reset_sels:
-            self.index = self.get_all()
+            self.load_index()
             self.sels = (self.get_selected(), list(self.view.sel()))
         else:
             # When resetting, clear selections and initialize index
@@ -454,7 +454,7 @@ class dired_select(TextCommand, DiredBaseCommand):
         if other_group is None:
             other_group = bool(self.view.settings().get('dired_sidebar_mode', False))
 
-        self.index = self.get_all()
+        self.load_index()
         filenames = (self.get_selected(full=True) if not new_view else
                      self.get_marked(full=True) or self.get_selected(full=True))
 
@@ -546,7 +546,7 @@ class dired_select(TextCommand, DiredBaseCommand):
 class dired_preview(dired_select):
     '''Open file as a preview, so focus remains in FileBrowser view'''
     def run(self, edit):
-        self.index = self.get_all()
+        self.load_index()
         filenames = self.get_selected(full=True)
 
         if not filenames:
@@ -705,7 +705,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         '''
         toggle  if True, state of directory(s) will be toggled (i.e. expand/collapse)
         '''
-        self.index = self.get_all()
+        self.load_index()
         # Marks should not influence expand; only actual selections count
         selected = self.get_selected(parent=False, full=True) or []
 
@@ -730,7 +730,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
         current_sel = list(self.view.sel())[0]
 
         # Use the index to find the exact line for `path`
-        self.index = self.get_all()
+        self.load_index()
         row_by_path = {p: i for i, p in enumerate(self.index) if p}
         row = row_by_path.get(path)
         if row is not None:
@@ -1038,7 +1038,7 @@ class dired_up(TextCommand, DiredBaseCommand):
 
         remembered_selection = None
         if path:
-            self.index = self.get_all()
+            self.load_index()
             selections = self.get_selected(parent=False, full=False)
             if selections:
                 remembered_selection = selections[0]
@@ -1143,7 +1143,7 @@ class dired_mark_extension(TextCommand, DiredBaseCommand):
         if not ext.startswith('.'):
             ext = '.' + ext
         # Mark all files matching the extension plus keep existing marks
-        self.index = self.get_all()
+        self.load_index()
         paths = set(self.view.settings().get('dired_marked_paths') or [])
         matches = [p for p in self.index if p and p != PARENT_SYM and p.endswith(ext)]
         paths.update(matches)
@@ -1185,7 +1185,7 @@ class dired_mark(TextCommand, DiredBaseCommand):
             return
 
         # Compute target paths
-        self.index = self.get_all()
+        self.load_index()
         if markall:
             targets = [p for p in self.index if p and p != PARENT_SYM]
         else:
@@ -1234,7 +1234,7 @@ class dired_expand_all(TextCommand, DiredBaseCommand):
             return os.path.basename(path.rstrip(os.sep)).startswith('.')
 
         if not filter_active:
-            self.index = self.get_all()
+            self.load_index()
             dir_paths = [
                 p for p in self.index
                 if p and p.endswith(os.sep)
