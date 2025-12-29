@@ -19,6 +19,7 @@ from .common import (
     DiredBaseCommand, relative_path, emit_event,
     NT, PARENT_SYM, MARK_OPTIONS)
 from . import prompt
+from .busy_spinner import busy_indicator
 
 if NT:
     import ctypes
@@ -512,7 +513,12 @@ class call_SHFileOperationW(object):
             fFlags = fFlags,
             fAnyOperationsAborted = wintypes.BOOL()
         )
-        out = SHFileOperationW(ctypes.byref(args))
+        with busy_indicator(
+            self.view,
+            status_key="__0FileBrowser__",
+            start_after=1.0,
+        ):
+            out = SHFileOperationW(ctypes.byref(args))
 
         sublime.set_timeout(
             lambda: emit_event('watch_view', self.view.id()), 1)
