@@ -150,6 +150,17 @@ your user key bindings file (binds <kbd>O</kbd> to open in the default app):
 }
 ```
 
+##### *Rename Mode* Shortcuts
+| Command          | Shortcut           |
+| :--------------- | :----------------- |
+| Apply changes    | <kbd>enter</kbd>   |
+| Discard changes  | <kbd>escape</kbd>  |
+
+**NOTE**: All these keyboard shortcuts can be customized in your own key-binding file. Open the
+          default key-bindings file (`Preferences` → `Package Settings` → `FileBrowser` →
+          `Keybinding — Default`) and copy the ones you want to change to your `Keybinding — User`
+          file.
+
 ### File statistics column
 Press <kbd>S</kbd> to toggle an inline stats column that shows each entry’s size and last modified
 timestamp. The feature is backed by the `dired_show_stats` setting (enabled by default). Set it to
@@ -165,16 +176,6 @@ timestamp. The feature is backed by the `dired_show_stats` setting (enabled by d
 
 Use Alt+Left (Back) and Alt+Right (Forward) to walk a per‑view navigation history.
 
-##### *Rename Mode* Shortcuts
-| Command          | Shortcut           |
-| :--------------- | :----------------- |
-| Apply changes    | <kbd>enter</kbd>   |
-| Discard changes  | <kbd>escape</kbd>  |
-
-**NOTE**: All these keyboard shortcuts can be customized in your own key-binding file. Open the
-          default key-bindings file (`Preferences` → `Package Settings` → `FileBrowser` →
-          `Keybinding — Default`) and copy the ones you want to change to your `Keybinding — User`
-          file.
 
 ## Usage
 
