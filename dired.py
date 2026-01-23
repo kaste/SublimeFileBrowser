@@ -185,7 +185,10 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None, auto_expand=0):
         """
         goto
-            Optional filename to put the cursor on; used only from "dired_up"
+            Optional path to put the cursor on; can be relative or absolute.
+            If absolute, it must be under the current root. If it contains
+            separators, parent directories are expanded (rooting relative
+            paths under the current root).
 
         to_expand
             List of absolute directory paths (with trailing os.sep) that shall
@@ -225,9 +228,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             stored_expanded = []
         self.expanded = expanded = list(dict.fromkeys(stored_expanded)) if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
-        self.goto = goto
         if os.sep in goto:
-            to_expand = self.expand_goto(to_expand)
+            to_expand = self.expand_goto(to_expand, goto)
 
         if not reset_sels:
             self.load_index()
@@ -236,7 +238,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             # When resetting, clear selections and initialize index
             self.index = []
             self.sels = None
-        self.populate_view(edit, path, expanded, to_expand, toggle, auto_expand)
+        self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand)
 
         if self.view.settings().get('dired_autorefresh', True):
             emit_event(
@@ -246,19 +248,24 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         else:
             emit_event('stop_watch', self.view.id())
 
-    def expand_goto(self, to_expand):
-        '''e.g. self.goto = "a/b/c/d/", then to put cursor onto d, it should be
+    def expand_goto(self, to_expand, goto):
+        '''e.g. goto = "a/b/c/d/", then to put cursor onto d, it should be
         to_expand = ["a/", "a/b/", "a/b/c/"] (items order in list dont matter)
         '''
         to_expand = to_expand or []
-        goto = self.goto
+        root = self.get_path()
+        if goto and not os.path.isabs(goto) and root:
+            goto = join(root, goto)
+        if root and os.path.isabs(goto):
+            if not os.path.normcase(goto).startswith(os.path.normcase(root)):
+                return to_expand
         while len(goto.split(os.sep)) > 2:
             parent = dirname(goto) + os.sep
             to_expand.append(parent)
             goto = parent.rstrip(os.sep)
         return to_expand
 
-    def populate_view(self, edit, path, expanded, to_expand, toggle, auto_expand=0):
+    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand=0):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
         # `expanded` already contains absolute paths collected from settings
@@ -334,7 +341,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.index = new_index
         items = self.correcting_index(path, lines)
         self.write(edit, items)
-        self.restore_selections(path)
+        self.restore_selections(path, goto)
         self.refresh_mark_highlights()
         self.refresh_clipboard_highlights()
         # Persist expanded paths for future refreshes
@@ -408,12 +415,12 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             self.index = ['', ''] + self.index
         return text + fileslist
 
-    def restore_selections(self, path):
+    def restore_selections(self, path, goto):
         '''Set cursor(s)'''
-        if self.goto:
-            if self.goto[~0] != os.sep:
-                self.goto += (os.sep if isdir(join(path, self.goto)) else '')
-            self.sels = ([self.goto.replace(path, '', 1)], None)
+        if goto:
+            if goto[-1] != os.sep:
+                goto += (os.sep if isdir(join(path, goto)) else '')
+            self.sels = ([goto.replace(path, '', 1)], None)
         self.restore_sels(self.sels)
 
 
