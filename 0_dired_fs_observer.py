@@ -97,7 +97,7 @@ class ObservePaths(object):
         def add_paths(vid: sublime.ViewId, paths):
             for path in paths:
                 if path and not os.path.isdir(path):
-                    print("error(add_paths): {path} is not a directory")
+                    print(f"error(add_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
             old_paths = self.paths.get(vid, [])
@@ -109,7 +109,7 @@ class ObservePaths(object):
         def set_paths(vid: sublime.ViewId, paths):
             for path in paths:
                 if path and not os.path.isdir(path):
-                    print("error(set_paths): {path} is not a directory")
+                    print(f"error(set_paths): {path} is not a directory")
             paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
 
             self.paths.update({
@@ -119,7 +119,7 @@ class ObservePaths(object):
 
         def remove_path(vid: sublime.ViewId, path):
             if path and not os.path.isdir(path):
-                print("error(remove_path): {path} is not a directory")
+                print(f"error(remove_path): {path} is not a directory")
             path_without_sep = path.rstrip(os.sep)
             path_with_sep = path_without_sep + os.sep
             self.paths.update({
