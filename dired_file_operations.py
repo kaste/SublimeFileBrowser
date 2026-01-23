@@ -279,12 +279,12 @@ class dired_rename_commit(TextCommand, DiredBaseCommand):
 
             print('FileBrowser rename: {0} → {1}'.format(b, a))
             orig = join(path, b)
-            if orig[~0] == '/' and os.path.islink(orig[:~0]):
+            if orig[-1] == '/' and os.path.islink(orig[:-1]):
                 # last slash shall be omitted; file has no last slash,
                 # thus it False and symlink to file shall be os.rename'd
-                dest = os.readlink(orig[:~0])
-                os.unlink(orig[:~0])
-                os.symlink(dest, join(path, a)[:~0])
+                dest = os.readlink(orig[:-1])
+                os.unlink(orig[:-1])
+                os.symlink(dest, join(path, a)[:-1])
             else:
                 try:
                     os.rename(orig, join(path, a))
@@ -697,7 +697,7 @@ class call_SystemAgnosticFileOperation(object):
                 # good: 'name — 2.ext'
                 # good: '— 2.ext'
                 # bad:  ' — 2.ext'
-                fn, ext  = '.'.join(split_name[:~0]), split_name[~0]
+                fn, ext  = '.'.join(split_name[:-1]), split_name[-1]
                 nn = '{0}{1}{2}.{3}'.format(fn, separator, i, ext)
                 cfp = join(path, nn.lstrip())
             if not os.path.exists(cfp):

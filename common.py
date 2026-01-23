@@ -199,7 +199,7 @@ def relative_path(rpath):
     '''
     if rpath:
         rpath = rpath[0]
-        if rpath[~0] != os.sep:
+        if rpath[-1] != os.sep:
             rpath = os.path.split(rpath)[0] + os.sep
         if rpath == os.sep:
             rpath = ''
@@ -277,7 +277,7 @@ class DiredBaseCommand:
         self.view.sel().clear()
         for n in new_sels:
             self.view.sel().add(Region(n, n))
-        name_point = new_sels[~0] if forward else new_sels[0]
+        name_point = new_sels[-1] if forward else new_sels[0]
         surroundings = True if self.view.rowcol(name_point)[0] < 3 else False
         self.view.show(name_point, surroundings)
 
@@ -316,7 +316,7 @@ class DiredBaseCommand:
                                self.view.find_by_selector('dired.item.file'))
         if not all_items:
             return None
-        return Region(all_items[0].a, all_items[~0].b)
+        return Region(all_items[0].a, all_items[-1].b)
 
     def get_parent(self, line: Region, path: str) -> str:
         '''
@@ -689,7 +689,7 @@ class DiredBaseCommand:
     def _find_in_view(self, item):
         '''item is Unicode'''
         fname = re.escape(basename(os.path.abspath(item)) or item.rstrip(os.sep))
-        if item[~0] == os.sep:
+        if item[-1] == os.sep:
             pattern = r'^\s*[▸▾] '
             # The displayed directory separator in the view may be forced via
             # settings (e.g. always show "/" on Windows). Be tolerant when
