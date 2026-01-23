@@ -86,7 +86,15 @@ def show(
     to_expand=None
 ):
     """
-    Determines the correct view to use, creating one if necessary, and prepares it.
+    Determine the correct dired view to use, creating one if necessary, and prepare it.
+
+    - `path`: absolute root directory for the view (trailing `os.sep` is added).
+      The sentinel `ThisPC\\` represents the drive listing on Windows.
+    - `goto`: optional target to focus after refresh; can be relative or
+      absolute. If absolute, it must be under `path`. If it contains separators,
+      parent directories are expanded (relative paths are rooted under `path`).
+    - `to_expand`: list of absolute directory paths (with trailing `os.sep`) to
+      expand during refresh; merged with the view's saved expanded set.
     """
     if other_group:
         av = window.active_view()
