@@ -101,9 +101,13 @@ def show(
     if other_group:
         adjust_window_layout_for_dired(window, view, other_group)
 
-    # forcibly shoot on_activated, because when view was created it didnot have any settings
-    window.show_quick_panel(['a', 'b'], None)
+    if single_pane:
+        current_root = view.settings().get("dired_path")
+        if current_root and path.startswith(current_root):
+            current_index = view.settings().get("dired_index")
+            if path in current_index:
+                path, goto = current_root, os.path.join(path, goto)
+
     retarget_dired_view(view, path, goto=goto, to_expand=to_expand)
-    window.run_command('hide_overlay')
     window.focus_view(view)
     return view
