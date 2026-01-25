@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import sublime
 
-from .common import first, set_proper_scheme, calc_width, get_group
+from .common import first, set_proper_scheme, calc_width, get_group, push_history_entry
 SYNTAX_EXTENSION = '.sublime-syntax'
 
 
@@ -96,6 +96,7 @@ def show(
     goto: str = '',
     other_group: str = '',
     expanded=None,
+    record_history: bool = False,
 ):
     """
     Determine the correct dired view to use, creating one if necessary, and prepare it.
@@ -107,6 +108,8 @@ def show(
       parent directories are expanded (relative paths are rooted under `path`).
     - `expanded`: list of absolute directory paths (with trailing `os.sep`) to
       treat as the full expanded set for the view on refresh.
+    - `record_history`: when True, push a history entry before retargeting an
+      existing dired view (no-op for newly created views or unchanged roots).
     """
     if other_group:
         av = window.active_view()
@@ -118,6 +121,9 @@ def show(
         path += os.sep
 
     view = reuse_view or get_or_create_dired_view(window, ignore_existing, path, single_pane)
+    old_path = view.settings().get('dired_path')
+    if record_history and old_path and old_path != path:
+        push_history_entry(view)
     if other_group:
         adjust_window_layout_for_dired(window, view, other_group)
 

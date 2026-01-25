@@ -851,7 +851,13 @@ class DiredBaseCommand:
             return   # view has been closed already
 
         from .show import show
-        show(window, entry['path'], reuse_view=self.view, expanded=entry['expanded'])
+        show(
+            window,
+            entry['path'],
+            reuse_view=self.view,
+            expanded=entry['expanded'],
+            record_history=False,
+        )
 
         # Re-assign `self.index` after the refresh triggered by `show()` has rewritten
         # the buffer and updated `dired_index`.  After that `index` on this command
@@ -1015,3 +1021,13 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
     if m := re.search(pattern, text, re.IGNORECASE):
         return [m.start(i + 1) for i in range(len(term))]
     return []
+
+
+class _HistoryProxy(DiredBaseCommand):
+    def __init__(self, view):
+        self.view = view
+
+
+def push_history_entry(view):
+    proxy = _HistoryProxy(view)
+    return proxy.history_push()

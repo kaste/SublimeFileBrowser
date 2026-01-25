@@ -94,7 +94,14 @@ class dired(WindowCommand):
             else:
                 path, goto = os.path.split(fpath)
 
-            view = show(self.window, path, goto=goto, single_pane=single_pane, other_group=other_group)
+            view = show(
+                self.window,
+                path,
+                goto=goto,
+                single_pane=single_pane,
+                other_group=other_group,
+                record_history=True,
+            )
             if view:
                 view.settings().set('dired_sidebar_mode', bool(other_group))
             return
@@ -155,12 +162,24 @@ class dired(WindowCommand):
     def _show_folder(self, index, folders, single_pane, other_group):
         if index != -1:
             path = folders[index]
-            view = show(self.window, path, single_pane=single_pane, other_group=other_group)
+            view = show(
+                self.window,
+                path,
+                single_pane=single_pane,
+                other_group=other_group,
+                record_history=True,
+            )
             if view:
                 view.settings().set('dired_sidebar_mode', bool(other_group))
 
     def _show(self, path, single_pane, other_group):
-        view = show(self.window, path, single_pane=single_pane, other_group=other_group)
+        view = show(
+            self.window,
+            path,
+            single_pane=single_pane,
+            other_group=other_group,
+            record_history=True,
+        )
         if view:
             view.settings().set('dired_sidebar_mode', bool(other_group))
 
@@ -512,10 +531,14 @@ class dired_select(TextCommand, DiredBaseCommand):
             self.refresh_mark_highlights()
             # Disable active filter when traversing into a subdirectory
             s.set('dired_filter_enabled', False)
-            # Prepare history: replace current, cut forward, append destination on refresh
-            self.history_push()
             remembered_child = s.get('dired_last_selection_by_dir', {}).get(fqn, '')
-            show(window, fqn, reuse_view=self.view, goto=remembered_child)
+            show(
+                window,
+                fqn,
+                reuse_view=self.view,
+                goto=remembered_child,
+                record_history=True,
+            )
             return True
         elif fqn == PARENT_SYM:
             window.run_command("dired_up")
@@ -524,7 +547,7 @@ class dired_select(TextCommand, DiredBaseCommand):
 
     def open_item(self, fqn, window, new_view) -> sublime.View | None:
         if isdir(fqn):
-            show(window, fqn, ignore_existing=new_view)
+            show(window, fqn, ignore_existing=new_view, record_history=True)
         elif exists(fqn):  # ignore 'item <error>'
             return window.open_file(fqn, sublime.FORCE_GROUP, group=-1)
         else:
@@ -1080,8 +1103,13 @@ class dired_up(TextCommand, DiredBaseCommand):
 
         view_for_reuse = (self.view if reuse_view() else None)
         goto = basename(path.rstrip(os.sep)) or path
-        self.history_push()
-        show(self.view.window(), parent, reuse_view=view_for_reuse, goto=goto)
+        show(
+            self.view.window(),
+            parent,
+            reuse_view=view_for_reuse,
+            goto=goto,
+            record_history=True,
+        )
 
 
 class dired_goto(TextCommand, DiredBaseCommand):
@@ -1092,7 +1120,7 @@ class dired_goto(TextCommand, DiredBaseCommand):
         prompt.start('Goto:', self.view.window(), self.path, self.goto)
 
     def goto(self, path):
-        show(self.view.window(), path, reuse_view=self.view)
+        show(self.view.window(), path, reuse_view=self.view, record_history=True)
 
 
 # MARKING ###########################################################
