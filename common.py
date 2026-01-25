@@ -364,16 +364,19 @@ class DiredBaseCommand:
         Returns a list of selected filenames.
         `self.index` must be loaded (call `self.load_index()`) before calling
         """
-        fileregion = self.fileregion(with_parent_link=parent)
-        if not fileregion:
-            return []
         path = self.get_path()
-        names = []
-        for line in self._get_lines([s for s in self.view.sel()], fileregion):
-            text = self.get_fullpath_for(line) if full else self.get_parent(line, path)
-            if text and text not in names:
-                names.append(text)
-        return names
+        line_regions = chain(*(self.view.lines(r) for r in self.view.sel()))
+        selected_rows = (self.view.rowcol(r.a)[0] for r in line_regions)
+        index = self.index
+        len_index = len(index)
+        selected_names = (
+            item if full else item.replace(path, '', 1)
+            for row in selected_rows
+            if 0 <= row < len_index
+            if (item := index[row])
+            if parent or item != PARENT_SYM
+        )
+        return list(selected_names)
 
     def get_marked(self, full=False) -> list[str]:
         """Return the set of marked items based on persisted paths.
