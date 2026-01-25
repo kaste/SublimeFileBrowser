@@ -337,7 +337,7 @@ class DiredBaseCommand:
         Accessing view state may block on Sublime's UI thread; avoid calling this
         repeatedly in tight loops. Instead, call once and reuse `self.index`.
         """
-        self.index = self.get_all()
+        self.index = get_index(self.view)
 
     def get_all(self):
         """
@@ -346,11 +346,7 @@ class DiredBaseCommand:
         each item matches corresponding line, thus list will never be empty unless sth went wrong;
         if header is enabled then first two elements are empty strings
         """
-        index = self.view.settings().get('dired_index', [])
-        if not index:
-            return sublime.error_message('FileBrowser:\n\n"dired_index" is empty,\n'
-                                         'that shouldn’t happen ever, there is some bug.')
-        return index
+        return get_index(self.view)
 
     def get_all_relative(self, path):
         return [f.replace(path, '', 1) for f in self.get_all()]
@@ -977,6 +973,22 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
     return []
 
 
+def get_index(view: sublime.View) -> list[str]:
+    return _get_index(view.id(), view.change_count())
+
+
+@lru_cache(maxsize=16)
+def _get_index(vid: sublime.ViewId, cc: int) -> list[str]:
+    view = sublime.View(vid)
+    index: list[str] = view.settings().get('dired_index', [])
+    if not index:
+        sublime.error_message(
+            'FileBrowser:\n\n"dired_index" is empty,\n'
+            'that shouldn’t happen ever, there is some bug.'
+        )
+    return index
+
+
 def selected_paths(
     view: sublime.View,
     index: list[str],
@@ -1006,13 +1018,7 @@ HistoryEntry: TypeAlias = dict
 
 def build_history_entry(view: sublime.View) -> HistoryEntry:
     """Build a history entry for the given dired view."""
-    index: list[str] = view.settings().get('dired_index', [])
-    if not index:
-        msg = 'FileBrowser:\n\n"dired_index" is empty,\n' \
-              'that shouldn’t happen ever, there is some bug.'
-        sublime.error_message(msg)
-        raise RuntimeError(msg)
-
+    index = get_index(view)
     return {
         'path': view.settings().get('dired_path'),
         'expanded': view.settings().get('dired_expanded_paths', []),
