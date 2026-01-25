@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import sublime
 
-from .common import first, set_proper_scheme, calc_width, get_group, push_history_entry
+from .common import first, set_proper_scheme, calc_width, get_group, history_push
 SYNTAX_EXTENSION = '.sublime-syntax'
 
 
@@ -123,7 +123,7 @@ def show(
     view = reuse_view or get_or_create_dired_view(window, ignore_existing, path, single_pane)
     old_path = view.settings().get('dired_path')
     if record_history and old_path and old_path != path:
-        push_history_entry(view)
+        history_push(view)
     if other_group:
         adjust_window_layout_for_dired(window, view, other_group)
 

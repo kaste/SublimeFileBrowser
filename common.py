@@ -8,6 +8,7 @@ import fnmatch
 from itertools import chain, repeat
 from functools import lru_cache
 from typing import Iterable, NamedTuple
+from typing_extensions import TypeAlias
 
 import sublime
 from sublime import Region
@@ -364,19 +365,7 @@ class DiredBaseCommand:
         Returns a list of selected filenames.
         `self.index` must be loaded (call `self.load_index()`) before calling
         """
-        path = self.get_path()
-        line_regions = chain(*(self.view.lines(r) for r in self.view.sel()))
-        selected_rows = (self.view.rowcol(r.a)[0] for r in line_regions)
-        index = self.index
-        len_index = len(index)
-        selected_names = (
-            item if full else item.replace(path, '', 1)
-            for row in selected_rows
-            if 0 <= row < len_index
-            if (item := index[row])
-            if parent or item != PARENT_SYM
-        )
-        return list(selected_names)
+        return selected_paths(self.view, self.index, parent=parent, full=full)
 
     def get_marked(self, full=False) -> list[str]:
         """Return the set of marked items based on persisted paths.
@@ -809,44 +798,6 @@ class DiredBaseCommand:
 
     # --- History management ----------------------------------------------------
 
-    def history_push(self):
-        s = self.view.settings()
-        entry = self._build_history_entry()
-        history = s.get('dired_history', [])
-        cursor = s.get('dired_history_cursor', 0)
-        history = history[:cursor] + [entry]
-        cursor = len(history)
-        s.set('dired_history', history)
-        s.set('dired_history_cursor', cursor)
-        return history, cursor
-
-
-    def history_replace(self):
-        s = self.view.settings()
-        entry = self._build_history_entry()
-        history = s.get('dired_history')
-        cursor = s.get('dired_history_cursor')
-        if history is None:
-            raise RuntimeError("history_replace called before any `history` is recorded")
-        if cursor is None:
-            raise RuntimeError("history_replace called before `history_cursor` is initialized")
-
-        history = history[:cursor] + [entry] + history[cursor + 1:]
-        s.set('dired_history', history)
-        return history
-
-
-    def _build_history_entry(self):
-        s = self.view.settings()
-        self.load_index()  # hidden dependency
-        return {
-            'path': self.path,
-            'expanded': s.get('dired_expanded_paths', []),
-            'selection': self.get_selected(parent=False, full=False),
-            'regions': [(r.a, r.b) for r in self.view.sel()],
-            'viewport': self.view.viewport_position(),
-        }
-
     def _apply_history_entry(self, entry):
         """Restore a saved history entry: path, expanded dirs, selections, viewport."""
         window = self.view.window()
@@ -1026,11 +977,73 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
     return []
 
 
-class _HistoryProxy(DiredBaseCommand):
-    def __init__(self, view):
-        self.view = view
+def selected_paths(
+    view: sublime.View,
+    index: list[str],
+    *,
+    parent: bool = True,
+    full: bool = False
+) -> list[str]:
+    """Return selected item paths from the given view/index."""
+    path = view.settings().get('dired_path')
+    if path == 'ThisPC\\':
+        path = ''
+    line_regions = flatten(view.lines(r) for r in view.sel())
+    selected_rows = (view.rowcol(r.a)[0] for r in line_regions)
+    len_index = len(index)
+    selected_names = (
+        item if full else item.replace(path, '', 1)
+        for row in selected_rows
+        if 0 <= row < len_index
+        if (item := index[row])
+        if parent or item != PARENT_SYM
+    )
+    return list(selected_names)
 
 
-def push_history_entry(view):
-    proxy = _HistoryProxy(view)
-    return proxy.history_push()
+HistoryEntry: TypeAlias = dict
+
+
+def build_history_entry(view: sublime.View) -> HistoryEntry:
+    """Build a history entry for the given dired view."""
+    index: list[str] = view.settings().get('dired_index', [])
+    if not index:
+        msg = 'FileBrowser:\n\n"dired_index" is empty,\n' \
+              'that shouldn’t happen ever, there is some bug.'
+        sublime.error_message(msg)
+        raise RuntimeError(msg)
+
+    return {
+        'path': view.settings().get('dired_path'),
+        'expanded': view.settings().get('dired_expanded_paths', []),
+        'selection': selected_paths(view, index, parent=False, full=False),
+        'regions': [(r.a, r.b) for r in view.sel()],
+        'viewport': view.viewport_position(),
+    }
+
+
+def history_push(view: sublime.View):
+    settings = view.settings()
+    entry = build_history_entry(view)
+    history: list[HistoryEntry] = settings.get('dired_history', [])
+    cursor = settings.get('dired_history_cursor', 0)
+    history = history[:cursor] + [entry]
+    cursor = len(history)
+    settings.set('dired_history', history)
+    settings.set('dired_history_cursor', cursor)
+    return history, cursor
+
+
+def history_replace(view: sublime.View):
+    settings = view.settings()
+    entry = build_history_entry(view)
+    history = settings.get('dired_history')
+    cursor = settings.get('dired_history_cursor')
+    if history is None:
+        raise RuntimeError("history_replace called before any `history` is recorded")
+    if cursor is None:
+        raise RuntimeError("history_replace called before `history_cursor` is initialized")
+
+    history = history[:cursor] + [entry] + history[cursor + 1:]
+    settings.set('dired_history', history)
+    return history

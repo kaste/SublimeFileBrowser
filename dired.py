@@ -12,7 +12,7 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
-    set_proper_scheme, NT, PARENT_SYM, rx_fuzzy_match)
+    history_replace, set_proper_scheme, NT, PARENT_SYM, rx_fuzzy_match)
 from . import prompt
 from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
@@ -1135,7 +1135,7 @@ class dired_history_back(TextCommand, DiredBaseCommand):
             return sublime.status_message('No previous location')
 
         # Replace current entry with any edits before leaving
-        history = self.history_replace()
+        history = history_replace(self.view)
 
         # Move back based on pre-snapshot position
         next_cursor = cursor - 1
@@ -1154,7 +1154,7 @@ class dired_history_forward(TextCommand, DiredBaseCommand):
             return sublime.status_message('No next location')
 
         # Replace current entry with any edits before leaving
-        history = self.history_replace()
+        history = history_replace(self.view)
 
         # Move forward based on pre-snapshot position
         next_cursor = cursor + 1
