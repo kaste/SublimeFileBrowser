@@ -393,7 +393,7 @@ class DiredBaseCommand:
         '''
         return (
             line
-            for line in chain(*(self.view.lines(r) for r in regions))
+            for line in flatten(self.view.lines(r) for r in regions)
             if within.contains(line)
         )
 
