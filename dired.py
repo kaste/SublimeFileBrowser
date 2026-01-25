@@ -249,21 +249,28 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             emit_event('stop_watch', self.view.id())
 
     def expand_goto(self, to_expand, goto):
-        '''e.g. goto = "a/b/c/d/", then to put cursor onto d, it should be
+        '''e.g. goto = "a/b/c/d", then to put cursor onto d, it should be
         to_expand = ["a/", "a/b/", "a/b/c/"] (items order in list dont matter)
         '''
         to_expand = to_expand or []
         root = self.get_path()
-        if goto and not os.path.isabs(goto) and root:
-            goto = join(root, goto)
-        if root and os.path.isabs(goto):
-            if not os.path.normcase(goto).startswith(os.path.normcase(root)):
+        if os.path.isabs(goto):
+            if not goto.startswith(root):
                 return to_expand
-        while len(goto.split(os.sep)) > 2:
-            parent = dirname(goto) + os.sep
-            to_expand.append(parent)
-            goto = parent.rstrip(os.sep)
-        return to_expand
+
+        if not os.path.isabs(goto):
+            if not root:
+                return to_expand
+            goto = join(root, goto)
+
+        while True:
+            parent = dirname(goto)
+            parent_ = parent.rstrip(os.sep) + os.sep
+            if parent == goto or parent_ == root:
+                break
+            to_expand.append(parent_)
+            goto = parent
+        return list(dict.fromkeys(to_expand))
 
     def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand=0):
         '''Called when we know that some directories were (or/and need to be) expanded'''
@@ -274,7 +281,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             expanded = [e for e in merged if not (e in expanded and e in to_expand)]
         else:
             expanded.extend(to_expand or [])
-        self.expanded = expanded
+        self.expanded = list(dict.fromkeys(expanded))
 
         # Phase 1: build the tree
         entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
