@@ -851,7 +851,7 @@ class DiredBaseCommand:
             return   # view has been closed already
 
         from .show import show
-        show(window, entry['path'], reuse_view=self.view, to_expand=entry['expanded'])
+        show(window, entry['path'], reuse_view=self.view, expanded=entry['expanded'])
 
         # Re-assign `self.index` after the refresh triggered by `show()` has rewritten
         # the buffer and updated `dired_index`.  After that `index` on this command

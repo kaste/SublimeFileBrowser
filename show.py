@@ -18,8 +18,18 @@ def create_dired_view(window: sublime.Window) -> sublime.View:
     return view
 
 
-def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_expand=None) -> None:
-    """Reuse an existing dired view for a new root path."""
+def retarget_dired_view(
+    view: sublime.View,
+    path: str,
+    *,
+    goto: str = '',
+    expanded=None,
+) -> None:
+    """Reuse an existing dired view for a new root path.
+
+    When `expanded` is provided, it replaces the view's persisted expanded set
+    before refresh.
+    """
     if not path.endswith(os.sep):
         path += os.sep
 
@@ -28,7 +38,9 @@ def retarget_dired_view(view: sublime.View, path: str, *, goto: str = '', to_exp
 
     view.settings().set('dired_path', path)
     view.settings().set('dired_rename_mode', False)
-    view.run_command('dired_refresh', {'goto': goto, 'reset_sels': reset_sels, 'to_expand': to_expand})
+    if expanded is not None:
+        view.settings().set('dired_expanded_paths', expanded)
+    view.run_command('dired_refresh', {'goto': goto, 'reset_sels': reset_sels})
 
 
 def get_or_create_group_for_dired(window, view, other_group):
@@ -83,7 +95,7 @@ def show(
     single_pane: bool = False,
     goto: str = '',
     other_group: str = '',
-    to_expand=None
+    expanded=None,
 ):
     """
     Determine the correct dired view to use, creating one if necessary, and prepare it.
@@ -93,8 +105,8 @@ def show(
     - `goto`: optional target to focus after refresh; can be relative or
       absolute. If absolute, it must be under `path`. If it contains separators,
       parent directories are expanded (relative paths are rooted under `path`).
-    - `to_expand`: list of absolute directory paths (with trailing `os.sep`) to
-      expand during refresh; merged with the view's saved expanded set.
+    - `expanded`: list of absolute directory paths (with trailing `os.sep`) to
+      treat as the full expanded set for the view on refresh.
     """
     if other_group:
         av = window.active_view()
@@ -116,6 +128,6 @@ def show(
             if path in current_index:
                 path, goto = current_root, os.path.join(path, goto)
 
-    retarget_dired_view(view, path, goto=goto, to_expand=to_expand)
+    retarget_dired_view(view, path, goto=goto, expanded=expanded)
     window.focus_view(view)
     return view
