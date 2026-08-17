@@ -351,13 +351,19 @@ To start dired with all files showing, set:
 { "dired_show_hidden_files": true }
 ```
 
+On Windows, to also show "system" Files, set:
+
+```json
+{ "dired_show_system_files": true }
+```
+
 To add extra hide rules without touching the Sublime setting, use `dired_hidden_files_patterns`:
 
 
 ```json
 { "dired_hidden_files_patterns": [".*", "__pycache__", "*.pyc"] }
 ```
-Note: On Windows, items with the filesystem "hidden" attribute are always considered hidden.
+Note: On Windows, items with the filesystem attributes "hidden" and/or "system" are always considered hidden.
 That's a deviation from Sublime where the exclude patterns are strictly path operations.
 
 ### VCS integration

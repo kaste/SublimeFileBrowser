@@ -13,8 +13,11 @@
   // If true a dialog box asks for confirmation for any delete operations
   "dired_confirm_deletions": true,
 
-  // Showing hidden files by default
+  // Not showing hidden files by default
   "dired_show_hidden_files": false,
+
+  // Not showing system files by default (Windows only)
+  "dired_show_system_files": false,
 
   // Add patterns used to determine if a file should be hidden
   // e.g. [".*", "__pycache__", "*.pyc"]

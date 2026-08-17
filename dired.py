@@ -247,6 +247,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             stored_expanded = []
         self.expanded = expanded = list(dict.fromkeys(stored_expanded)) if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
+        self.show_system = self.view.settings().get('dired_show_system_files', True)
+
         if os.sep in goto:
             to_expand = self.expand_goto(to_expand, goto)
 
@@ -906,6 +908,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
 
         settings = self.view.settings()
         self.show_hidden = settings.get('dired_show_hidden_files', True)
+        self.show_system = settings.get('dired_show_system_files', True)
         show_stats = settings.get('dired_show_stats', False)
         name_width_setting = settings.get('dired_name_col_width', 0)
         size_width_setting = settings.get('dired_size_col_width', 0)
@@ -1387,8 +1390,10 @@ class dired_expand_all(TextCommand, DiredBaseCommand):
         # - If a filter is active, expand one level deeper under currently
         #   expanded directories to surface matches from subfolders.
         # Ensure hidden-files preference is available for list operations
+        # Ensure system-files preference is available for list operations
         s = self.view.settings()
         self.show_hidden = s.get('dired_show_hidden_files', True)
+        self.show_system = s.get('dired_show_system_files', True)
         enabled = s.get('dired_filter_enabled', True)
         filter_active = enabled and (s.get('dired_filter') or s.get('dired_filter_extension'))
         expanded_paths = s.get('dired_expanded_paths') or []
@@ -1466,10 +1471,68 @@ class dired_collapse_all(TextCommand, DiredBaseCommand):
 
 class dired_toggle_hidden_files(TextCommand):
     def run(self, edit):
+        if NT:
+            self.view.run_command('dired_toggle_nt_hidden_files')
+            return
+
         show = self.view.settings().get('dired_show_hidden_files', True)
         self.view.settings().set('dired_show_hidden_files', not show)
         self.view.run_command('dired_refresh')
 
+
+class dired_toggle_nt_hidden_files(TextCommand):
+    def run(self, edit):
+        # Cycle through showing none, show hidden, show hidden+system ("superhidden")
+        #   hidden = filesystem 'hidden' flag or hidden by pattern exclusion
+        #   system = filesystem 'system' flag
+        #   Intended for use on Windows only, has no side effects on other platforms though.
+
+        show_hidden = self.view.settings().get('dired_show_hidden_files', True)
+        show_system = self.view.settings().get('dired_show_system_files', True)
+
+        if show_hidden and show_system:
+            hidden, system = False, False           # cycle: reset
+        elif not show_hidden and not show_system:
+            hidden, system = True, False            # cycle: show hidden
+        else:
+            hidden, system = True, True             # cycle: show system too
+
+        self.view.settings().set('dired_show_hidden_files', hidden)
+        self.view.settings().set('dired_show_system_files', system)
+        self.view.run_command('dired_refresh')
+
+        #  EXAMPLE for Hotkey
+        #  To add a Hotkey to use the cycling method for 'hidden' and 'system' files on Windows
+        #  add this to 'Default (Windows).sublime-keymap'
+        #  {
+        #    "keys": ["H"],
+        #    "command": "dired_toggle_nt_hidden_files",
+        #    "context": [
+        #        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        #        { "key": "setting.dired_rename_mode", "operand": false }
+        #    ]
+        #  },
+
+
+# OPTIONAL
+# class dired_toggle_system_files(TextCommand):
+#     def run(self, edit):
+#         # Toggle showing Files with the 'system' Attribute on Windows
+#         show_system = self.view.settings().get('dired_show_system_files', True)
+#         self.view.settings().set('dired_show_system_files', not show_system)
+#         self.view.run_command('dired_refresh')
+#
+#         #  EXAMPLE for Hotkey
+#         #  To add a Hotkey to toggle 'system' files only (on Windows)
+#         #  add this 'Default (Windows).sublime-keymap'
+#         #  {
+#         #    "keys": ["alt+shift+h"],
+#         #    "command": "dired_toggle_system_files",
+#         #    "context": [
+#         #        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+#         #        { "key": "setting.dired_rename_mode", "operand": false }
+#         #    ]
+#         #  },
 
 # MOUSE INTERACTIONS #################################################
 
