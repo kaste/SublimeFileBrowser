@@ -329,16 +329,18 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
         settings  = sublime.load_settings('dired.sublime-settings')
         copy_list = settings.get('dired_to_copy', [])
         cut_list  = settings.get('dired_to_move', [])
-        # copied item shall not be added into cut list, and vice versa
-        for f in filenames:
-            if cut:
-                if f not in copy_list:
-                    cut_list.append(f)
-            else:
-                if f not in cut_list:
-                    copy_list.append(f)
-        settings.set('dired_to_move', list(set(cut_list)))
-        settings.set('dired_to_copy', list(set(copy_list)))
+        # The latest action wins when an item was already queued for the
+        # opposite operation.
+        if cut:
+            copy_list = [f for f in copy_list if f not in filenames]
+            cut_list.extend(f for f in filenames if f not in cut_list)
+        else:
+            cut_list = [f for f in cut_list if f not in filenames]
+            copy_list.extend(f for f in filenames if f not in copy_list)
+        cut_list = list(dict.fromkeys(cut_list))
+        copy_list = list(dict.fromkeys(copy_list))
+        settings.set('dired_to_move', cut_list)
+        settings.set('dired_to_copy', copy_list)
         sublime.save_settings('dired.sublime-settings')
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
 
