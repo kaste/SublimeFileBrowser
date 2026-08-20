@@ -25,6 +25,13 @@ if NT:
     import ctypes
     from ctypes import wintypes
     from Default.send2trash.plat_win import SHFILEOPSTRUCTW
+    from .lib.windows_clipboard import (
+        ClipboardBusyError,
+        clear_file_clipboard,
+        clear_our_file_clipboard,
+        get_file_clipboard,
+        set_file_clipboard,
+    )
 
 
 class dired_create(TextCommand, DiredBaseCommand):
@@ -344,6 +351,15 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
         sublime.save_settings('dired.sublime-settings')
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
 
+        if NT:
+            try:
+                set_file_clipboard(filenames, cut=cut)
+            except OSError as error:
+                print('FileBrowser: could not set Windows clipboard:', error)
+                sublime.status_message(
+                    'Files queued in FileBrowser, but Windows clipboard is busy'
+                )
+
         # Highlight items currently in the internal clipboard (copied/cut)
         self.refresh_clipboard_highlights(copied=copy_list, cut=cut_list)
 
@@ -376,9 +392,10 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
 class dired_paste_files(TextCommand, DiredBaseCommand):
     '''Init file operation(s) for stored names in settings, when user paste'''
     def run(self, edit):
-        s = self.view.settings()
-        sources_move = s.get('dired_to_move', [])
-        sources_copy = s.get('dired_to_copy', [])
+        sources = _get_paste_sources(self.view.settings())
+        if sources is None:
+            return
+        sources_move, sources_copy, clipboard_sequence = sources
         if not (sources_move or sources_copy):
             return sublime.status_message('Nothing to paste')
 
@@ -397,7 +414,13 @@ class dired_paste_files(TextCommand, DiredBaseCommand):
 
         emit_event('ignore_view', self.view.id())
         if NT:
-            return call_SHFileOperationW(self.view, sources_move, sources_copy, destination)
+            return call_SHFileOperationW(
+                self.view,
+                sources_move,
+                sources_copy,
+                destination,
+                clipboard_sequence,
+            )
         else:
             return call_SystemAgnosticFileOperation(
                 self.view, sources_move, sources_copy, destination)
@@ -412,11 +435,13 @@ def is_directory_expanded(view):
 class dired_paste_files_to(TextCommand, DiredBaseCommand):
     '''Init prompt for path where to paste, then init file ops.'''
     def run(self, edit):
-        s = self.view.settings()
         self.load_index()
-        sources_move = s.get('dired_to_move', [])
+        sources = _get_paste_sources(self.view.settings())
+        if sources is None:
+            return
+        sources_move, sources_copy, clipboard_sequence = sources
         sources_copy = (
-            s.get('dired_to_copy')
+            sources_copy
             or self.get_marked(full=True)
             or self.get_selected(parent=False, full=True)
         )
@@ -432,20 +457,57 @@ class dired_paste_files_to(TextCommand, DiredBaseCommand):
         path = self.get_path()
         window = self.view.window() or sublime.active_window()
         emit_event('ignore_view', self.view.id())
+        self.clipboard_sequence = clipboard_sequence
         prompt.start(msg, window, path, self.initfo, sources_move, sources_copy)
 
     def initfo(self, destination, move, copy):
         if NT:
-            return call_SHFileOperationW(self.view, move, copy, destination)
+            return call_SHFileOperationW(
+                self.view,
+                move,
+                copy,
+                destination,
+                self.clipboard_sequence,
+            )
         else:
             return call_SystemAgnosticFileOperation(self.view, move, copy, destination)
 
 
+def _get_paste_sources(settings):
+    sources_move = settings.get('dired_to_move', [])
+    sources_copy = settings.get('dired_to_copy', [])
+    if not NT:
+        return sources_move, sources_copy, None
+
+    try:
+        clipboard = get_file_clipboard()
+    except ClipboardBusyError:
+        sublime.status_message('Windows clipboard is busy; try pasting again')
+        return None
+    except OSError as error:
+        print('FileBrowser: could not read Windows clipboard:', error)
+        sublime.status_message('Could not read the Windows clipboard')
+        return None
+
+    if clipboard and (
+        not clipboard.is_ours or not (sources_move or sources_copy)
+    ):
+        if clipboard.cut:
+            return clipboard.paths, [], clipboard.sequence_number
+        return [], clipboard.paths, None
+    return sources_move, sources_copy, None
+
+
 class dired_clear_copy_cut_list(TextCommand):
-    def run(self, edit):
+    def run(self, edit, clear_system=True):
         sublime.load_settings('dired.sublime-settings').set('dired_to_move', [])
         sublime.load_settings('dired.sublime-settings').set('dired_to_copy', [])
         sublime.save_settings('dired.sublime-settings')
+        if NT and clear_system:
+            try:
+                clear_our_file_clipboard()
+            except OSError as error:
+                print('FileBrowser: could not clear Windows clipboard:', error)
         # Also clear visual highlights for copied/cut items
         self.view.erase_regions('copied')
         self.view.erase_regions('cut')
@@ -463,8 +525,16 @@ def _dups(sources_copy, destination):
 
 class call_SHFileOperationW(object):
     '''call Windows API for file operations'''
-    def __init__(self, view, sources_move, sources_copy, destination):
+    def __init__(
+        self,
+        view,
+        sources_move,
+        sources_copy,
+        destination,
+        clipboard_sequence=None,
+    ):
         self.view = view
+        self.clipboard_sequence = clipboard_sequence
         if destination == '$TRASH$':
             self.shfow_d_thread = threading.Thread(target=self.caller, args=(3, sources_move, ''))
             self.shfow_d_thread.start()
@@ -524,9 +594,19 @@ class call_SHFileOperationW(object):
 
         sublime.set_timeout(
             lambda: emit_event('watch_view', self.view.id()), 1)
-        if not out and destination:  # 0 == success
-            sublime.set_timeout(lambda: self.view.run_command('dired_clear_copy_cut_list'), 1)
+        if not out and destination and not args.fAnyOperationsAborted:
+            sublime.set_timeout(
+                lambda: self.view.run_command(
+                    'dired_clear_copy_cut_list', {'clear_system': False}
+                ),
+                1,
+            )
             if mode == 1:
+                if self.clipboard_sequence is not None:
+                    try:
+                        clear_file_clipboard(self.clipboard_sequence)
+                    except OSError as error:
+                        print('FileBrowser: could not clear Windows clipboard:', error)
                 for s in sources:
                     retarget(s, join(destination, basename(s)))
         else:  # probably user cancel op., or sth went wrong; keep settings
@@ -684,7 +764,9 @@ class call_SystemAgnosticFileOperation(object):
             return
         else:
             emit_event('watch_view', self.view.id())
-            self.view.run_command('dired_clear_copy_cut_list')
+            self.view.run_command(
+                'dired_clear_copy_cut_list', {'clear_system': False}
+            )
 
     def generic_nn(self, old_name):
         path, name = os.path.split(old_name)

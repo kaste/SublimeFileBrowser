@@ -219,6 +219,12 @@ If you want to alter the destination path without moving cursor, you may do so w
 before, i.e. if those lists in settings file are empty then prompt will take marked or selected 
 item(s) and suggest copying them.
 
+On Windows, FileBrowser also shares the system file clipboard with Explorer. Files copied or cut
+in Explorer can be pasted into a dired view. The items selected by the latest copy or cut command
+in dired can likewise be pasted into Explorer; their full paths are also available as plain text
+for terminals and other text fields. A cut is treated as a move only when Windows explicitly marks
+the clipboard with the `Preferred DropEffect` move flag.
+
 On Windows all operations will be done via system API with all its features (renaming semantics, 
 interactive overwrite, progress-bar, pause/cancel, and so on).
 
