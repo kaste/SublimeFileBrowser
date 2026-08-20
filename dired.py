@@ -300,7 +300,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             expanded = [e for e in merged if not (e in expanded and e in to_expand)]
         else:
             expanded.extend(to_expand or [])
-        self.expanded = list(dict.fromkeys(expanded))
+        self.expanded = expanded = existing_directories(expanded)
 
         # Phase 1: build the tree
         entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
@@ -1360,6 +1360,11 @@ class dired_doubleclick(TextCommand, DiredBaseCommand):
                 view.run_command("dired_expand", {"toggle": True})
             else:
                 view.run_command("dired_select", {"other_group": True})
+
+
+def existing_directories(paths):
+    """Deduplicate directory paths and discard paths removed since the last refresh."""
+    return list(dict.fromkeys(path for path in paths if isdir(path)))
 
 
 def format_stats(entry: ListingItem, show_stats: bool, date_format='%d.%m.%Y %H:%M'):
