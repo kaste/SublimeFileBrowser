@@ -227,6 +227,17 @@ def emit_event(event_type: str, payload: object):
         package_events.notify(EVENT_TOPIC, event_type, payload)
 
 
+def prune_missing_cut_items():
+    """Discard cut items which have been moved or removed externally."""
+    settings = sublime.load_settings('dired.sublime-settings')
+    queued = settings.get('dired_to_move', []) or []
+    remaining = [path for path in queued if os.path.lexists(path)]
+    if remaining != queued:
+        settings.set('dired_to_move', remaining)
+        sublime.save_settings('dired.sublime-settings')
+    return remaining
+
+
 class DiredBaseCommand:
     """
     Convenience functions for dired TextCommands
@@ -418,7 +429,7 @@ class DiredBaseCommand:
         path_in_project = any(folder == self.path[:-1] for folder in window.folders())
         settings        = self.view.settings()
         copied_items    = settings.get('dired_to_copy', [])
-        cut_items       = settings.get('dired_to_move', [])
+        cut_items       = prune_missing_cut_items()
         marked_items    = settings.get('dired_marked_paths') or []
 
         # Derive hidden-files flag view settings if not set
