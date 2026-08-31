@@ -82,6 +82,9 @@ _shell32.DragQueryFileW.argtypes = [
 _shell32.DragQueryFileW.restype = wintypes.UINT
 
 _PREFERRED_DROP_EFFECT = _user32.RegisterClipboardFormatW('Preferred DropEffect')
+_FILEBROWSER_CLIPBOARD = _user32.RegisterClipboardFormatW(
+    'FileBrowser Shell File Clipboard'
+)
 _last_written_sequence: int | None = None
 
 
@@ -105,7 +108,10 @@ def get_file_clipboard() -> FileClipboard | None:
                 and not bool(drop_effect & DROP_EFFECT_COPY)
             ),
             sequence_number=sequence_number,
-            is_ours=sequence_number == _last_written_sequence,
+            is_ours=bool(
+                _FILEBROWSER_CLIPBOARD
+                and _user32.IsClipboardFormatAvailable(_FILEBROWSER_CLIPBOARD)
+            ),
         )
     finally:
         _user32.CloseClipboard()
@@ -138,10 +144,21 @@ def set_file_clipboard(paths: Sequence[str], cut: bool = False) -> None:
                     ),
                 )
             )
+        if _FILEBROWSER_CLIPBOARD:
+            handles.append(
+                (_FILEBROWSER_CLIPBOARD, _bytes_handle(wintypes.DWORD(1)))
+            )
 
         _open_clipboard(_user32.GetForegroundWindow())
         opened = True
-        if not _user32.EmptyClipboard():
+        replacing_ours = bool(
+            _FILEBROWSER_CLIPBOARD
+            and _user32.IsClipboardFormatAvailable(_FILEBROWSER_CLIPBOARD)
+        )
+        # EmptyClipboard synchronously notifies its current owner. Sublime
+        # cannot process that notification while this command is running, so
+        # replace our known formats directly when FileBrowser still owns them.
+        if not replacing_ours and not _user32.EmptyClipboard():
             raise ctypes.WinError(ctypes.get_last_error())
         for format_id, handle in handles:
             if not _user32.SetClipboardData(format_id, handle):
