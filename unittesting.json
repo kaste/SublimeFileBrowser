@@ -1,0 +1,5 @@
+{
+    "deferred": true,
+    "capture_console": true,
+    "legacy_runner": false
+}

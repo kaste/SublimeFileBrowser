@@ -541,6 +541,27 @@ add following setting into `Preferences` → `Settings — User`:
 { "font_options": ["directwrite"] }
 ```
 
+## Testing
+
+The Python tests run inside Sublime Text with
+[UnitTesting](https://github.com/SublimeText/UnitTesting).
+
+With Docker running and `UnitTesting/docker` on your `PATH`, run from the package root:
+
+```sh
+ut-run-tests .                              # unit tests and syntax checks
+ut-run-tests . --file tests/test_dired.py    # one Python test file
+ut-run-tests . --file tests/test_prompt.py
+```
+
+The headless runner uses an isolated Sublime Text instance in Docker, leaving your
+interactive editor and its UnitTesting installation untouched. Prompt tests use
+real input panels; settings tests restore the original cut queue and settings file.
+`unittesting.json` enables deferred tests so they can wait for UI and settings updates.
+
+In Sublime Text, you can also use UnitTesting's **Test Package** command with
+`FileBrowser` as the package name.
+
 ## Credit
 
 This project started as a fork of the awesome [dired plugin](https://packagecontrol.io/packages/dired),
