@@ -113,7 +113,7 @@ e.g. to completely mimic sidebar, it would be:
 | Toggle mark and move up                               | <kbd>shift+↑</kbd>                         |
 | Toggle mark                                           | <kbd>m</kbd>                               |
 | Toggle all marks                                      | <kbd>t</kbd>                               |
-| Unmark all                                            | <kbd>u</kbd>                               |
+| Unmark all                                            | <kbd>u</kbd> or <kbd>ctrl+space</kbd>        |
 
 ##### Action Shortcuts
 | Command                                               | Shortcut                                   |
@@ -182,6 +182,7 @@ Use Alt+Left (Back) and Alt+Right (Forward) to walk a per‑view navigation hist
 ### Selecting Files and Directories
 You can select files and/or directories by marking them with <kbd>m</kbd> (no move),
 <kbd>space</kbd> or <kbd>Shift + ↑/↓</kbd>.
+Press <kbd>u</kbd> or <kbd>ctrl+space</kbd> to unmark all items.
 You can also use Sublime Text multiple cursors to extend your cursor to the line that has those
 files/directories.
 

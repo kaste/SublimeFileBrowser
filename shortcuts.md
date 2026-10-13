@@ -22,7 +22,7 @@
 | Toggle mark and move up       | shift+up                  |
 | Toggle mark                   | m                         |
 | Toggle all marks              | t                         |
-| Unmark all                    | u                         |
+| Unmark all                    | u or ctrl+space           |
 |                               |                           |
 | Go to directory               | g                         |
 | Quick jump to directory       | p                         |
