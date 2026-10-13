@@ -186,8 +186,8 @@ Press <kbd>u</kbd> or <kbd>ctrl+space</kbd> to unmark all items.
 You can also use Sublime Text multiple cursors to extend your cursor to the line that has those
 files/directories.
 
-You can expand or collapse a directory (or multiple directories using marking or multiple cursors)
-using <kbd>l</kbd>/<kbd>→</kbd> to expand and <kbd>h</kbd>/<kbd>←</kbd> to collapse.
+You can expand or collapse selected directories using <kbd>l</kbd>/<kbd>→</kbd> to
+expand and <kbd>h</kbd>/<kbd>←</kbd> to collapse.
 
 ### Search
 Besides incremental search available by <kbd>/</kbd>, you also may use build-in "Goto Symbol…"

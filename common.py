@@ -272,9 +272,10 @@ class DiredBaseCommand:
         self.view.sel().add(ext_region)
         self.view.show_at_center(ext_region)
 
-    def move(self, forward=None):
+    def move(self, forward=None, allow_header=False):
         """
         Moves the cursor one line forward or backwards.  Clears all sections.
+        If allow_header is true, moving up from the first entry goes to BOF.
         """
         assert forward in (True, False), 'forward must be set to True or False'
 
@@ -282,9 +283,17 @@ class DiredBaseCommand:
         if not files:
             return
 
-        new_sels = []
-        for s in list(self.view.sel()):
-            new_sels.append(self._get_name_point(self.next_line(forward, s.a, files)))
+        first_row = self.view.rowcol(files.a)[0]
+        index = self.get_all() if allow_header and not forward else []
+        has_header = index[:2] == ['', '']
+        new_sels = [
+            (
+                0
+                if has_header and self.view.rowcol(selection.a)[0] <= first_row
+                else self._get_name_point(self.next_line(forward, selection.a, files))
+            )
+            for selection in self.view.sel()
+        ]
 
         self.view.sel().clear()
         for n in new_sels:
@@ -350,7 +359,7 @@ class DiredBaseCommand:
         """
         self.index = get_index(self.view)
 
-    def get_all(self):
+    def get_all(self) -> list[str]:
         """
         Returns a list of all filenames in the view.
         dired_index is always supposed to represent current state of view,

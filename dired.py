@@ -468,7 +468,7 @@ class dired_delegate_call(TextCommand):
 
 class dired_next_line(TextCommand, DiredBaseCommand):
     def run(self, edit, forward=None):
-        self.move(forward)
+        self.move(forward, allow_header=True)
 
 
 class dired_move(TextCommand, DiredBaseCommand):
@@ -734,6 +734,128 @@ class PreviewViewHandler(EventListener):
 
         if window.num_groups() == 2 and len(window.views_in_group(group)) == 0:
             window.set_layout({"cols": [0.0, 1.0], "rows": [0.0, 1.0], "cells": [[0, 0, 1, 1]]})
+
+
+class dired_move_horizontal(TextCommand, DiredBaseCommand):
+    """Move within item names, or expand/collapse at navigation boundaries."""
+    def run(self, edit, forward=True):
+        self.load_index()
+        has_header = self.index[:2] == ['', '']
+        if has_header and all(
+            self.view.rowcol(selection.b)[0] == 0
+            for selection in self.view.sel()
+        ):
+            return self.move_in_header(forward)
+
+        if not forward:
+            return self.move_left()
+
+        if any(not selection.empty() for selection in self.view.sel()):
+            return self.move_right()
+
+        selected = self.get_selected(parent=False, full=True)
+        if (
+            selected and all(not path.endswith(os.sep) for path in selected)
+            or any(self.in_item_prefix(selection) for selection in self.view.sel())
+        ):
+            self.move_right()
+        else:
+            self.view.run_command('dired_expand')
+
+    def move_in_header(self, forward):
+        first_row = next((row for row, path in enumerate(self.index) if path), None)
+        at_eol = [
+            selection for selection in self.view.sel()
+            if selection.empty() and selection.a == self.view.line(0).b
+        ]
+        if not forward or not at_eol or first_row is None:
+            return self.view.run_command('move', {'by': 'characters', 'forward': forward})
+
+        self.move_cursors(forward=True, protected=at_eol)
+        remaining = [selection for selection in self.view.sel() if selection not in at_eol]
+        self.view.sel().clear()
+        self.view.sel().add_all(remaining)
+        self.view.sel().add(Region(self.view.text_point(first_row, 0)))
+        self.view.show(self.view.sel()[-1])
+
+    def move_right(self):
+        selections = list(self.view.sel())
+        prefix = [selection for selection in selections if self.in_item_prefix(selection)]
+        protected = [
+            selection for selection in selections
+            if selection in prefix
+            or selection.empty() and selection.a == self.view.line(selection).b
+        ]
+        self.move_cursors(forward=True, protected=protected)
+        if prefix:
+            remaining = [selection for selection in self.view.sel() if selection not in prefix]
+            self.view.sel().clear()
+            self.view.sel().add_all(remaining)
+            self.view.sel().add_all([
+                Region(self._get_name_point(self.view.line(selection))) for selection in prefix
+            ])
+
+    def move_left(self):
+        selections = list(self.view.sel())
+        at_bol = [
+            selection for selection in selections
+            if selection.empty() and selection.a == self.view.line(selection).a
+        ]
+        if at_bol:
+            return self.move_up_from_bol(selections, at_bol)
+
+        protected = [selection for selection in selections if self.at_name_start(selection)]
+        if len(protected) == len(selections):
+            return self.view.run_command('dired_fold')
+        self.move_cursors(forward=False, protected=protected)
+
+    def move_up_from_bol(self, selections, at_bol):
+        first_row = next((row for row, path in enumerate(self.index) if path), None)
+        to_header = [
+            selection for selection in at_bol
+            if self.index[:2] == ['', ''] and self.view.rowcol(selection.a)[0] == first_row
+        ]
+        other_bols = [selection for selection in at_bol if selection not in to_header]
+        moved_up = [Region(self.view.line(0).b)] if to_header else []
+        if other_bols:
+            self.view.sel().clear()
+            self.view.sel().add_all(other_bols)
+            self.move(forward=False, allow_header=True)
+            moved_up.extend(self.view.sel())
+
+        remaining = [selection for selection in selections if selection not in at_bol]
+        self.view.sel().clear()
+        self.view.sel().add_all(remaining)
+        protected = [selection for selection in remaining if self.at_name_start(selection)]
+        self.move_cursors(forward=False, protected=protected)
+        self.view.sel().add_all(moved_up)
+
+    def move_cursors(self, forward, protected):
+        movable = [selection for selection in self.view.sel() if selection not in protected]
+        if not movable:
+            return
+
+        # Hold boundary cursors in place while the other cursors move normally.
+        self.view.sel().clear()
+        self.view.sel().add_all(movable)
+        self.view.run_command('move', {'by': 'characters', 'forward': forward})
+        self.view.sel().add_all(protected)
+
+    def in_item_prefix(self, selection):
+        return (
+            self.at_name_start(selection)
+            and selection.a < self._get_name_point(self.view.line(selection))
+        )
+
+    def at_name_start(self, selection):
+        if not selection.empty():
+            return False
+        row = self.view.rowcol(selection.a)[0]
+        path = self.index[row] if row < len(self.index) else ''
+        return (
+            path not in ('', PARENT_SYM)
+            and selection.a <= self._get_name_point(self.view.line(selection))
+        )
 
 
 class dired_expand(TextCommand, DiredBaseCommand):

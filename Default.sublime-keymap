@@ -26,7 +26,8 @@
   },
   {
       "keys": ["right"],
-      "command": "dired_expand",
+      "command": "dired_move_horizontal",
+      "args": { "forward": true },
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
@@ -42,7 +43,8 @@
   },
   {
       "keys": ["left"],
-      "command": "dired_fold",
+      "command": "dired_move_horizontal",
+      "args": { "forward": false },
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }
