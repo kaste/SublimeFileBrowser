@@ -65,7 +65,7 @@ class dired_prompt(WindowCommand):
     def on_done(self, value):
         if not valid(value):
             return self.window.run_command('dired_prompt')
-        self.ctx.callback(value, *self.ctx.args)
+        self.ctx.callback(os.path.abspath(value), *self.ctx.args)
 
 
 class dired_complete(TextCommand, DiredBaseCommand):
