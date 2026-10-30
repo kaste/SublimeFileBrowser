@@ -7,7 +7,7 @@ from unittest import TestCase, mock, skipIf
 fs_observer = importlib.import_module('FileBrowser.0_dired_fs_observer')
 
 if fs_observer.Observer:
-    from watchdog.events import FileCreatedEvent
+    from watchdog.events import FileCreatedEvent, FileModifiedEvent
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
@@ -82,6 +82,29 @@ class RewatchTest(TestCase):
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
 class ReportEventTest(TestCase):
+    def test_ignores_access_time_only_change(self):
+        st = os.stat(self.file)
+        os.utime(self.file, ns=(st.st_atime_ns - 10**12, st.st_mtime_ns))
+
+        self.handler.on_any_event(FileModifiedEvent(self.file))
+
+        self.assertEqual(self.handler.scheduled_views, {})
+
+    def test_refreshes_on_content_change(self):
+        with open(self.file, 'a') as f:
+            f.write('more')
+
+        self.handler.on_any_event(FileModifiedEvent(self.file))
+
+        self.assertEqual(list(self.handler.scheduled_views), [1])
+
+    def test_refreshes_modified_files_in_unknown_directories(self):
+        self.handler.forget(self.root)
+
+        self.handler.on_any_event(FileModifiedEvent(self.file))
+
+        self.assertEqual(list(self.handler.scheduled_views), [1])
+
     def test_starts_one_timer_for_many_events(self):
         for name in 'abcde':
             self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, name)))
@@ -110,11 +133,15 @@ class ReportEventTest(TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.file = os.path.join(self.root, 'file.txt')
+        with open(self.file, 'w') as f:
+            f.write('content')
 
         self.sublime = self.patch('sublime')
         self.refresh = self.patch('refresh')
         self.handler = fs_observer.ReportEvent()
         self.handler.paths = {1: [self.root]}
+        self.handler.remember(self.root)
 
     def patch(self, name):
         patcher = mock.patch.object(fs_observer, name)
