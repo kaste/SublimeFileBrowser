@@ -1,6 +1,7 @@
 {
    "*": {
-      "*": [
+      ">=4000": [
+         "typing_extensions",
          "watchdog"
       ]
    }

@@ -11,17 +11,18 @@ Ditch sidebar and browse your files in a normal tab with keyboard, like a pro!
 
 You can install via [Sublime Package Control](http://wbond.net/sublime_packages/package_control)
 
-Or clone this repo into your SublimeText Packages directory and rename it to `FileBrowser`, in this 
-case, if you want to make auto-refresh work (note it is an optional feature you may ignore it) then 
-some extra steps might be required:
+Or clone this repo into your SublimeText Packages directory and rename it to `FileBrowser`. Then
+install its dependencies: `typing_extensions` is required, `watchdog` only for auto-refresh (note
+it is an optional feature you may ignore it).
 
 1. Satisfy dependencies
     * If you have Package Control installed, bring up command palette and run *Package Control: Satisfy Dependencies* command
-    * If you have *no* Package Control, then install [watchdog](https://pypi.org/project/watchdog/4.0.2/#files)
-      manually: download the wheel (`.whl`) for your platform (on macOS the `cp38` one), which is a
-      zip archive, and extract it into `Lib/python38` in Sublime Text's data directory
-      (*Preferences → Browse Packages…*, then one level up).  4.0.2 is the last version supporting
-      Python 3.8.
+    * If you have *no* Package Control, then download the wheels (`.whl`) of
+      [typing_extensions 4.13.2](https://pypi.org/project/typing-extensions/4.13.2/#files) and
+      [watchdog 4.0.2](https://pypi.org/project/watchdog/4.0.2/#files), of watchdog the one for your
+      platform (on macOS the `cp38` one).  Wheels are zip archives, extract them into `Lib/python38`
+      in Sublime Text's data directory (*Preferences → Browse Packages…*, then one level up).  These
+      are the last versions supporting Python 3.8.
 2. Restart Sublime Text
  
 
