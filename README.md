@@ -17,12 +17,11 @@ some extra steps might be required:
 
 1. Satisfy dependencies
     * If you have Package Control installed, bring up command palette and run *Package Control: Satisfy Dependencies* command
-    * If you have *no* Package Control, then manually install dependencies (every cloning should be into Packages directory):
-        1. Clone https://github.com/vovkkk/sublime-pathtools and rename to `pathtools`
-        2. Clone https://github.com/vovkkk/sublime-watchdog and rename to `watchdog`
-        3. Write your own plugin which would handle loading order: `pathtools` must be loaded before 
-            `watchdog`, and `watchdog` must be loaded before `FileBrowser`, 
-            that is why we recommend to use Package Control, but there is option for workaround
+    * If you have *no* Package Control, then install [watchdog](https://pypi.org/project/watchdog/4.0.2/#files)
+      manually: download the wheel (`.whl`) for your platform (on macOS the `cp38` one), which is a
+      zip archive, and extract it into `Lib/python38` in Sublime Text's data directory
+      (*Preferences → Browse Packages…*, then one level up).  4.0.2 is the last version supporting
+      Python 3.8.
 2. Restart Sublime Text
  
 
