@@ -6,6 +6,9 @@ from unittest import TestCase, mock, skipIf
 
 fs_observer = importlib.import_module('FileBrowser.0_dired_fs_observer')
 
+if fs_observer.Observer:
+    from watchdog.events import FileCreatedEvent
+
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
 class RewatchTest(TestCase):
@@ -75,3 +78,45 @@ class RewatchTest(TestCase):
     def watched(self):
         self.assertEqual(set(self.watcher.watches), set(self.emitters()))
         return set(self.watcher.watches)
+
+
+@skipIf(fs_observer.Observer is None, 'watchdog is not importable')
+class ReportEventTest(TestCase):
+    def test_starts_one_timer_for_many_events(self):
+        for name in 'abcde':
+            self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, name)))
+
+        self.assertEqual(self.sublime.set_timeout.call_count, 1)
+
+    def test_refreshes_settled_views_and_stops_ticking(self):
+        self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, 'new')))
+        self.handler.scheduled_views[1] -= fs_observer.REFRESH_TIMEOUT + 1
+
+        self.handler.refresh_settled_views()
+
+        self.refresh.assert_called_once_with([1])
+        self.assertFalse(self.handler.ticking)
+        self.assertEqual(self.sublime.set_timeout.call_count, 1)
+
+    def test_keeps_ticking_while_events_arrive(self):
+        self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, 'new')))
+
+        self.handler.refresh_settled_views()
+
+        self.refresh.assert_not_called()
+        self.assertTrue(self.handler.ticking)
+        self.assertEqual(self.sublime.set_timeout.call_count, 2)
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+        self.sublime = self.patch('sublime')
+        self.refresh = self.patch('refresh')
+        self.handler = fs_observer.ReportEvent()
+        self.handler.paths = {1: [self.root]}
+
+    def patch(self, name):
+        patcher = mock.patch.object(fs_observer, name)
+        self.addCleanup(patcher.stop)
+        return patcher.start()

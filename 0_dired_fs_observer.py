@@ -195,9 +195,11 @@ class ObservePaths(object):
 
 class ReportEvent(FileSystemEventHandler):
     def __init__(self):
-        self.paths = {}
+        self.paths: dict[sublime.ViewId, list[str]] = {}
         self.ignored_views: set[sublime.ViewId] = set()
-        self.scheduled_views = {}
+        self.scheduled_views: dict[sublime.ViewId, float] = {}
+        self.ticking = False
+        self.lock = threading.Lock()
 
     def on_any_event(self, event):
         '''
@@ -226,21 +228,26 @@ class ReportEvent(FileSystemEventHandler):
             if any(candidate in paths for candidate in (src_path, path)):
                 self.schedule_refresh(vid)
 
-    def schedule_refresh(self, view=None):
+    def schedule_refresh(self, view):
+        with self.lock:
+            self.scheduled_views[view] = time.monotonic()
+            if self.ticking:
+                return
+            self.ticking = True
+        sublime.set_timeout(self.refresh_settled_views, SCHEDULE_REFRESH)
+
+    def refresh_settled_views(self):
         now = time.monotonic()
-        if view:
-            self.scheduled_views.update({view: now})
+        with self.lock:
+            views = [
+                v for v, past in self.scheduled_views.items()
+                if (now - past) > REFRESH_TIMEOUT
+            ]
+            for v in views:
+                del self.scheduled_views[v]
+            ticking = self.ticking = bool(self.scheduled_views)
 
-        if not self.scheduled_views:
-            return
-
-        views = [
-            v for v, past in self.scheduled_views.items()
-            if (now - past) > REFRESH_TIMEOUT
-        ]
-        for v in views:
-            self.scheduled_views.pop(v, None)
+        if ticking:  # re-arm first, a failing refresh must not stop the timer
+            sublime.set_timeout(self.refresh_settled_views, SCHEDULE_REFRESH)
         if views:
-            sublime.set_timeout(lambda: refresh(views), 1)
-        sublime.set_timeout(self.schedule_refresh, SCHEDULE_REFRESH)
-        return
+            refresh(views)
