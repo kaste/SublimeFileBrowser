@@ -2,7 +2,12 @@ import importlib
 import os
 import shutil
 import tempfile
+import threading
 from unittest import TestCase, mock, skipIf
+
+from unittesting import DeferrableTestCase
+
+from FileBrowser.common import emit_event
 
 fs_observer = importlib.import_module('FileBrowser.0_dired_fs_observer')
 
@@ -92,7 +97,7 @@ class RewatchTest(TestCase):
         return paths
 
     def send(self, event, payload):
-        self.watcher.dired_event_handler('FileBrowser', event, payload)
+        self.watcher.dired_event_handler(event, payload)
 
     def emitters(self):
         return {emitter.watch.path: emitter for emitter in self.watcher.observer.emitters}
@@ -100,6 +105,50 @@ class RewatchTest(TestCase):
     def watched(self):
         self.assertEqual(set(self.watcher.watches), set(self.emitters()))
         return set(self.watcher.watches)
+
+
+@skipIf(fs_observer.Observer is None, 'watchdog is not importable')
+class EmitEventTest(DeferrableTestCase):
+    def test_handles_events_in_order_on_the_watcher_thread(self):
+        threads = []
+        handler = self.watcher.dired_event_handler
+
+        def recording_handler(event, payload):
+            threads.append(threading.current_thread().name)
+            handler(event, payload)
+
+        self.watcher.dired_event_handler = recording_handler
+        emit_event('set_paths', (1, [self.a + os.sep]))
+        emit_event('stop_watch', 1)
+        emit_event('set_paths', (2, [self.a + os.sep]))
+        yield lambda: len(threads) == 3
+
+        self.assertEqual(set(threads), {'FileBrowser file watcher'})
+        self.assertEqual(self.watcher.paths, {2: [self.a]})
+
+    def test_survives_failing_handlers(self):
+        emit_event('unknown_event', None)
+        emit_event('set_paths', (1, [self.a + os.sep]))
+
+        yield lambda: set(self.watcher.watches) == {self.a}
+
+    def test_stops_the_observer_once_pending_events_are_handled(self):
+        emit_event('set_paths', (1, [self.a + os.sep]))
+        self.watcher.stop()
+
+        yield lambda: not self.watcher.observer.is_alive()
+        self.assertEqual(set(self.watcher.watches), {self.a})
+
+    def setUp(self):
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        self.a = os.path.join(root, 'a')
+        os.mkdir(self.a)
+        self.watcher = fs_observer.ObservePaths()
+        self.addCleanup(self.watcher.stop)
+        patcher = mock.patch.object(fs_observer, 'observer', self.watcher)
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')

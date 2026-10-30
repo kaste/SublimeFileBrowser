@@ -2,6 +2,7 @@
 from __future__ import annotations
 import re
 import os
+import sys
 import time
 from os.path import isdir, join, basename
 import fnmatch
@@ -12,11 +13,6 @@ from typing_extensions import TypeAlias
 
 import sublime
 from sublime import Region
-
-try:  # unavailable dependencies shall not break basic functionality
-    import package_events
-except ImportError:
-    package_events = None
 
 flatten = chain.from_iterable
 PLATFORM = sublime.platform()
@@ -48,7 +44,6 @@ if NT:
     import ctypes
 
 
-EVENT_TOPIC = 'FileBrowser'
 MARK_OPTIONS = sublime.DRAW_NO_OUTLINE
 RE_FILE = re.compile(r'^(\s*)([^\\//].*)$')
 PARENT_SYM = "⠤"
@@ -223,8 +218,11 @@ def hijack_window():
 
 def emit_event(event_type: str, payload: object):
     '''Notify our filesystem observer about changes in our views'''
-    if package_events:
-        package_events.notify(EVENT_TOPIC, event_type, payload)
+    # Look the observer up on each call, either module may have been reloaded since
+    fs_observer = sys.modules.get(f'{__package__}.0_dired_fs_observer')
+    observer = getattr(fs_observer, 'observer', None)
+    if observer:
+        observer.post(event_type, payload)
 
 
 def prune_missing_cut_items():

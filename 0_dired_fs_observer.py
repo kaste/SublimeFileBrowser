@@ -19,22 +19,21 @@ That is why this module must be loaded first, but its presence is checked in the
 from __future__ import annotations
 from itertools import chain
 import os
+import queue
 import stat
 import threading
 import time
+import traceback
 
 import sublime
 
 try:  # unavailable dependencies shall not break basic functionality
-    import package_events
     from watchdog.observers import Observer
     from watchdog.observers.api import ObservedWatch
     from watchdog.events import FileSystemEventHandler, DirModifiedEvent, FileModifiedEvent
 except ImportError:
     Observer = None
     FileSystemEventHandler = object
-
-from .common import EVENT_TOPIC
 
 flatten = chain.from_iterable
 
@@ -54,7 +53,7 @@ def plugin_unloaded():
     if observer:
         print('FileBrowser: shutting down file watcher:', observer.observer)
         observer.stop()
-        del observer
+        observer = None
 
 
 def refresh(views, erase_settings=False):
@@ -83,19 +82,31 @@ class ObservePaths(object):
         self.event_handler = ReportEvent()
         self.watches: dict[str, ObservedWatch] = {}
         self.paths: dict[sublime.ViewId, list[str]] = {}
-        # package_events calls `dired_event_handler` on a new thread per event
-        self.lock = threading.Lock()
+        # Handling an event can block, e.g. checking a path on an unreachable network
+        # share, so neither the main nor Sublime's shared worker thread does it.
+        self.events: queue.Queue[tuple[str, object] | None] = queue.Queue()
         self.observer.start()
-        package_events.listen(EVENT_TOPIC, self.dired_event_handler)
+        threading.Thread(
+            target=self.process_events, name='FileBrowser file watcher', daemon=True
+        ).start()
+
+    def post(self, event: str, payload: object):
+        '''receiving args from common.emit_event, on any thread'''
+        self.events.put((event, payload))
 
     def stop(self):
-        package_events.unlisten(EVENT_TOPIC, self.dired_event_handler)
-        with self.lock:
-            self.observer.stop()
+        self.events.put(None)
+
+    def process_events(self):
+        while (item := self.events.get()) is not None:
+            try:
+                self.dired_event_handler(*item)
+            except Exception:
+                traceback.print_exc()
+        self.observer.stop()
         self.observer.join()
 
-    def dired_event_handler(self, package, event, payload):
-        '''receiving args from common.emit_event'''
+    def dired_event_handler(self, event, payload):
         def stop_watch(vid: sublime.ViewId):
             self.paths.pop(vid, None)
             rewatch_all()
@@ -197,10 +208,9 @@ class ObservePaths(object):
             'ignore_view': lambda: ignore_view(payload),
             'watch_view': lambda: unignore_view(payload),
         }
-        with self.lock:
-            case[event]()
-            # hand out a copy, watchdog's thread iterates it while we mutate ours
-            self.event_handler.paths = dict(self.paths)
+        case[event]()
+        # hand out a copy, watchdog's thread iterates it while we mutate ours
+        self.event_handler.paths = dict(self.paths)
 
 
 class ReportEvent(FileSystemEventHandler):
@@ -216,7 +226,7 @@ class ReportEvent(FileSystemEventHandler):
     def on_any_event(self, event):
         '''
         File system event received from watchdog module,
-        not to be confused with package_events which we use for internal communication
+        not to be confused with the events our views post via common.emit_event
         dir(event) = ['event_type', 'is_directory', 'key', 'src_path']
         '''
         if isinstance(event, DirModifiedEvent):

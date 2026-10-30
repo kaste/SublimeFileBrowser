@@ -18,11 +18,10 @@ some extra steps might be required:
 1. Satisfy dependencies
     * If you have Package Control installed, bring up command palette and run *Package Control: Satisfy Dependencies* command
     * If you have *no* Package Control, then manually install dependencies (every cloning should be into Packages directory):
-        1. Clone https://github.com/codexns/package_events
-        2. Clone https://github.com/vovkkk/sublime-pathtools and rename to `pathtools`
-        3. Clone https://github.com/vovkkk/sublime-watchdog and rename to `watchdog`
-        4. Write your own plugin which would handle loading order: `pathtools` must be loaded before 
-            `watchdog`, and `watchdog` and `package_events` must be loaded before `FileBrowser`, 
+        1. Clone https://github.com/vovkkk/sublime-pathtools and rename to `pathtools`
+        2. Clone https://github.com/vovkkk/sublime-watchdog and rename to `watchdog`
+        3. Write your own plugin which would handle loading order: `pathtools` must be loaded before 
+            `watchdog`, and `watchdog` must be loaded before `FileBrowser`, 
             that is why we recommend to use Package Control, but there is option for workaround
 2. Restart Sublime Text
  
