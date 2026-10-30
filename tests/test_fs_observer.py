@@ -57,6 +57,20 @@ class RewatchTest(TestCase):
 
         self.assertEqual(self.watched(), {b})
 
+    def test_restarts_stopped_watches(self):
+        a, = self.make_dirs('a')
+        self.send('set_paths', (1, [a + os.sep]))
+        stopped = self.emitters()[a]
+        # what watchdog does when the watched directory gets deleted
+        stopped.stop()
+        stopped.join()
+
+        self.send('set_paths', (1, [a + os.sep]))
+
+        self.assertEqual(self.watched(), {a})
+        self.assertIsNot(self.emitters()[a], stopped)
+        self.assertTrue(self.emitters()[a].should_keep_running())
+
     def test_watches_root_directories(self):
         root = os.path.abspath(os.sep)
 

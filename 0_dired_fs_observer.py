@@ -144,8 +144,14 @@ class ObservePaths(object):
             # Directories of *other* views may have vanished since they were added
             drop_paths(p for p in flatten(self.paths.values()) if not os.path.isdir(p))
             next_set = set(flatten(self.paths.values()))
+            # watchdog stops watching a deleted directory for good, even if it is recreated
+            running = {
+                emitter.watch.path
+                for emitter in self.observer.emitters
+                if emitter.should_keep_running()
+            }
 
-            for p in self.watches.keys() - next_set:
+            for p in self.watches.keys() - (next_set & running):
                 self.observer.unschedule(self.watches.pop(p))
                 self.event_handler.forget(p)
 
