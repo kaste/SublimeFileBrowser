@@ -26,6 +26,7 @@ import sublime
 try:  # unavailable dependencies shall not break basic functionality
     import package_events
     from watchdog.observers import Observer
+    from watchdog.observers.api import ObservedWatch
     from watchdog.events import FileSystemEventHandler, DirModifiedEvent
 except ImportError:
     Observer = None
@@ -78,7 +79,7 @@ class ObservePaths(object):
     def __init__(self):
         self.observer = Observer()
         self.event_handler = ReportEvent()
-        self.watched_paths: set[str] = set()
+        self.watches: dict[str, ObservedWatch] = {}
         self.paths: dict[sublime.ViewId, list[str]] = {}
         self.observer.start()
         package_events.listen(EVENT_TOPIC, self.dired_event_handler)
@@ -135,14 +136,29 @@ class ObservePaths(object):
             rewatch_all()
 
         def rewatch_all():
+            # Directories of *other* views may have vanished since they were added
+            drop_paths(p for p in flatten(self.paths.values()) if not os.path.isdir(p))
             next_set = set(flatten(self.paths.values()))
-            if self.watched_paths == next_set:
-                return
 
-            self.observer.unschedule_all()
-            for p in next_set:
-                self.observer.schedule(self.event_handler, p)
-            self.watched_paths = next_set
+            for p in self.watches.keys() - next_set:
+                self.observer.unschedule(self.watches.pop(p))
+
+            failed = set()
+            for p in sorted(next_set - self.watches.keys()):
+                try:
+                    self.watches[p] = self.observer.schedule(self.event_handler, p)
+                except Exception as e:
+                    print(f"FileBrowser: can't watch {p}: {e}")
+                    failed.add(p)
+            drop_paths(failed)
+
+        def drop_paths(paths):
+            paths = set(paths)
+            if paths:
+                self.paths = {
+                    vid: [p for p in view_paths if p not in paths]
+                    for vid, view_paths in self.paths.items()
+                }
 
         def toggle_watch_all(watch):
             '''watch is boolean or None, global setting dired_autorefresh'''
