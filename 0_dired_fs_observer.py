@@ -152,14 +152,14 @@ class ObservePaths(object):
             rewatch_all()
 
         def rewatch_all():
-            # Directories of *other* views may have vanished since they were added
-            drop_paths(p for p in flatten(self.paths.values()) if not os.path.isdir(p))
             next_set = set(flatten(self.paths.values()))
-            # watchdog stops watching a deleted directory for good, even if it is recreated
+            # watchdog stops watching a deleted directory for good, even if it is
+            # recreated, and an emitter may also die from an error.  Then we try to
+            # watch the path anew, which drops it below if it is gone.
             running = {
                 emitter.watch.path
                 for emitter in self.observer.emitters
-                if emitter.should_keep_running()
+                if emitter.is_alive() and emitter.should_keep_running()
             }
 
             for p in self.watches.keys() - (next_set & running):

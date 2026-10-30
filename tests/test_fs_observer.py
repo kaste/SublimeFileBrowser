@@ -16,12 +16,14 @@ if fs_observer.Observer:
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
-class RewatchTest(TestCase):
+class RewatchTest(DeferrableTestCase):
     def test_drops_vanished_directories_of_other_views(self):
         a, b, c = self.make_dirs('a', 'b', 'c')
         self.send('set_paths', (1, [a + os.sep]))
         self.send('set_paths', (2, [b + os.sep]))
+        emitter_for_a = self.emitters()[a]
         os.rmdir(a)
+        yield lambda: not emitter_for_a.should_keep_running()
 
         self.send('set_paths', (2, [b + os.sep, c + os.sep]))
 
@@ -75,6 +77,29 @@ class RewatchTest(TestCase):
         self.assertEqual(self.watched(), {a})
         self.assertIsNot(self.emitters()[a], stopped)
         self.assertTrue(self.emitters()[a].should_keep_running())
+
+    def test_restarts_dead_watches(self):
+        a, = self.make_dirs('a')
+        self.send('set_paths', (1, [a + os.sep]))
+        dead = self.emitters()[a]
+        # what remains of an emitter whose thread died from an exception
+        dead.is_alive = lambda: False
+
+        self.send('set_paths', (1, [a + os.sep]))
+
+        self.assertEqual(self.watched(), {a})
+        self.assertIsNot(self.emitters()[a], dead)
+
+    def test_only_checks_the_paths_of_the_sending_view(self):
+        a, b = self.make_dirs('a', 'b')
+        self.send('set_paths', (1, [a + os.sep]))
+
+        with mock.patch.object(os.path, 'isdir', wraps=os.path.isdir) as isdir:
+            self.send('set_paths', (2, [b + os.sep]))
+
+        checked = {os.fsdecode(call.args[0]).rstrip(os.sep) for call in isdir.call_args_list}
+        self.assertNotIn(a, checked)
+        self.assertEqual(self.watched(), {a, b})
 
     def test_watches_root_directories(self):
         root = os.path.abspath(os.sep)
