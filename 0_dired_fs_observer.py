@@ -19,6 +19,7 @@ That is why this module must be loaded first, but its presence is checked in the
 from __future__ import annotations
 from itertools import chain
 import os
+import threading
 import time
 
 import sublime
@@ -81,12 +82,15 @@ class ObservePaths(object):
         self.event_handler = ReportEvent()
         self.watches: dict[str, ObservedWatch] = {}
         self.paths: dict[sublime.ViewId, list[str]] = {}
+        # package_events calls `dired_event_handler` on a new thread per event
+        self.lock = threading.Lock()
         self.observer.start()
         package_events.listen(EVENT_TOPIC, self.dired_event_handler)
 
     def stop(self):
-        self.observer.stop()
         package_events.unlisten(EVENT_TOPIC, self.dired_event_handler)
+        with self.lock:
+            self.observer.stop()
         self.observer.join()
 
     def dired_event_handler(self, package, event, payload):
@@ -183,8 +187,10 @@ class ObservePaths(object):
             'ignore_view': lambda: ignore_view(payload),
             'watch_view': lambda: unignore_view(payload),
         }
-        case[event]()
-        self.event_handler.paths = self.paths
+        with self.lock:
+            case[event]()
+            # hand out a copy, watchdog's thread iterates it while we mutate ours
+            self.event_handler.paths = dict(self.paths)
 
 
 class ReportEvent(FileSystemEventHandler):
