@@ -57,6 +57,14 @@ class RewatchTest(TestCase):
 
         self.assertEqual(self.watched(), {b})
 
+    def test_watches_root_directories(self):
+        root = os.path.abspath(os.sep)
+
+        self.send('set_paths', (1, [root]))
+
+        self.assertEqual(self.watcher.paths, {1: [root]})
+        self.assertEqual(self.watched(), {root})
+
     def setUp(self):
         self.root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)

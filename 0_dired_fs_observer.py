@@ -104,7 +104,7 @@ class ObservePaths(object):
             for path in paths:
                 if path and not os.path.isdir(path):
                     print(f"error(add_paths): {path} is not a directory")
-            paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
+            paths = [without_trailing_sep(p) for p in paths if os.path.isdir(p)]
 
             old_paths = self.paths.get(vid, [])
             self.paths.update({
@@ -116,7 +116,7 @@ class ObservePaths(object):
             for path in paths:
                 if path and not os.path.isdir(path):
                     print(f"error(set_paths): {path} is not a directory")
-            paths = [p.rstrip(os.sep) for p in paths if os.path.isdir(p)]
+            paths = [without_trailing_sep(p) for p in paths if os.path.isdir(p)]
 
             self.paths.update({
                 vid: sorted(paths)
@@ -126,8 +126,8 @@ class ObservePaths(object):
         def remove_path(vid: sublime.ViewId, path):
             if path and not os.path.isdir(path):
                 print(f"error(remove_path): {path} is not a directory")
-            path_without_sep = path.rstrip(os.sep)
-            path_with_sep = path_without_sep + os.sep
+            path_without_sep = without_trailing_sep(path)
+            path_with_sep = os.path.join(path_without_sep, '')
             self.paths.update({
                 vid: sorted(
                     p
@@ -300,3 +300,8 @@ def signature(st: os.stat_result) -> tuple:
     '''What a dired listing shows of a file: size, mtime, and whether it is hidden.'''
     hidden = getattr(st, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_HIDDEN
     return st.st_size, st.st_mtime_ns, hidden
+
+
+def without_trailing_sep(path: str) -> str:
+    '''Strip the trailing separator, but not from roots, "C:" is the cwd of drive C.'''
+    return os.path.normpath(path)
