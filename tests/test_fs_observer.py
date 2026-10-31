@@ -109,6 +109,14 @@ class RewatchTest(DeferrableTestCase):
         self.assertEqual(self.watcher.paths, {1: [root]})
         self.assertEqual(self.watched(), {root})
 
+    def test_schedules_a_refresh_for_new_files(self):
+        a, = self.make_dirs('a')
+        self.send('set_paths', (1, [a + os.sep]))
+
+        open(os.path.join(a, 'new'), 'w').close()
+
+        yield lambda: 1 in self.watcher.event_handler.scheduled_views
+
     def setUp(self):
         self.root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
@@ -130,6 +138,17 @@ class RewatchTest(DeferrableTestCase):
     def watched(self):
         self.assertEqual(set(self.watcher.watches), set(self.emitters()))
         return set(self.watcher.watches)
+
+
+@skipIf(fs_observer.Observer is None, 'watchdog is not importable')
+class PollingRewatchTest(RewatchTest):
+    '''The fallback on macOS without watchdog's compiled FSEvents module'''
+    def setUp(self):
+        from watchdog.observers.polling import PollingObserver
+        patcher = mock.patch.object(fs_observer, 'Observer', PollingObserver)
+        self.addCleanup(patcher.stop)
+        patcher.start()
+        super().setUp()
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
