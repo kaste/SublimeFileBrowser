@@ -101,20 +101,24 @@ def get_file_clipboard() -> FileClipboard | None:
 
         sequence_number = int(_user32.GetClipboardSequenceNumber())
         drop_effect = _read_drop_effect()
-        return FileClipboard(
-            paths=[_to_internal_path(path) for path in paths],
-            cut=(
-                bool(drop_effect & DROP_EFFECT_MOVE)
-                and not bool(drop_effect & DROP_EFFECT_COPY)
-            ),
-            sequence_number=sequence_number,
-            is_ours=bool(
-                _FILEBROWSER_CLIPBOARD
-                and _user32.IsClipboardFormatAvailable(_FILEBROWSER_CLIPBOARD)
-            ),
+        is_ours = bool(
+            _FILEBROWSER_CLIPBOARD
+            and _user32.IsClipboardFormatAvailable(_FILEBROWSER_CLIPBOARD)
         )
     finally:
         _user32.CloseClipboard()
+
+    # The snapshot contains only Python values now. Classifying paths can block
+    # on unavailable storage; do not keep the system clipboard open while doing it.
+    return FileClipboard(
+        paths=[_to_internal_path(path) for path in paths],
+        cut=(
+            bool(drop_effect & DROP_EFFECT_MOVE)
+            and not bool(drop_effect & DROP_EFFECT_COPY)
+        ),
+        sequence_number=sequence_number,
+        is_ours=is_ours,
+    )
 
 
 def set_file_clipboard(paths: Sequence[str], cut: bool = False) -> None:
