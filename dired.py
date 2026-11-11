@@ -191,6 +191,11 @@ class dired(WindowCommand):
             view.settings().set('dired_sidebar_mode', bool(other_group))
 
 
+class dired_render_status(TextCommand, DiredBaseCommand):
+    def run(self, edit):
+        self.set_status()
+
+
 class dired_refresh(TextCommand, DiredBaseCommand):
     """
     Populates or repopulates a dired view.
@@ -372,7 +377,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             s.erase('dired_name_col_width')
             s.erase('dired_size_col_width')
 
-        self.set_status()
+        self.update_status(refresh=True)
         self.index = new_index
         items = self.correcting_index(path, lines)
         self.write(edit, items)
@@ -1005,6 +1010,8 @@ class dired_expand(TextCommand, DiredBaseCommand):
         self.view.settings().set('dired_marked_paths', marked_paths)
         self.refresh_mark_highlights()
 
+        self.update_status(refresh=True)
+
         # Try to focus last selected child under this parent
         last_child = (self.view.settings().get('dired_last_child_by_parent') or {}).get(path)
         if last_child:
@@ -1323,7 +1330,7 @@ class dired_mark_extension(TextCommand, DiredBaseCommand):
         paths.update(matches)
         self.view.settings().set('dired_marked_paths', sorted(paths))
         self.refresh_mark_highlights()
-        self.set_status()
+        self.update_status()
 
 
 class dired_mark(TextCommand, DiredBaseCommand):
@@ -1384,7 +1391,7 @@ class dired_mark(TextCommand, DiredBaseCommand):
 
         self.view.settings().set('dired_marked_paths', sorted(paths))
         self.refresh_mark_highlights()
-        self.set_status()
+        self.update_status()
 
         if should_move and forward:
             self.move(forward)

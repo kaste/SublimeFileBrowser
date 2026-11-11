@@ -72,6 +72,7 @@ class StatusTest(unittest.TestCase):
             'dired_to_copy': ['/unavailable/copy'],
         }
         clipboard_settings = {
+            'dired_to_copy': ['/unavailable/copy'],
             'dired_to_move': ['/missing/one', '/missing/two', '/missing/three'],
         }
         command = common.DiredBaseCommand()
@@ -100,6 +101,52 @@ class StatusTest(unittest.TestCase):
             api.save_settings.assert_not_called()
             filesystem.assert_not_called()
             self.assertEqual(filesystem.mock_calls, [])
+
+
+class CachedStatusTest(unittest.TestCase):
+    def test_renders_cached_sizes_without_recomputing_them(self):
+        command = common.DiredBaseCommand()
+        command.view = mock.Mock()
+        view_settings = {
+            'dired_path': '/audit/',
+            'dired_marked_paths': ['/audit/one', '/audit/two'],
+        }
+        clipboard_settings = {
+            'dired_to_copy': ['/elsewhere/copy'],
+            'dired_to_move': ['/elsewhere/cut'],
+        }
+        command.view.settings.return_value.get.side_effect = view_settings.get
+        command.view.window.return_value.folders.return_value = []
+        with mock.patch.object(common, 'sublime') as api, \
+                mock.patch.object(common, 'status', create=True) as summaries, \
+                mock.patch.object(common, 'os') as filesystem, \
+                mock.patch.object(common, 'isdir', side_effect=AssertionError('isdir called')):
+            api.load_settings.return_value.get.side_effect = clipboard_settings.get
+            summaries.cached_size.side_effect = lambda view, kind, paths: {
+                'marked': 2048, 'copied': 3 * 1024 * 1024, 'cut': 512,
+            }[kind]
+
+            for nt, show_system, indicator in (
+                (False, False, ''),
+                (False, True, ''),
+                (True, False, ', System: Off'),
+                (True, True, ', System: On'),
+            ):
+                with self.subTest(nt=nt, show_system=show_system), \
+                        mock.patch.object(common, 'NT', nt):
+                    view_settings['dired_show_system_files'] = show_system
+                    command.set_status()
+                    command.set_status()
+
+                    self.assertEqual(command.view.set_status.call_args, mock.call(
+                        '__FileBrowser__',
+                        '[?: Help, u: Unmark All, ctrl+z: Clear Clipboard] '
+                        'Hidden: On' + indicator +
+                        ', marked(2; 2kB), copied(1; 3MB), cut(1; 512B)',
+                    ))
+            summaries.update.assert_not_called()
+            self.assertEqual(filesystem.mock_calls, [])
+            api.save_settings.assert_not_called()
 
 
 class ExistingDirectoriesTest(unittest.TestCase):

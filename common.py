@@ -13,6 +13,8 @@ from typing_extensions import TypeAlias
 import sublime
 from sublime import Region
 
+from . import status
+
 flatten = chain.from_iterable
 PLATFORM = sublime.platform()
 NT = PLATFORM == 'windows'
@@ -401,14 +403,20 @@ class DiredBaseCommand:
             new_text = "⠤ [RENAME MODE]"
         self.view.insert(edit, start, new_text)
 
+    def update_status(self, *, refresh=False):
+        '''Update derived summaries when datasets change, then render cached data.'''
+        status.update(self.view, refresh=refresh)
+        self.set_status()
+
     def set_status(self):
-        '''Update status from queued paths, without probing the filesystem.'''
+        '''Render current paths and cached summaries without probing or scheduling.'''
         # if view is not focused, view.window() may be None
         window          = self.view.window() or sublime.active_window()
         path_in_project = any(folder == self.path[:-1] for folder in window.folders())
         settings        = self.view.settings()
-        copied_items    = settings.get('dired_to_copy', [])
-        cut_items       = sublime.load_settings('dired.sublime-settings').get('dired_to_move') or []
+        clipboard       = sublime.load_settings('dired.sublime-settings')
+        copied_items    = clipboard.get('dired_to_copy') or []
+        cut_items       = clipboard.get('dired_to_move') or []
         marked_items    = settings.get('dired_marked_paths') or []
 
         # Derive hidden-files flag view settings if not set
@@ -437,9 +445,9 @@ class DiredBaseCommand:
             help=help_segment,
             root='Project root, ' if path_in_project else '',
             hidden=hidden_info,
-            marked=f', marked({len(marked_items)})' if marked_items else '',
-            copied=f', copied({len(copied_items)})' if copied_items else '',
-            cut=f', cut({len(cut_items)})' if cut_items else ''
+            marked=_format_status_items(self.view, 'marked', marked_items),
+            copied=_format_status_items(self.view, 'copied', copied_items),
+            cut=_format_status_items(self.view, 'cut', cut_items)
         )
         self.view.set_status("__FileBrowser__", status)
 
@@ -829,6 +837,27 @@ class DiredBaseCommand:
             )
         else:
             self.view.erase_regions(key)
+
+
+def _format_status_items(view, kind, paths):
+    if not paths:
+        return ''
+    size = status.cached_size(view, kind, paths)
+    size_info = f'; {format_size_short(size)}' if size else ''
+    return f', {kind}({len(paths)}{size_info})'
+
+
+def format_size_short(num_bytes: int) -> str:
+    """Return a compact human-readable size like '12kB' or '3MB'."""
+    if num_bytes <= 0:
+        return ''
+    units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB']
+    size = float(num_bytes)
+    unit = 0
+    while size >= 1024.0 and unit < len(units) - 1:
+        size /= 1024.0
+        unit += 1
+    return f'{int(size + 0.5)}{units[unit]}'
 
 
 @lru_cache(maxsize=256)

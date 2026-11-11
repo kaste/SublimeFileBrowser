@@ -385,7 +385,7 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
                 pass
 
         # Update status bar to reflect current clipboard and mark counts
-        self.set_status()
+        self.update_status()
 
 
 class dired_paste_files(TextCommand, DiredBaseCommand):
@@ -752,7 +752,7 @@ class call_SystemAgnosticFileOperation(object):
             if not before: dir = 1
             i += dir
             self.view.set_status(
-                '__FileBrowser__',
+                '__0FileBrowser__',
                 'Please wait{0}…{1}Writing {2}'.format(
                     ' ' * before,
                     ' ' * after,
@@ -762,6 +762,7 @@ class call_SystemAgnosticFileOperation(object):
             sublime.set_timeout(lambda: self.progress_bar(threads, i, dir), 100)
             return
         else:
+            self.view.erase_status('__0FileBrowser__')
             emit_event('watch_view', self.view.id())
             self.view.run_command(
                 'dired_clear_copy_cut_list', {'clear_system': False}

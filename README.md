@@ -210,7 +210,10 @@ You can move and copy files/folders. Shortcuts are quite standard: <kbd>x</kbd>,
 <kbd>v</kbd> with <kbd>⌘</kbd> or <kbd>ctrl</kbd>.
 
 You can copy and/or cut as many items and from many locations as you like — status-bar will show 
-amounts of copied and cut items.  
+amounts of copied and cut items. File-size totals for marked, copied, and cut items are
+cached and recalculated in the background when their lists change or the view is refreshed.
+While a total is pending, or when a list contains directories or unavailable files, only
+its count is shown. Rendering the status bar does not access those paths.
 If you change your mind — <kbd>⌘+z</kbd> or <kbd>ctrl+z</kbd> will clear both lists. _Note_, those
 lists are stored in FileBrowser settings file, so you can edit it by hand if need.
 
