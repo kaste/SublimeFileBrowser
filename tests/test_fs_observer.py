@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import threading
+from types import SimpleNamespace
 from unittest import TestCase, mock, skipIf
 
 from unittesting import DeferrableTestCase
@@ -12,7 +13,7 @@ from FileBrowser.common import emit_event
 fs_observer = importlib.import_module('FileBrowser.0_dired_fs_observer')
 
 if fs_observer.Observer:
-    from watchdog.events import FileCreatedEvent, FileModifiedEvent
+    from watchdog.events import DirModifiedEvent, FileCreatedEvent, FileModifiedEvent
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
@@ -196,12 +197,148 @@ class EmitEventTest(DeferrableTestCase):
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
+class QueuedFilesystemEventTest(TestCase):
+    def test_stalled_stat_releases_dispatcher_lock_and_shutdown_waits_for_work(self):
+        entered = threading.Event()
+        release = threading.Event()
+        stat_threads = []
+        timed_out = []
+
+        def stalled_stat(*args, **kwargs):
+            stat_threads.append(threading.current_thread().name)
+            entered.set()
+            if not release.wait(2):
+                timed_out.append(True)
+            return self.stat_result
+
+        filesystem = SimpleNamespace(stat=stalled_stat, path=os.path)
+        with mock.patch.object(fs_observer, 'os', filesystem):
+            try:
+                self.observer.event_queue.put((FileModifiedEvent(self.file), self.watch))
+                self.assertTrue(entered.wait(1), 'event did not reach stat')
+
+                acquired = self.observer._lock.acquire(timeout=0.1)
+                if acquired:
+                    self.observer._lock.release()
+                self.assertTrue(acquired, 'watchdog still holds its lock across stat')
+                self.assertEqual(stat_threads, ['FileBrowser file watcher'])
+
+                self.watcher.stop()
+                self.assertTrue(self.observer.is_alive())
+                self.sublime.set_timeout.assert_not_called()
+            finally:
+                release.set()
+                self.watcher.stop()
+                self.observer.join(2)
+
+        self.assertFalse(self.observer.is_alive(), 'observer did not stop')
+        self.assertEqual(timed_out, [])
+        self.assertEqual(list(self.watcher.event_handler.scheduled_views), [1])
+        self.sublime.set_timeout.assert_called_once()
+
+    def test_serializes_filesystem_events_with_ignore_and_watch_commands(self):
+        handler = self.watcher.event_handler
+        with mock.patch.object(handler, 'schedule_refresh', wraps=handler.schedule_refresh) as schedule:
+            self.watcher.post('ignore_view', 1)
+            handler.on_any_event(FileCreatedEvent(self.file))
+            self.watcher.post('watch_view', 1)
+            handler.on_any_event(FileCreatedEvent(self.file))
+            self.stop_watcher()
+
+            schedule.assert_called_once_with(1)
+        self.sublime.set_timeout.assert_called_once()
+
+    def test_events_queued_after_view_close_do_not_refresh(self):
+        self.watcher.post('view_closed', 1)
+        self.watcher.event_handler.on_any_event(FileCreatedEvent(self.file))
+        self.stop_watcher()
+
+        self.assertEqual(self.watcher.event_handler.paths, {})
+        self.sublime.set_timeout.assert_not_called()
+
+    def test_queued_access_time_only_changes_do_not_refresh(self):
+        handler = self.watcher.event_handler
+        handler.remember(os.path.dirname(self.file))
+        st = self.stat_result
+        os.utime(self.file, ns=(st.st_atime_ns - 10**12, st.st_mtime_ns))
+        handler.on_any_event(FileModifiedEvent(self.file))
+        self.stop_watcher()
+
+        self.assertEqual(handler.scheduled_views, {})
+        self.sublime.set_timeout.assert_not_called()
+
+    def test_queued_event_burst_starts_only_one_timer(self):
+        handler = self.watcher.event_handler
+        for number in range(100):
+            handler.on_any_event(FileCreatedEvent(self.file + str(number)))
+        self.stop_watcher()
+
+        self.assertEqual(list(handler.scheduled_views), [1])
+        self.sublime.set_timeout.assert_called_once()
+
+    def test_continues_after_a_filesystem_event_fails(self):
+        handler = self.watcher.event_handler
+        filesystem = SimpleNamespace(
+            stat=mock.Mock(side_effect=RuntimeError('injected failure')), path=os.path
+        )
+        with mock.patch.object(fs_observer, 'os', filesystem), \
+                mock.patch.object(fs_observer.traceback, 'print_exc') as report:
+            handler.on_any_event(FileModifiedEvent(self.file))
+            handler.on_any_event(FileCreatedEvent(self.file))
+            self.stop_watcher()
+
+            report.assert_called_once()
+        self.assertEqual(list(handler.scheduled_views), [1])
+        self.sublime.set_timeout.assert_called_once()
+
+    def setUp(self):
+        from watchdog.observers.api import BaseObserver
+
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        self.file = os.path.join(root, 'file.txt')
+        with open(self.file, 'w') as f:
+            f.write('content')
+        self.stat_result = os.stat(self.file)
+        # Exercise the real dispatcher lock, but never start a native emitter.
+        self.observer = BaseObserver(mock.Mock())
+        api_patcher = mock.patch.object(fs_observer, 'sublime')
+        self.addCleanup(api_patcher.stop)
+        self.sublime = api_patcher.start()
+        with mock.patch.object(fs_observer, 'Observer', return_value=self.observer):
+            self.watcher = fs_observer.ObservePaths()
+        self.addCleanup(self.stop_watcher)
+        self.watcher.paths = {1: [root]}
+        self.watcher.event_handler.paths = {1: [root]}
+        self.watch = self.observer.schedule(self.watcher.event_handler, root)
+
+    def stop_watcher(self):
+        self.watcher.stop()
+        self.observer.join(2)
+        self.assertFalse(self.observer.is_alive(), 'observer did not stop')
+
+
+@skipIf(fs_observer.Observer is None, 'watchdog is not importable')
 class ReportEventTest(TestCase):
+    def test_callback_enqueues_without_checking_files_or_scheduling_timers(self):
+        event = FileModifiedEvent(self.file)
+        with mock.patch.object(self.handler, 'changed', side_effect=AssertionError('stat check')):
+            self.handler.on_any_event(event)
+
+        self.handler.post.assert_called_once_with('filesystem_event', event)
+        self.sublime.set_timeout.assert_not_called()
+
+    def test_directory_modifications_are_not_queued(self):
+        self.handler.on_any_event(DirModifiedEvent(self.root))
+
+        self.handler.post.assert_not_called()
+        self.sublime.set_timeout.assert_not_called()
+
     def test_ignores_access_time_only_change(self):
         st = os.stat(self.file)
         os.utime(self.file, ns=(st.st_atime_ns - 10**12, st.st_mtime_ns))
 
-        self.handler.on_any_event(FileModifiedEvent(self.file))
+        self.handler.process_event(FileModifiedEvent(self.file))
 
         self.assertEqual(self.handler.scheduled_views, {})
 
@@ -209,25 +346,25 @@ class ReportEventTest(TestCase):
         with open(self.file, 'a') as f:
             f.write('more')
 
-        self.handler.on_any_event(FileModifiedEvent(self.file))
+        self.handler.process_event(FileModifiedEvent(self.file))
 
         self.assertEqual(list(self.handler.scheduled_views), [1])
 
     def test_refreshes_modified_files_in_unknown_directories(self):
         self.handler.forget(self.root)
 
-        self.handler.on_any_event(FileModifiedEvent(self.file))
+        self.handler.process_event(FileModifiedEvent(self.file))
 
         self.assertEqual(list(self.handler.scheduled_views), [1])
 
     def test_starts_one_timer_for_many_events(self):
         for name in 'abcde':
-            self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, name)))
+            self.handler.process_event(FileCreatedEvent(os.path.join(self.root, name)))
 
         self.assertEqual(self.sublime.set_timeout.call_count, 1)
 
     def test_refreshes_settled_views_and_stops_ticking(self):
-        self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, 'new')))
+        self.handler.process_event(FileCreatedEvent(os.path.join(self.root, 'new')))
         self.handler.scheduled_views[1] -= fs_observer.REFRESH_TIMEOUT + 1
 
         self.handler.refresh_settled_views()
@@ -237,7 +374,7 @@ class ReportEventTest(TestCase):
         self.assertEqual(self.sublime.set_timeout.call_count, 1)
 
     def test_keeps_ticking_while_events_arrive(self):
-        self.handler.on_any_event(FileCreatedEvent(os.path.join(self.root, 'new')))
+        self.handler.process_event(FileCreatedEvent(os.path.join(self.root, 'new')))
 
         self.handler.refresh_settled_views()
 
@@ -254,7 +391,7 @@ class ReportEventTest(TestCase):
 
         self.sublime = self.patch('sublime')
         self.refresh = self.patch('refresh')
-        self.handler = fs_observer.ReportEvent()
+        self.handler = fs_observer.ReportEvent(mock.Mock())
         self.handler.paths = {1: [self.root]}
         self.handler.remember(self.root)
 

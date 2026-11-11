@@ -87,7 +87,7 @@ def refresh(views, erase_settings=False):
 class ObservePaths(object):
     def __init__(self):
         self.observer = Observer()
-        self.event_handler = ReportEvent()
+        self.event_handler = ReportEvent(self.post)
         self.watches: dict[str, ObservedWatch] = {}
         self.paths: dict[sublime.ViewId, list[str]] = {}
         # Handling an event can block, e.g. checking a path on an unreachable network
@@ -108,7 +108,11 @@ class ObservePaths(object):
     def process_events(self):
         while (item := self.events.get()) is not None:
             try:
-                self.dired_event_handler(*item)
+                event, payload = item
+                if event == 'filesystem_event':
+                    self.event_handler.process_event(payload)
+                else:
+                    self.dired_event_handler(event, payload)
             except Exception:
                 traceback.print_exc()
         self.observer.stop()
@@ -217,12 +221,13 @@ class ObservePaths(object):
             'watch_view': lambda: unignore_view(payload),
         }
         case[event]()
-        # hand out a copy, watchdog's thread iterates it while we mutate ours
+        # Publish the paths for subsequent filesystem events on this worker.
         self.event_handler.paths = dict(self.paths)
 
 
 class ReportEvent(FileSystemEventHandler):
-    def __init__(self):
+    def __init__(self, post):
+        self.post = post
         self.paths: dict[sublime.ViewId, list[str]] = {}
         self.ignored_views: set[sublime.ViewId] = set()
         self.scheduled_views: dict[sublime.ViewId, float] = {}
@@ -233,9 +238,8 @@ class ReportEvent(FileSystemEventHandler):
 
     def on_any_event(self, event):
         '''
-        File system event received from watchdog module,
-        not to be confused with the events our views post via common.emit_event
-        dir(event) = ['event_type', 'is_directory', 'key', 'src_path']
+        Watchdog calls this with its observer lock held. Only enqueue work;
+        filesystem checks and refresh scheduling belong on our own worker.
         '''
         if isinstance(event, DirModifiedEvent):
             # change of access time may cause modified event, which can be safely ignored
@@ -250,6 +254,10 @@ class ReportEvent(FileSystemEventHandler):
             # print('Ignore DirModified:', event.key)
             return
 
+        self.post('filesystem_event', event)
+
+    def process_event(self, event):
+        '''Handle a filesystem event on the FileBrowser file watcher thread.'''
         if isinstance(event, FileModifiedEvent) and not self.changed(event.src_path):
             # Reading a file updates its access time (if enabled on NTFS), and watchdog
             # reports that as a modification too.  Ignore it if nothing we render changed.
