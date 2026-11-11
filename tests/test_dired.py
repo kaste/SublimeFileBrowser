@@ -3,8 +3,63 @@ import tempfile
 import unittest
 from unittest import mock
 
-from FileBrowser import common
+from FileBrowser import common, dired
 from FileBrowser.dired import existing_directories
+
+
+class AutorefreshSettingsTest(unittest.TestCase):
+    def test_unrelated_settings_changes_do_not_toggle_watches(self):
+        self.values['dired_to_copy'] = ['/audit/file']
+        self.callback()
+        self.values['dired_show_hidden_files'] = False
+        self.callback()
+
+        self.emit_event.assert_not_called()
+
+    def test_emits_once_per_value_change_including_setting_removal(self):
+        for value in (False, True, None, False):
+            if value is None:
+                self.values.pop('dired_autorefresh')
+            else:
+                self.values['dired_autorefresh'] = value
+            self.callback()
+            self.callback()
+
+        self.assertEqual(self.emit_event.call_args_list, [
+            mock.call('toggle_watch_all', False),
+            mock.call('toggle_watch_all', True),
+            mock.call('toggle_watch_all', None),
+            mock.call('toggle_watch_all', False),
+        ])
+
+    def test_reentrant_notification_does_not_repeat_the_toggle(self):
+        def notify_again(*args):
+            self.emit_event.side_effect = None
+            self.callback()
+
+        self.emit_event.side_effect = notify_again
+        self.values['dired_autorefresh'] = False
+        self.callback()
+
+        self.emit_event.assert_called_once_with('toggle_watch_all', False)
+
+    def setUp(self):
+        self.values = {'dired_autorefresh': True}
+        api_patcher = mock.patch.object(dired, 'sublime')
+        self.addCleanup(api_patcher.stop)
+        api = api_patcher.start()
+        api.windows.return_value = []
+        settings = api.load_settings.return_value
+        settings.get.side_effect = self.values.get
+        emit_patcher = mock.patch.object(dired, 'emit_event')
+        self.addCleanup(emit_patcher.stop)
+        self.emit_event = emit_patcher.start()
+
+        dired.plugin_loaded()
+
+        tag, self.callback = settings.add_on_change.call_args.args
+        self.assertEqual(tag, 'dired_autorefresh')
+        self.emit_event.assert_not_called()
 
 
 class StatusTest(unittest.TestCase):

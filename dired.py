@@ -48,10 +48,17 @@ def plugin_loaded():
         '''))  # noqa: E501
 
     settings = sublime.load_settings('dired.sublime-settings')
-    settings.add_on_change(
-        'dired_autorefresh',
-        lambda: emit_event('toggle_watch_all', settings.get('dired_autorefresh', None))
-    )
+    autorefresh = settings.get('dired_autorefresh', None)
+
+    def on_settings_change():
+        nonlocal autorefresh
+        current = settings.get('dired_autorefresh', None)
+        if current != autorefresh:
+            autorefresh = current
+            emit_event('toggle_watch_all', current)
+
+    # The tag identifies this callback; it does not filter which setting changed.
+    settings.add_on_change('dired_autorefresh', on_settings_change)
 
 
 def plugin_unloaded():
