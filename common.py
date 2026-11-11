@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 import os
 import sys
-import time
 from os.path import isdir, join, basename
 import fnmatch
 from itertools import chain, repeat
@@ -50,23 +49,6 @@ RE_FILE = re.compile(r'^(\s*)([^\\//].*)$')
 PARENT_SYM = "⠤"
 
 
-def format_size_short(num_bytes: int) -> str:
-    """Return a compact human-readable size like '12kB' or '3MB'."""
-    if num_bytes <= 0:
-        return ""
-    units = ["B", "kB", "MB", "GB", "TB", "PB"]
-    size = float(num_bytes)
-    unit = 0
-    while size >= 1024.0 and unit < len(units) - 1:
-        size /= 1024.0
-        unit += 1
-    rounded = int(size + 0.5)
-    return f"{rounded}{units[unit]}"
-
-# Maximum acceptable time (seconds) for a single os.path.getsize call when
-# computing summary sizes for status-bar display. If a call exceeds this,
-# we abort size computation and show counts only.
-SIZE_STAT_TIMEOUT = 0.005
 _RE_SPLIT_DIGITS = re.compile(r'(\d+)')
 
 
@@ -224,17 +206,6 @@ def emit_event(event_type: str, payload: object):
     observer = getattr(fs_observer, 'observer', None)
     if observer:
         observer.post(event_type, payload)
-
-
-def prune_missing_cut_items():
-    """Discard cut items which have been moved or removed externally."""
-    settings = sublime.load_settings('dired.sublime-settings')
-    queued = settings.get('dired_to_move', []) or []
-    remaining = [path for path in queued if os.path.lexists(path)]
-    if remaining != queued:
-        settings.set('dired_to_move', remaining)
-        sublime.save_settings('dired.sublime-settings')
-    return remaining
 
 
 class DiredBaseCommand:
@@ -431,13 +402,13 @@ class DiredBaseCommand:
         self.view.insert(edit, start, new_text)
 
     def set_status(self):
-        '''Update status-bar'''
+        '''Update status from queued paths, without probing the filesystem.'''
         # if view is not focused, view.window() may be None
         window          = self.view.window() or sublime.active_window()
         path_in_project = any(folder == self.path[:-1] for folder in window.folders())
         settings        = self.view.settings()
         copied_items    = settings.get('dired_to_copy', [])
-        cut_items       = prune_missing_cut_items()
+        cut_items       = sublime.load_settings('dired.sublime-settings').get('dired_to_move') or []
         marked_items    = settings.get('dired_marked_paths') or []
 
         # Derive hidden-files flag view settings if not set
@@ -458,52 +429,17 @@ class DiredBaseCommand:
             help_segments.append('ctrl+z: Clear Clipboard')
         help_segment = "[{0}] ".format(', '.join(help_segments))
 
-        def format_mark(items, name):
-            if not items:
-                return ''
-            size = _total_size(items)
-            segments = [str(len(items))]
-            if size > 0:
-                segments.append(format_size_short(size))
-            return f', {name}({"; ".join(segments)})'
-
-        def format_hide(show_hidden, show_system, NT=NT):
-            if (NT):
-                # Format for Windows
-                hidden = 'On' if show_hidden else 'Off'
-                system = 'On' if show_system else 'Off'
-                return f"{hidden}, System: {system}"
-
-            # Format for others
-            return 'On' if show_hidden else 'Off'
-
-        def _total_size(paths):
-            total = 0
-            for p in paths:
-                if isdir(p):
-                    return 0
-                start = time.monotonic()
-                try:
-                    total += os.path.getsize(p)
-                except OSError:
-                    continue
-                else:
-                    if time.monotonic() - start > SIZE_STAT_TIMEOUT:
-                        return 0
-            return total
-
-        hidden_info = format_hide(show_hidden, show_system)
-        marked_info = format_mark(marked_items, 'marked')
-        copied_info = format_mark(copied_items, 'copied')
-        cut_info = format_mark(cut_items, 'cut')
+        hidden_info = 'On' if show_hidden else 'Off'
+        if NT:
+            hidden_info += ", System: {}".format('On' if show_system else 'Off')
 
         status = "{help}{root}Hidden: {hidden}{marked}{copied}{cut}".format(
             help=help_segment,
             root='Project root, ' if path_in_project else '',
             hidden=hidden_info,
-            marked=marked_info,
-            copied=copied_info,
-            cut=cut_info
+            marked=f', marked({len(marked_items)})' if marked_items else '',
+            copied=f', copied({len(copied_items)})' if copied_items else '',
+            cut=f', cut({len(cut_items)})' if cut_items else ''
         )
         self.view.set_status("__FileBrowser__", status)
 

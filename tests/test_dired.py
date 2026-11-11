@@ -1,78 +1,50 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
-import sublime
-from unittesting import DeferrableTestCase
-
-from FileBrowser.common import prune_missing_cut_items
+from FileBrowser import common
 from FileBrowser.dired import existing_directories
 
 
-class PruneMissingCutItemsTest(DeferrableTestCase):
-    def test_discards_file_moved_by_an_external_application(self):
-        with tempfile.TemporaryDirectory() as root:
-            source = os.path.join(root, 'source.txt')
-            destination = os.path.join(root, 'destination.txt')
-            with open(source, 'w'):
-                pass
-            self.settings.set('dired_to_move', [source])
-            sublime.save_settings('dired.sublime-settings')
-            yield lambda: self.saved_cut_items() == [source]
+class StatusTest(unittest.TestCase):
+    def test_reports_counts_without_probing_or_pruning_paths(self):
+        view_settings = {
+            'dired_path': '/audit/',
+            'dired_show_hidden_files': False,
+            'dired_filter': 'needle',
+            'dired_marked_paths': ['/unavailable/file', '/unavailable/folder/'],
+            'dired_to_copy': ['/unavailable/copy'],
+        }
+        clipboard_settings = {
+            'dired_to_move': ['/missing/one', '/missing/two', '/missing/three'],
+        }
+        command = common.DiredBaseCommand()
+        command.view = mock.Mock()
+        command.view.settings.return_value.get.side_effect = view_settings.get
+        command.view.window.return_value.folders.return_value = ['/audit']
 
-            os.rename(source, destination)
+        with mock.patch.object(common, 'sublime') as api, \
+                mock.patch.object(common, 'os') as filesystem, \
+                mock.patch.object(common, 'isdir', side_effect=AssertionError('isdir called')):
+            settings = api.load_settings.return_value
+            settings.get.side_effect = clipboard_settings.get
+            filesystem.path.lexists.side_effect = AssertionError('lexists called')
+            filesystem.path.getsize.side_effect = AssertionError('getsize called')
+            filesystem.stat.side_effect = AssertionError('stat called')
 
-            self.assertEqual(prune_missing_cut_items(), [])
-            self.assertEqual(self.settings.get('dired_to_move'), [])
-            yield lambda: self.saved_cut_items() == []
+            command.set_status()
 
-    def test_preserves_existing_items_without_saving(self):
-        with tempfile.TemporaryDirectory() as root:
-            source = os.path.join(root, 'source.txt')
-            with open(source, 'w'):
-                pass
-            self.settings.set('dired_to_move', [source])
-            sublime.save_settings('dired.sublime-settings')
-            yield lambda: self.saved_cut_items() == [source]
-            modified = os.stat(self.settings_path).st_mtime_ns
-
-            self.assertEqual(prune_missing_cut_items(), [source])
-            self.assertEqual(self.settings.get('dired_to_move'), [source])
-            yield 100
-
-            self.assertEqual(self.saved_cut_items(), [source])
-            self.assertEqual(os.stat(self.settings_path).st_mtime_ns, modified)
-
-    def setUp(self):
-        self.settings = sublime.load_settings('dired.sublime-settings')
-        self.settings_path = os.path.join(
-            sublime.packages_path(), 'User', 'dired.sublime-settings'
-        )
-        self.had_cut_items = self.settings.has('dired_to_move')
-        self.original_cut_items = self.settings.get('dired_to_move')
-        if os.path.exists(self.settings_path):
-            with open(self.settings_path, 'rb') as settings_file:
-                self.original_file = settings_file.read()
-        else:
-            self.original_file = None
-        self.addCleanup(self.restore_settings)
-
-    def saved_cut_items(self):
-        if not os.path.exists(self.settings_path):
-            return None
-        with open(self.settings_path, encoding='utf-8') as settings_file:
-            return sublime.decode_value(settings_file.read()).get('dired_to_move')
-
-    def restore_settings(self):
-        if self.had_cut_items:
-            self.settings.set('dired_to_move', self.original_cut_items)
-        else:
-            self.settings.erase('dired_to_move')
-        if self.original_file is not None:
-            with open(self.settings_path, 'wb') as settings_file:
-                settings_file.write(self.original_file)
-        elif os.path.exists(self.settings_path):
-            os.remove(self.settings_path)
+            command.view.set_status.assert_called_once_with(
+                '__FileBrowser__',
+                '[?: Help, I: Disable Filter, u: Unmark All, ctrl+z: Clear Clipboard] '
+                'Project root, Hidden: Off' + (', System: On' if common.NT else '') +
+                ', marked(2), copied(1), cut(3)',
+            )
+            settings.set.assert_not_called()
+            api.save_settings.assert_not_called()
+            filesystem.assert_not_called()
+            self.assertEqual(filesystem.mock_calls, [])
 
 
 class ExistingDirectoriesTest(unittest.TestCase):
