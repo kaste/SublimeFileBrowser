@@ -126,6 +126,9 @@ e.g. to completely mimic sidebar, it would be:
 | Create file and open it                               | <kbd>cf</kbd>, <kbd>⌘+enter</kbd>          |
 | Create/Edit/Remove jump point                         | <kbd>P</kbd>                               |
 | Toggle hidden files                                   | <kbd>H</kbd>                               |
+| Cycle hidden → hidden+system → none (Windows)         | <kbd>H</kbd>                               |
+| Toggle system files (Windows)                         | <kbd>alt+shift+h</kbd>                     |
+| Toggle system files, unhiding hidden too (Windows)    | <kbd>ctrl+alt+shift+h</kbd>                |
 | Toggle stats column (size & modified time)            | <kbd>S</kbd>                               |
 | Open in Finder/File Explorer                          | <kbd>\\</kbd>                              |
 | Open in new window                                    | <kbd>W</kbd>                               |
@@ -356,6 +359,9 @@ On Windows, to also show "system" Files, set:
 ```json
 { "dired_show_system_files": true }
 ```
+
+Most system files are also hidden, and a file with both attributes is only shown if both
+settings are on.
 
 To add extra hide rules without touching the Sublime setting, use `dired_hidden_files_patterns`:
 

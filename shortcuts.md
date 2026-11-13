@@ -42,7 +42,9 @@
 | Create file and open it       | cf, super+enter           |
 | Create/Edit/Remove jump point | P                         |
 | Toggle hidden files           | H                         |
-| Toggle system files (windows) | H (second press)          |
+| Cycle hidden/system (Windows) | H                         |
+| Toggle system files (Windows) | alt+shift+h               |
+| Toggle hidden+system (Win)    | ctrl+alt+shift+h          |
 | Toggle stats column           | S                         |
 | Open in Finder/Explorer       | \                         |
 | Open in new window            | W                         |
