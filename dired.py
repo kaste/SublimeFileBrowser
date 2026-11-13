@@ -247,6 +247,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             stored_expanded = []
         self.expanded = expanded = list(dict.fromkeys(stored_expanded)) if not reset_sels else []
         self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
+        self.show_system = self.view.settings().get('dired_show_system_files', True)
+
         if os.sep in goto:
             to_expand = self.expand_goto(to_expand, goto)
 
@@ -906,6 +908,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
 
         settings = self.view.settings()
         self.show_hidden = settings.get('dired_show_hidden_files', True)
+        self.show_system = settings.get('dired_show_system_files', True)
         show_stats = settings.get('dired_show_stats', False)
         name_width_setting = settings.get('dired_name_col_width', 0)
         size_width_setting = settings.get('dired_size_col_width', 0)
@@ -1387,8 +1390,10 @@ class dired_expand_all(TextCommand, DiredBaseCommand):
         # - If a filter is active, expand one level deeper under currently
         #   expanded directories to surface matches from subfolders.
         # Ensure hidden-files preference is available for list operations
+        # Ensure system-files preference is available for list operations
         s = self.view.settings()
         self.show_hidden = s.get('dired_show_hidden_files', True)
+        self.show_system = s.get('dired_show_system_files', True)
         enabled = s.get('dired_filter_enabled', True)
         filter_active = enabled and (s.get('dired_filter') or s.get('dired_filter_extension'))
         expanded_paths = s.get('dired_expanded_paths') or []
@@ -1468,6 +1473,88 @@ class dired_toggle_hidden_files(TextCommand):
     def run(self, edit):
         show = self.view.settings().get('dired_show_hidden_files', True)
         self.view.settings().set('dired_show_hidden_files', not show)
+        self.view.run_command('dired_refresh')
+
+
+class dired_cycle_hidden_and_system_files(TextCommand):
+    def run(self, edit):
+        # Cycle through showing none, show hidden, show hidden+system ("superhidden")
+        #   hidden = filesystem 'hidden' flag or hidden by pattern exclusion
+        #   system = filesystem 'system' flag
+        #   Intended for use on Windows only. On other platforms, show_system has no effect,
+        #   so one step of the cycle will change nothing visible.
+
+        show_hidden = self.view.settings().get('dired_show_hidden_files', True)
+        show_system = self.view.settings().get('dired_show_system_files', True)
+
+        if show_hidden and show_system:
+            hidden, system = False, False           # cycle: reset
+        elif not show_hidden and not show_system:
+            hidden, system = True, False            # cycle: show hidden
+        else:
+            hidden, system = True, True             # cycle: show system too
+
+        self.view.settings().set('dired_show_hidden_files', hidden)
+        self.view.settings().set('dired_show_system_files', system)
+        self.view.run_command('dired_refresh')
+
+        #  EXAMPLE for Hotkey - copied to Default (Windows).sublime-keymap
+        #  To add a Hotkey to use the cycling method for 'hidden' and 'system' files on Windows
+        #  add this to 'Default (Windows).sublime-keymap'
+        #  {
+        #    "keys": ["H"],
+        #    "command": "dired_cycle_hidden_and_system_files",
+        #    "context": [
+        #        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        #        { "key": "setting.dired_rename_mode", "operand": false }
+        #    ]
+        #  },
+
+
+class dired_toggle_system_files(TextCommand):
+    def run(self, edit):
+        # Simple toggle for files with the 'system' attribute (Windows).
+        #   Files with both 'hidden' and 'system' are only shown if show_hidden is on too.
+        show = self.view.settings().get('dired_show_system_files', True)
+        self.view.settings().set('dired_show_system_files', not show)
+        self.view.run_command('dired_refresh')
+
+
+# OPTIONAL - Combined Toggle
+class dired_toggle_superhidden_files(TextCommand):
+    def run(self, edit):
+        # Toggle showing files with the 'system' attribute on Windows, including 'hidden+system'.
+        #   Since most 'system' files also carry the 'hidden' attribute, toggling 'system' only
+        #   would seem to do nothing for the 'On' toggle in most cases/directories.
+        #
+        #   To avoid confusing behaviour for the 'Off' toggle, we first save the show_hidden
+        #   setting during toggling 'On' and restore it during toggling 'Off' - unless the user
+        #   turned show_hidden off in between.
+        #
+        #   NOTE:
+        #   Since we need to turn on show_hidden to show 'hidden+system', all hidden files get
+        #   unhidden, including pattern-excluded ones. This may not be exactly what the user wants.
+        #
+        #   In total, even though this is probably a good and complete solution in terms of UX,
+        #   I don't really like it. It's too.. "nervous" for my taste
+
+        s = self.view.settings()
+        if not s.get('dired_show_system_files', True):
+            s.set('dired_show_hidden_before_system', s.get('dired_show_hidden_files', True))
+            s.set('dired_show_hidden_files', True)
+            s.set('dired_show_system_files', True)
+        else:
+            s.set('dired_show_system_files', False)
+            before = s.get('dired_show_hidden_before_system')
+            s.erase('dired_show_hidden_before_system')
+
+            # edge case handling: the user may have turned off show_hidden between runs.
+            if before is not None and s.get('dired_show_hidden_files', True):
+                # show_hidden still on, as we forced it, so restore to what the user had set.
+                s.set('dired_show_hidden_files', before)
+            # else:
+            #   keep show_hidden as it is: the user turned it off, or we never forced it
+
         self.view.run_command('dired_refresh')
 
 

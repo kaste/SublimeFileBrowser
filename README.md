@@ -126,6 +126,9 @@ e.g. to completely mimic sidebar, it would be:
 | Create file and open it                               | <kbd>cf</kbd>, <kbd>⌘+enter</kbd>          |
 | Create/Edit/Remove jump point                         | <kbd>P</kbd>                               |
 | Toggle hidden files                                   | <kbd>H</kbd>                               |
+| Cycle hidden → hidden+system → none (Windows)         | <kbd>H</kbd>                               |
+| Toggle system files (Windows)                         | <kbd>alt+shift+h</kbd>                     |
+| Toggle system files, unhiding hidden too (Windows)    | <kbd>ctrl+alt+shift+h</kbd>                |
 | Toggle stats column (size & modified time)            | <kbd>S</kbd>                               |
 | Open in Finder/File Explorer                          | <kbd>\\</kbd>                              |
 | Open in new window                                    | <kbd>W</kbd>                               |
@@ -351,13 +354,22 @@ To start dired with all files showing, set:
 { "dired_show_hidden_files": true }
 ```
 
+On Windows, to also show "system" Files, set:
+
+```json
+{ "dired_show_system_files": true }
+```
+
+Most system files are also hidden, and a file with both attributes is only shown if both
+settings are on.
+
 To add extra hide rules without touching the Sublime setting, use `dired_hidden_files_patterns`:
 
 
 ```json
 { "dired_hidden_files_patterns": [".*", "__pycache__", "*.pyc"] }
 ```
-Note: On Windows, items with the filesystem "hidden" attribute are always considered hidden.
+Note: On Windows, items with the filesystem attributes "hidden" and/or "system" are always considered hidden.
 That's a deviation from Sublime where the exclude patterns are strictly path operations.
 
 ### VCS integration

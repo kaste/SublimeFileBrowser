@@ -55,6 +55,32 @@
         { "key": "setting.dired_rename_mode", "operand": false }
     ]
   },
+  {
+    "keys": ["H"],
+    "command": "dired_cycle_hidden_and_system_files",
+    "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+    ]
+  },
+  {
+    "keys": ["alt+shift+h"],
+    "command": "dired_toggle_system_files",
+    "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+    ]
+  },
+  // OPTIONAL - Combined Toggle
+  {
+    "keys": ["ctrl+alt+shift+h"],
+    "command": "dired_toggle_superhidden_files",
+    "context": [
+        { "key": "selector", "operator": "equal", "operand": "text.dired" },
+        { "key": "setting.dired_rename_mode", "operand": false }
+    ]
+  },
+
 // custom movement in buffer
   {
       "keys": ["ctrl+home"],
