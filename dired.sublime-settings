@@ -10,7 +10,8 @@
   // if tab is focused
   "dired_show_full_path": false,
 
-  // If true a dialog box asks for confirmation for any delete operations
+  // If true a dialog box asks for confirmation before deleting items.
+  // Deleted items are always sent to the trash (Recycle Bin on Windows).
   "dired_confirm_deletions": true,
 
   // Not showing hidden files by default

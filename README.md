@@ -119,7 +119,6 @@ e.g. to completely mimic sidebar, it would be:
 | :---------------------------------------------------- | :----------------------------------------- |
 | Rename                                                | <kbd>R</kbd>                               |
 | Delete to trash                                       | <kbd>D</kbd>                               |
-| Delete (does not send to trash)                       | <kbd>alt+shift+d</kbd>                     |
 | Create directory                                      | <kbd>cd</kbd>, <kbd>enter</kbd>            |
 | Create directory and open it                          | <kbd>cd</kbd>, <kbd>⌘+enter</kbd>          |
 | Create file                                           | <kbd>cf</kbd>, <kbd>enter</kbd>            |
@@ -499,7 +498,7 @@ is using a tab_size of 3 but you can customize it in your user settings file (`P
 `Package Settings` → `FileBrowser` → `Settings — User`).
 
 #### Other settings
-##### Disable confirmation dialog for sending items to trash:
+##### Disable confirmation dialog for deleting (sending items to trash):
 ```js
 { "dired_confirm_deletions": false }
 ```

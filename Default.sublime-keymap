@@ -208,16 +208,8 @@
       ]
   },
   {
-      "keys": ["alt+shift+d"],
-      "command": "dired_delete",
-      "context": [
-        { "key": "selector", "operator": "equal", "operand": "text.dired" },
-        { "key": "setting.dired_rename_mode", "operand": false }
-      ]
-  },
-  {
       "keys": ["D"],
-      "command": "dired_delete", "args": {"trash": true},
+      "command": "dired_delete",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }

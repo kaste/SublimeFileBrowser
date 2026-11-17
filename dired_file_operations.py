@@ -103,7 +103,8 @@ class dired_create_and_open(dired_create):
 
 
 class dired_delete(TextCommand, DiredBaseCommand):
-    def run(self, edit, trash=False):
+    '''Send the marked or selected items to the trash'''
+    def run(self, edit):
         view = self.view
         window = view.window()
         assert window
@@ -118,9 +119,8 @@ class dired_delete(TextCommand, DiredBaseCommand):
         else:
             msg = "Delete {0} items?".format(len(files))
 
-        view.settings().get('dired_confirm_delete', True)
         if (
-            view.settings().get('dired_confirm_delete', True)
+            view.settings().get('dired_confirm_deletions', True)
             and not sublime.ok_cancel_dialog(msg)
         ):
             return
@@ -534,10 +534,6 @@ class call_SHFileOperationW(object):
     ):
         self.view = view
         self.clipboard_sequence = clipboard_sequence
-        if destination == '$TRASH$':
-            self.shfow_d_thread = threading.Thread(target=self.caller, args=(3, sources_move, ''))
-            self.shfow_d_thread.start()
-            return
         if sources_move:
             self.shfow_m_thread = threading.Thread(
                 target=self.caller, args=(1, sources_move, destination))
@@ -561,14 +557,9 @@ class call_SHFileOperationW(object):
                 self.shfow_c_thread.start()
 
     def caller(self, mode, sources, destination, duplicate=False):
-        '''mode is int: 1 (move), 2 (copy), 3 (delete)'''
+        '''mode is int: 1 (move), 2 (copy)'''
 
-        if duplicate:
-            fFlags = 8
-        elif mode == 3:
-            fFlags = 64  # send to recycle bin
-        else:
-            fFlags = 0
+        fFlags = 8 if duplicate else 0  # FOF_RENAMEONCOLLISION
 
         SHFileOperationW = ctypes.windll.shell32.SHFileOperationW
         SHFileOperationW.argtypes = [ctypes.POINTER(SHFILEOPSTRUCTW)]

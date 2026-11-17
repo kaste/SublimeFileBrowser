@@ -35,7 +35,6 @@
 | Reset copy/cut list           | super+z or ctrl+z         |
 | Rename                        | R                         |
 | Delete to trash               | D                         |
-| Delete (permanently)          | alt+shift+d               |
 | Create directory              | cd, enter                 |
 | Create directory and open it  | cd, super+enter           |
 | Create file                   | cf, enter                 |
