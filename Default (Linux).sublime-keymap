@@ -47,14 +47,6 @@
         { "key": "setting.dired_rename_mode", "operand": false }
     ]
   },
-  {
-    "keys": ["ctrl+z"],
-    "command": "dired_clear_copy_cut_list",
-    "context": [
-        { "key": "selector", "operator": "equal", "operand": "text.dired" },
-        { "key": "setting.dired_rename_mode", "operand": false }
-    ]
-  },
 // custom movement in buffer
   {
       "keys": ["ctrl+home"],

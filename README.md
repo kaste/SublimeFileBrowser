@@ -112,7 +112,8 @@ e.g. to completely mimic sidebar, it would be:
 | Toggle mark and move up                               | <kbd>shift+↑</kbd>                         |
 | Toggle mark                                           | <kbd>m</kbd>                               |
 | Toggle all marks                                      | <kbd>t</kbd>                               |
-| Unmark all                                            | <kbd>u</kbd> or <kbd>ctrl+space</kbd>        |
+| Unmark all                                            | <kbd>u</kbd>                               |
+| Unmark all and reset copy/cut list                    | <kbd>ctrl+space</kbd>                      |
 
 ##### Action Shortcuts
 | Command                                               | Shortcut                                   |
@@ -181,7 +182,7 @@ Use Alt+Left (Back) and Alt+Right (Forward) to walk a per‑view navigation hist
 ### Selecting Files and Directories
 You can select files and/or directories by marking them with <kbd>m</kbd> (no move),
 <kbd>space</kbd> or <kbd>Shift + ↑/↓</kbd>.
-Press <kbd>u</kbd> or <kbd>ctrl+space</kbd> to unmark all items.
+Press <kbd>u</kbd> to unmark all items, or <kbd>ctrl+space</kbd> to also reset the copy/cut list.
 You can also use Sublime Text multiple cursors to extend your cursor to the line that has those
 files/directories.
 
@@ -213,7 +214,7 @@ amounts of copied and cut items. File-size totals for marked, copied, and cut it
 cached and recalculated in the background when their lists change or the view is refreshed.
 While a total is pending, or when a list contains directories or unavailable files, only
 its count is shown. Rendering the status bar does not access those paths.
-If you change your mind — <kbd>⌘+z</kbd> or <kbd>ctrl+z</kbd> will clear both lists. _Note_, those
+If you change your mind — <kbd>ctrl+space</kbd> will clear both lists (and all marks). _Note_, those
 lists are stored in FileBrowser settings file, so you can edit it by hand if need.
 
 As soon as you paste, each item will be either copied or moved into folder under cursor.  

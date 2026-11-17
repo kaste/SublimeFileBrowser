@@ -158,8 +158,7 @@
   },
   {
       "keys": ["ctrl+space"],
-      "command": "dired_mark",
-      "args": { "mark": false, "markall": true },
+      "command": "dired_clear",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }

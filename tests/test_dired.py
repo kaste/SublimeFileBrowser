@@ -93,7 +93,7 @@ class StatusTest(unittest.TestCase):
 
             command.view.set_status.assert_called_once_with(
                 '__FileBrowser__',
-                '[?: Help, I: Disable Filter, u: Unmark All, ctrl+z: Clear Clipboard] '
+                '[?: Help, I: Disable Filter, u: Unmark All, ctrl+space: Clear Clipboard] '
                 'Project root, Hidden: Off' + (', System: On' if common.NT else '') +
                 ', marked(2), copied(1), cut(3)',
             )
@@ -140,7 +140,7 @@ class CachedStatusTest(unittest.TestCase):
 
                     self.assertEqual(command.view.set_status.call_args, mock.call(
                         '__FileBrowser__',
-                        '[?: Help, u: Unmark All, ctrl+z: Clear Clipboard] '
+                        '[?: Help, u: Unmark All, ctrl+space: Clear Clipboard] '
                         'Hidden: On' + indicator +
                         ', marked(2; 2kB), copied(1; 3MB), cut(1; 512B)',
                     ))

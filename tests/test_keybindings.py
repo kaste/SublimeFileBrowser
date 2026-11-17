@@ -12,15 +12,20 @@ class FileBrowserKeybindingsTest(unittest.TestCase):
         self.assertEqual(binding['context'], self.binding_for('m')['context'])
         self.assertFalse(any(binding['keys'] == ['space'] for binding in self.bindings))
 
-    def test_ctrl_space_is_an_alias_for_unmark_all(self):
+    def test_ctrl_space_clears_marks_and_the_copy_cut_list(self):
         binding = self.binding_for('ctrl+space')
-        unmark = self.binding_for('u')
 
-        self.assertEqual(binding['command'], 'dired_mark')
-        self.assertEqual(binding['args'], {'mark': False, 'markall': True})
-        self.assertEqual(binding['command'], unmark['command'])
-        self.assertEqual(binding['args'], unmark['args'])
-        self.assertEqual(binding['context'], unmark['context'])
+        self.assertEqual(binding['command'], 'dired_clear')
+        self.assertNotIn('args', binding)
+        self.assertEqual(binding['context'], self.binding_for('u')['context'])
+
+    def test_undo_keys_are_not_bound_in_dired_views(self):
+        for platform in ('Windows', 'Linux', 'OSX'):
+            bindings = sublime.decode_value(sublime.load_resource(
+                'Packages/FileBrowser/Default ({0}).sublime-keymap'.format(platform)
+            ))
+            for binding in self.bindings + bindings:
+                self.assertNotIn(binding['keys'], (['ctrl+z'], ['super+z']), platform)
 
     def test_arrows_use_file_aware_navigation(self):
         for key, forward in (('right', True), ('left', False)):

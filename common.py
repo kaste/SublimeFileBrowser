@@ -434,7 +434,7 @@ class DiredBaseCommand:
         if marked_items:
             help_segments.append('u: Unmark All')
         if copied_items or cut_items:
-            help_segments.append('ctrl+z: Clear Clipboard')
+            help_segments.append('ctrl+space: Clear Clipboard')
         help_segment = "[{0}] ".format(', '.join(help_segments))
 
         hidden_info = 'On' if show_hidden else 'Off'

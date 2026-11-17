@@ -22,7 +22,8 @@
 | Toggle mark and move up       | shift+up                  |
 | Toggle mark                   | m                         |
 | Toggle all marks              | t                         |
-| Unmark all                    | u or ctrl+space           |
+| Unmark all                    | u                         |
+| Unmark all, reset copy/cut    | ctrl+space                |
 |                               |                           |
 | Go to directory               | g                         |
 | Quick jump to directory       | p                         |
@@ -32,7 +33,6 @@
 | Copy                          | super+c or ctrl+c         |
 | Cut                           | super+x or ctrl+x         |
 | Paste                         | super+v or ctrl+v         |
-| Reset copy/cut list           | super+z or ctrl+z         |
 | Rename                        | R                         |
 | Delete to trash               | D                         |
 | Create directory              | cd, enter                 |

@@ -497,6 +497,13 @@ def _get_paste_sources(settings):
     return sources_move, sources_copy, None
 
 
+class dired_clear(TextCommand):
+    '''Unmark all items and empty the copy/cut list'''
+    def run(self, edit):
+        self.view.run_command('dired_mark', {'mark': False, 'markall': True})
+        self.view.run_command('dired_clear_copy_cut_list')
+
+
 class dired_clear_copy_cut_list(TextCommand):
     def run(self, edit, clear_system=True):
         sublime.load_settings('dired.sublime-settings').set('dired_to_move', [])

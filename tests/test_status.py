@@ -286,6 +286,37 @@ class StatusIntegrationTest(DeferrableViewTestCase):
                     else:
                         settings.erase(key)
 
+    def test_clear_unmarks_and_empties_the_copy_cut_list(self):
+        settings = sublime.load_settings('dired.sublime-settings')
+        keys = ('dired_to_copy', 'dired_to_move')
+        original = {key: (settings.has(key), settings.get(key)) for key in keys}
+        with mock.patch.object(sublime, 'save_settings'), \
+                mock.patch.object(dired_file_operations, 'NT', False):
+            try:
+                for key in keys:
+                    settings.set(key, [])
+                self.view.run_command('dired_mark', {'markall': True, 'move_cursor': False})
+                self.view.run_command('dired_copy_files')
+                self.view.run_command('dired_mark', {'markall': True, 'move_cursor': False})
+                yield lambda: all(
+                    part in self.view.get_status('__FileBrowser__')
+                    for part in ('marked(2', 'copied(2')
+                )
+
+                self.view.run_command('dired_clear')
+
+                self.assertEqual(self.view.settings().get('dired_marked_paths'), [])
+                self.assertEqual(settings.get('dired_to_copy'), [])
+                self.assertEqual(settings.get('dired_to_move'), [])
+                self.assertNotIn('marked(', self.view.get_status('__FileBrowser__'))
+                self.assertNotIn('copied(', self.view.get_status('__FileBrowser__'))
+            finally:
+                for key, (present, value) in original.items():
+                    if present:
+                        settings.set(key, value)
+                    else:
+                        settings.erase(key)
+
     def setUp(self):
         super().setUp()
         directory = tempfile.TemporaryDirectory()
