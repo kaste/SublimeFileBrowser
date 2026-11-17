@@ -534,22 +534,6 @@ class DiredBaseCommand:
         items += files
         return items
 
-    def is_hidden(self, filename, path, stat=None, exclude_patterns=[]):
-        # NOTE: is_hidden() seems to never get called in the codebase currently
-        if not path:  # special case for ThisPC
-            return False
-        if any(fnmatch.fnmatch(filename, pattern) for pattern in exclude_patterns):
-            return True
-        if not NT:
-            return False
-
-        try:
-            attrs = stat.st_file_attributes
-        except AttributeError:
-            return False
-        else:
-            return bool(attrs & FILE_ATTRIBUTE_HIDDEN) or bool(attrs & FILE_ATTRIBUTE_SYSTEM)
-
     def list_directory(self, path) -> tuple[list[str], str]:
         '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''

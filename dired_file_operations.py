@@ -349,8 +349,6 @@ class dired_copy_files(TextCommand, DiredBaseCommand):
         settings.set('dired_to_move', cut_list)
         settings.set('dired_to_copy', copy_list)
         sublime.save_settings('dired.sublime-settings')
-        self.show_hidden = self.view.settings().get('dired_show_hidden_files', True)
-        # Note: self.show_hidden seems to be unused/leftover
 
         if NT:
             try:
