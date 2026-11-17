@@ -56,15 +56,6 @@
     ]
   },
   {
-    "keys": ["H"],
-    "command": "dired_toggle_hidden_files",
-    "context": [
-        { "key": "selector", "operator": "equal", "operand": "text.dired" },
-        { "key": "setting.dired_rename_mode", "operand": false }
-    ]
-  },
-  {
-    // or "ctrl+shift+h"
     "keys": ["alt+shift+h"],
     "command": "dired_toggle_system_files",
     "context": [

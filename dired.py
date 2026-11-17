@@ -1479,7 +1479,7 @@ class dired_toggle_hidden_files(TextCommand):
 class dired_toggle_system_files(TextCommand):
     def run(self, edit):
         # Toggle for files with the 'system' attribute (Windows).
-        #   Files with both 'hidden' and 'system' are only shown if show_hidden is on too.
+        #   Files with 'hidden+system' are only shown if show_hidden is On.
         show = self.view.settings().get('dired_show_system_files', True)
         self.view.settings().set('dired_show_system_files', not show)
         self.view.run_command('dired_refresh')
