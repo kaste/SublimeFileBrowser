@@ -125,6 +125,13 @@ class dired_complete(TextCommand, DiredBaseCommand):
             .settings()
             .get('dired_show_hidden_files', True)
         )
+        self.show_system = (
+            sublime
+            .active_window()
+            .active_view()
+            .settings()
+            .get('dired_show_system_files', True)
+        )
         dirs, error = self.list_only_dirs(path)
         if error:
             sublime.error_message(
