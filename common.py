@@ -899,7 +899,11 @@ def _do_scandir(
                     or not show_system and attrs & FILE_ATTRIBUTE_SYSTEM:
                         continue
 
-            is_directory = entry.is_dir(follow_symlinks=False)
+            try:
+                is_directory = entry.is_dir()
+            except OSError:
+                is_directory = False
+
             if is_directory and name in dir_patterns:
                 continue
 
