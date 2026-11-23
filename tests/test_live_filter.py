@@ -8,11 +8,33 @@ from unittesting import DeferrableViewTestCase
 
 from FileBrowser.dired import DiredRefreshOnFocus
 from FileBrowser.common import DiredBaseCommand, listings
-from FileBrowser.dired_misc import DiredFilterPanelFocus, dired_fuzzy_search
+from FileBrowser.dired_misc import DiredContextProvider, DiredFilterPanelFocus, dired_fuzzy_search
 from FileBrowser.show import retarget_dired_view
 
 
 class LiveFilterTest(DeferrableViewTestCase):
+    def test_backspace_dismisses_empty_filter_without_closing_target(self):
+        target = self.window.new_file()
+        self.addCleanup(target.close)
+        self.addCleanup(self.window.run_command, 'hide_panel', {'cancel': True})
+        panel = self.window.show_input_panel('Filter:', 'x', None, None, None)
+        panel.settings().set('dired_input_panel', True)
+        panel.settings().set('dired_target_view_id', target.id())
+        query = DiredContextProvider().on_query_context
+
+        panel.run_command('select_all')
+        self.assertFalse(query(panel, 'dired_input_empty', sublime.OP_EQUAL, True, False))
+        panel.run_command('left_delete')
+        self.assertTrue(target.is_valid())
+        self.assertTrue(query(panel, 'dired_input_empty', sublime.OP_EQUAL, True, False))
+        bindings = sublime.decode_value(sublime.load_resource('Packages/FileBrowser/Default.sublime-keymap'))
+        binding, = (b for b in bindings if b['keys'] == ['backspace']
+                    and {'key': 'setting.dired_input_panel'} in b['context'])
+        self.assertIn({'key': 'dired_input_empty'}, binding['context'])
+        self.window.run_command(binding['command'], binding.get('args', {}))
+        yield lambda: self.window.active_panel() != 'input'
+        self.assertTrue(target.is_valid())
+
     def test_one_off_listings_are_fresh_without_evicting_a_cached_walk(self):
         command = DiredBaseCommand()
         command.view = self.view

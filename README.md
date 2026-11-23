@@ -434,6 +434,8 @@ folder again. Press <kbd>r</kbd> to reread the current tree at any time.
 While the fuzzy filter input has focus, edits search a snapshot of the
 listing. Filesystem changes do not move the results under your cursor.
 Accepting, cancelling, or leaving the input releases that snapshot.
+Pressing <kbd>Backspace</kbd> when the input is already empty cancels the
+filter input and leaves the FileBrowser view open.
 
 If auto-refresh is enabled but the filesystem observer is unavailable,
 FileBrowser rereads the current tree when the view gains focus instead.

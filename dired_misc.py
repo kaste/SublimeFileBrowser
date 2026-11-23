@@ -502,6 +502,9 @@ class DiredHideEmptyGroup(EventListener):
 
 class DiredContextProvider(EventListener):
     def on_query_context(self, view, key, operator, operand, match_all):
+        if key == "dired_input_empty":
+            return (view.size() == 0) == operand if operator == sublime.OP_EQUAL else None
+
         if key == "dired_simple_selection":
             if operator not in (sublime.OP_EQUAL, sublime.OP_NOT_EQUAL):
                 print(
