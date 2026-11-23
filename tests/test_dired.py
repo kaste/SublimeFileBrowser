@@ -18,6 +18,8 @@ class FuzzyMatchTest(unittest.TestCase):
             ('abc', 'a-bc-b', [0, 2, 3]),
             ('ab', 'a_b', []),
             ('.py', 'x.py.py', [4, 5, 6]),
+            ('.py', 'x.py.PY', [4, 5, 6]),
+            ('.py', 'x.py.p-y', [4, 5, 7]),
             ('ki', 'Kİ', [0, 1]),
             ('.txt', 'İ.txt', [1, 2, 3, 4]),
             ('sék', 'x-ſ-É-K', [2, 4, 6]),

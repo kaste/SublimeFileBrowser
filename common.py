@@ -959,6 +959,10 @@ def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
     if term[0] != '.' and folded.startswith(term):
         return tuple(range(len(term)))
 
+    if term[0] == '.' and folded.endswith(term):
+        # An exact suffix is already the rightmost possible start.
+        return tuple(range(len(text) - len(term), len(text)))
+
     layers: list[dict[int, int]] = []
     suffix: dict[int, int] = {}
     boundary = -1
