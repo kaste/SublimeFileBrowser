@@ -12,7 +12,7 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
-    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match, listings, sync_view_watches)
+    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match, listings, sync_view_watches, filter_snapshots)
 from . import prompt
 from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
@@ -208,6 +208,9 @@ class dired_rescan(TextCommand, DiredBaseCommand):
         path = self.get_path()
         if path is not None:
             listings.invalidate(path, subtree=True)
+            snapshot = filter_snapshots.get(self.view.id())
+            if snapshot:
+                snapshot.clear()
             self.view.run_command('dired_refresh', args)
 
 
@@ -326,7 +329,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.expanded = expanded = existing_directories(expanded)
 
         # Phase 1: build the tree
-        entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
+        snapshot = filter_snapshots.get(self.view.id())
+        if snapshot:
+            entries, err = snapshot.walk(self.walkdir, root, expanded)
+        else:
+            entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
         if err:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)

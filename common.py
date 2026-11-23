@@ -28,10 +28,10 @@ FILE_ATTRIBUTE_SYSTEM = 0x4
 
 class EntryInfo(NamedTuple):
     name: str
-    full_path: str
     is_dir: bool
     size: int | None
     mtime: float | None
+    attributes: int = 0
 
 
 class ListingItem(NamedTuple):
@@ -540,29 +540,36 @@ class DiredBaseCommand:
         auto_expand: int = 0,
         depth: int = 0,
         sortfunc=NATURAL_SORT,
+        transient=False,
     ) -> tuple[list[ListingItem], str]:
         """Return a flattened tree of ListingItem objects for the given root."""
         expanded = expanded or set()
         try:
-            infos = self._our_scandir(dir_path, sortfunc=sortfunc, in_search=auto_expand != 0)
+            infos = self._our_scandir(dir_path, sortfunc=sortfunc, in_search=auto_expand != 0,
+                                      transient=transient or auto_expand != 0)
         except OSError as error:
             return [], self._format_os_error(error)
 
         entries: list[ListingItem] = []
         for info in infos:
-            if info.is_dir and (depth < auto_expand or info.full_path in expanded):
+            full_path = join(dir_path, info.name) + (os.sep if info.is_dir else '')
+            if info.is_dir and (depth < auto_expand or full_path in expanded):
                 sub_entries, sub_err = self.walkdir(
-                    info.full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1)
+                    full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1,
+                    sortfunc=sortfunc, transient=transient)
                 note = sub_err or ('empty' if not sub_entries else '')
-                entries.append(ListingItem(*info, depth, True, note))
+                entries.append(ListingItem(info.name, full_path, True, info.size, info.mtime, depth, True, note))
                 entries.extend(sub_entries)
             else:
-                entries.append(ListingItem(*info, depth, False, ""))
+                entries.append(ListingItem(info.name, full_path, info.is_dir, info.size, info.mtime, depth, False, ""))
 
         return entries, ''
 
-    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, in_search=False, fresh=False) -> list[EntryInfo]:
+    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, in_search=False, fresh=False, transient=False) -> list[EntryInfo]:
         """Return EntryInfo objects for the given directory, respecting hidden settings."""
+        entries = listings.read(path, fresh=fresh, transient=transient)
+        if not path:  # drive listing
+            return sorted(entries, key=NATURAL_SORT)
         show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
         show_system = getattr(self, 'show_system', self.view.settings().get('dired_show_system_files', True))
         exclude_patterns = []
@@ -581,8 +588,13 @@ class DiredBaseCommand:
                 if p.endswith('/*'):
                     dir_patterns.append(p[:-2])
 
-        return listings.read(path, show_hidden, show_system, tuple(exclude_patterns), tuple(dir_patterns),
-                             sortfunc, fresh=fresh)
+        mask = (0 if show_hidden else FILE_ATTRIBUTE_HIDDEN) | (0 if show_system else FILE_ATTRIBUTE_SYSTEM)
+        return sorted((
+            e for e in entries
+            if not (e.attributes & mask)
+            and not (e.is_dir and e.name in dir_patterns)
+            and not any(fnmatch.fnmatch(e.name, pattern) for pattern in exclude_patterns)
+        ), key=sortfunc)
 
     def recreate_dired_expanded_paths_from_view(self):
         # Update persisted expanded paths based on current view state
@@ -865,33 +877,67 @@ def format_size_short(num_bytes: int) -> str:
     return f'{int(size + 0.5)}{units[unit]}'
 
 
+class FilterSnapshot:
+    """Rows for one open filter panel. Only the focused panel retains rows."""
+
+    def __init__(self):
+        self.depth = 0
+        self.focused = True
+        self._trees = {}
+
+    def walk(self, walkdir, root, expanded):
+        key = (root, self.depth)
+        if key in self._trees:
+            return self._trees[key]
+        result = walkdir(root, expanded=set(expanded), auto_expand=self.depth, transient=True)
+        if self.focused and not result[1]:
+            self._trees[key] = result
+        return result
+
+    def release(self):
+        self.focused = False
+        self.clear()
+
+    def clear(self):
+        self._trees.clear()
+
+
+filter_snapshots: dict[int, FilterSnapshot] = {}
+
+
 class DirectoryListings:
     """Share directory scans across views until invalidated or evicted."""
 
     def __init__(self):
-        self._directories = OrderedDict()
+        self._directories: OrderedDict[str, list[EntryInfo]] = OrderedDict()
+        self._generation = 0
         self._lock = Lock()
 
-    def read(self, path, *options, fresh=False):
+    def read(self, path: str, *, fresh=False, transient=False) -> list[EntryInfo]:
         path = os.path.normpath(path) if path else ''  # preserve the drive-list sentinel
         if fresh:  # one-off completion/child discovery, not a change notification
-            return _do_scandir(path, *options)
+            return _do_scandir(path)
         key = os.path.normcase(path)
         with self._lock:
             if key in self._directories:
-                self._directories.move_to_end(key)
-            else:
-                self._directories[key] = lru_cache(maxsize=8)(_do_scandir)
-                if len(self._directories) > 256:
-                    self._directories.popitem(last=False)
-            scan = self._directories[key]
-        # Don't hold the lock over I/O. Invalidation drops the whole bucket,
-        # so even an in-flight scan cannot repopulate an invalidated listing.
-        return scan(path, *options)
+                if not transient:
+                    self._directories.move_to_end(key)
+                return self._directories[key]
+            generation = self._generation
+        rows = _do_scandir(path)
+        if not transient:
+            with self._lock:
+                # Don't publish a scan that raced with invalidation.
+                if generation == self._generation:
+                    self._directories[key] = rows
+                    if len(self._directories) > 64:
+                        self._directories.popitem(last=False)
+        return rows
 
     def invalidate(self, path, *, subtree=False):
         key = os.path.normcase(os.path.normpath(path)) if path else ''
         with self._lock:
+            self._generation += 1
             self._directories.pop(key, None)
             if subtree and key:
                 prefix = os.path.join(key, '')
@@ -903,22 +949,13 @@ class DirectoryListings:
 listings = DirectoryListings()
 
 
-def _do_scandir(
-    path: str,
-    show_hidden: bool,
-    show_system: bool,
-    exclude_patterns: tuple[str],
-    dir_patterns: tuple[str],
-    sortfunc
-) -> list[EntryInfo]:
+def _do_scandir(path: str) -> list[EntryInfo]:
     if not path:
-        entries = [
-            EntryInfo(f"{drive}:", f"{drive}:{os.sep}", True, None, None)
+        return [
+            EntryInfo(f"{drive}:", True, None, None)
             for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             if isdir(f"{drive}:")
         ]
-        entries.sort(key=lambda info: natural_sort_key(info.name))
-        return entries
 
     items: list[EntryInfo] = []
     with os.scandir(path) as iterator:
@@ -929,34 +966,16 @@ def _do_scandir(
             except OSError:
                 stat_res = None
 
-            if any(fnmatch.fnmatch(name, pattern) for pattern in exclude_patterns):
-                continue
-            if NT and stat_res:
-                try:
-                    attrs = stat_res.st_file_attributes
-                except AttributeError:
-                    pass
-                else:
-                    if not show_hidden and attrs & FILE_ATTRIBUTE_HIDDEN \
-                    or not show_system and attrs & FILE_ATTRIBUTE_SYSTEM:
-                        continue
-
             try:
                 is_directory = entry.is_dir()
             except OSError:
                 is_directory = False
 
-            if is_directory and name in dir_patterns:
-                continue
-
             size = stat_res.st_size if stat_res and not is_directory else None
             mtime = stat_res.st_mtime if stat_res else None
-            full_path = entry.path
-            if is_directory and not full_path.endswith(os.sep):
-                full_path += os.sep
-            items.append(EntryInfo(name, full_path, is_directory, size, mtime))
+            attrs = getattr(stat_res, 'st_file_attributes', 0)
+            items.append(EntryInfo(name, is_directory, size, mtime, attrs))
 
-    items.sort(key=sortfunc)
     return items
 
 

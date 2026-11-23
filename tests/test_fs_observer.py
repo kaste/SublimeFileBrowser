@@ -8,7 +8,7 @@ from unittest import TestCase, mock, skipIf
 
 from unittesting import DeferrableTestCase
 
-from FileBrowser.common import emit_event, listings, NATURAL_SORT
+from FileBrowser.common import emit_event, listings
 
 fs_observer = importlib.import_module('FileBrowser.0_dired_fs_observer')
 
@@ -71,7 +71,7 @@ class RewatchTest(DeferrableTestCase):
         self.send('set_paths', (2, [a]))
 
         def read(path):
-            return listings.read(path, True, True, (), (), NATURAL_SORT)
+            return listings.read(path)
 
         shared = read(a)
         self.assertEqual(read(b), [])
@@ -364,7 +364,7 @@ class ReportEventTest(TestCase):
     def test_move_refreshes_both_listings_but_leaves_other_directories_cached(self):
         with tempfile.TemporaryDirectory() as dest, tempfile.TemporaryDirectory() as other:
             def names(path):
-                return [e.name for e in listings.read(path, True, True, (), (), NATURAL_SORT)]
+                return [e.name for e in listings.read(path)]
 
             for path in (self.root, dest, other):
                 names(path)
