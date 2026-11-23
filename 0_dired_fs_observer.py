@@ -28,6 +28,7 @@ import warnings
 
 import sublime
 
+
 try:  # unavailable dependencies shall not break basic functionality
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', 'Failed to import fsevents')
@@ -64,24 +65,11 @@ def plugin_unloaded():
         observer = None
 
 
-def refresh(views, erase_settings=False):
-    '''
-    views
-        list of integers which are view.id(), can be empty
-    erase_settings
-        boolean, can be True after change of global setting dired_autorefresh
-    '''
-    if not views and not erase_settings:
-        def is_dired(view): return view.settings().get("dired_path")
-    else:
-        def is_dired(view): return False
-
-    for w in sublime.windows():
-        for v in w.views():
-            if v.id() in views or is_dired(v):
-                if erase_settings:
-                    v.settings().erase('dired_autorefresh')
-                v.run_command('dired_refresh')
+def refresh(views):
+    for window in sublime.windows():
+        for view in window.views():
+            if view.id() in views:
+                view.run_command('dired_refresh')
 
 
 class ObservePaths(object):
@@ -117,6 +105,8 @@ class ObservePaths(object):
                 traceback.print_exc()
         self.observer.stop()
         self.observer.join()
+        for path in self.watches:
+            self.event_handler.forget(path)
 
     def dired_event_handler(self, event, payload):
         def stop_watch(vid: sublime.ViewId):
@@ -197,13 +187,6 @@ class ObservePaths(object):
                     for vid, view_paths in self.paths.items()
                 }
 
-        def toggle_watch_all(watch):
-            '''watch is boolean or None, global setting dired_autorefresh'''
-            views = self.paths.keys()
-            if not watch:
-                self.paths = {}
-            sublime.set_timeout(lambda: refresh(views, erase_settings=(not watch)), 1)
-
         def ignore_view(vid: sublime.ViewId):
             self.event_handler.ignored_views.add(vid)
 
@@ -216,7 +199,6 @@ class ObservePaths(object):
             'remove_path': lambda: remove_path(*payload),
             'view_closed': lambda: stop_watch(payload),
             'stop_watch': lambda: stop_watch(payload),
-            'toggle_watch_all': lambda: toggle_watch_all(payload),
             'ignore_view': lambda: ignore_view(payload),
             'watch_view': lambda: unignore_view(payload),
         }
@@ -263,12 +245,21 @@ class ReportEvent(FileSystemEventHandler):
             # reports that as a modification too.  Ignore it if nothing we render changed.
             return
 
-        src_path = event.src_path
-        path = os.path.dirname(src_path)
+        # common may have been reloaded since the observer started.
+        from .common import listings
+        affected = set()
+        for path in (event.src_path, getattr(event, 'dest_path', '')):
+            if not path:
+                continue
+            parent = os.path.dirname(path)
+            listings.invalidate(parent)
+            if event.is_directory:
+                listings.invalidate(path, subtree=True)
+            affected.update((os.path.normcase(path), os.path.normcase(parent)))
         for vid, paths in self.paths.items():
             if vid in self.ignored_views:
                 continue
-            if any(candidate in paths for candidate in (src_path, path)):
+            if any(os.path.normcase(p) in affected for p in paths):
                 self.schedule_refresh(vid)
 
     def schedule_refresh(self, view):
@@ -311,6 +302,8 @@ class ReportEvent(FileSystemEventHandler):
             self.signatures[directory] = known
 
     def forget(self, directory: str):
+        from .common import listings
+        listings.invalidate(directory)
         with self.lock:
             self.signatures.pop(directory, None)
 

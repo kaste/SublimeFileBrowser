@@ -5,7 +5,9 @@ import os
 import sys
 from os.path import isdir, join, basename
 import fnmatch
+from collections import OrderedDict
 from itertools import chain
+from threading import Lock
 from functools import lru_cache
 from typing import Iterable, NamedTuple
 from typing_extensions import TypeAlias
@@ -26,10 +28,10 @@ FILE_ATTRIBUTE_SYSTEM = 0x4
 
 class EntryInfo(NamedTuple):
     name: str
-    full_path: str
     is_dir: bool
     size: int | None
     mtime: float | None
+    attributes: int = 0
 
 
 class ListingItem(NamedTuple):
@@ -208,6 +210,18 @@ def emit_event(event_type: str, payload: object):
     observer = getattr(fs_observer, 'observer', None)
     if observer:
         observer.post(event_type, payload)
+
+
+def sync_view_watches(view):
+    settings = view.settings()
+    root = settings.get('dired_path')
+    if not root:
+        return
+    if settings.get('dired_autorefresh', True):
+        paths = settings.get('dired_expanded_paths') or []
+        emit_event('set_paths', (view.id(), paths + ([root] if root != 'ThisPC\\' else [])))
+    else:
+        emit_event('stop_watch', view.id())
 
 
 class DiredBaseCommand:
@@ -482,7 +496,7 @@ class DiredBaseCommand:
         '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''
         try:
-            entries = self._our_scandir(path)
+            entries = self._our_scandir(path, fresh=True)
             items = [info.name for info in entries]
             error = ''
         except OSError as e:
@@ -525,37 +539,37 @@ class DiredBaseCommand:
         expanded: set[str] | None = None,
         auto_expand: int = 0,
         depth: int = 0,
-        sortfunc=NATURAL_SORT
+        sortfunc=NATURAL_SORT,
+        transient=False,
     ) -> tuple[list[ListingItem], str]:
         """Return a flattened tree of ListingItem objects for the given root."""
         expanded = expanded or set()
-        # Do not strip the separator for drive roots like "C:\", because turning that
-        # into "C:" makes path resolution relative to the drive's CWD.
-        if dir_path:
-            drive, tail = os.path.splitdrive(dir_path)
-            target = dir_path.rstrip(os.sep) if tail not in (os.sep, '') else dir_path
-        else:
-            target = dir_path
         try:
-            infos = self._our_scandir(target, sortfunc=sortfunc, in_search=auto_expand != 0)
+            infos = self._our_scandir(dir_path, sortfunc=sortfunc, in_search=auto_expand != 0,
+                                      transient=transient or auto_expand != 0)
         except OSError as error:
             return [], self._format_os_error(error)
 
         entries: list[ListingItem] = []
         for info in infos:
-            if info.is_dir and (depth < auto_expand or info.full_path in expanded):
+            full_path = join(dir_path, info.name) + (os.sep if info.is_dir else '')
+            if info.is_dir and (depth < auto_expand or full_path in expanded):
                 sub_entries, sub_err = self.walkdir(
-                    info.full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1)
+                    full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1,
+                    sortfunc=sortfunc, transient=transient)
                 note = sub_err or ('empty' if not sub_entries else '')
-                entries.append(ListingItem(*info, depth, True, note))
+                entries.append(ListingItem(info.name, full_path, True, info.size, info.mtime, depth, True, note))
                 entries.extend(sub_entries)
             else:
-                entries.append(ListingItem(*info, depth, False, ""))
+                entries.append(ListingItem(info.name, full_path, info.is_dir, info.size, info.mtime, depth, False, ""))
 
         return entries, ''
 
-    def _our_scandir(self, path: str, sortfunc=NATURAL_SORT, in_search=False) -> list[EntryInfo]:
+    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, in_search=False, fresh=False, transient=False) -> list[EntryInfo]:
         """Return EntryInfo objects for the given directory, respecting hidden settings."""
+        entries = listings.read(path, fresh=fresh, transient=transient)
+        if not path:  # drive listing
+            return sorted(entries, key=NATURAL_SORT)
         show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
         show_system = getattr(self, 'show_system', self.view.settings().get('dired_show_system_files', True))
         exclude_patterns = []
@@ -574,10 +588,13 @@ class DiredBaseCommand:
                 if p.endswith('/*'):
                     dir_patterns.append(p[:-2])
 
-        if not in_search:
-            _do_scandir.cache_clear()
-        return _do_scandir(path, show_hidden, show_system,
-                           tuple(exclude_patterns), tuple(dir_patterns), sortfunc)
+        mask = (0 if show_hidden else FILE_ATTRIBUTE_HIDDEN) | (0 if show_system else FILE_ATTRIBUTE_SYSTEM)
+        return sorted((
+            e for e in entries
+            if not (e.attributes & mask)
+            and not (e.is_dir and e.name in dir_patterns)
+            and not any(fnmatch.fnmatch(e.name, pattern) for pattern in exclude_patterns)
+        ), key=sortfunc)
 
     def recreate_dired_expanded_paths_from_view(self):
         # Update persisted expanded paths based on current view state
@@ -860,23 +877,85 @@ def format_size_short(num_bytes: int) -> str:
     return f'{int(size + 0.5)}{units[unit]}'
 
 
-@lru_cache(maxsize=256)
-def _do_scandir(
-    path: str,
-    show_hidden: bool,
-    show_system: bool,
-    exclude_patterns: tuple[str],
-    dir_patterns: tuple[str],
-    sortfunc
-) -> list[EntryInfo]:
+class FilterSnapshot:
+    """Rows for one open filter panel. Only the focused panel retains rows."""
+
+    def __init__(self):
+        self.depth = 0
+        self.focused = True
+        self._trees = {}
+
+    def walk(self, walkdir, root, expanded):
+        key = (root, self.depth)
+        if key in self._trees:
+            return self._trees[key]
+        result = walkdir(root, expanded=set(expanded), auto_expand=self.depth, transient=True)
+        if self.focused and not result[1]:
+            self._trees[key] = result
+        return result
+
+    def release(self):
+        self.focused = False
+        self.clear()
+
+    def clear(self):
+        self._trees.clear()
+
+
+filter_snapshots: dict[int, FilterSnapshot] = {}
+
+
+class DirectoryListings:
+    """Share directory scans across views until invalidated or evicted."""
+
+    def __init__(self):
+        self._directories: OrderedDict[str, list[EntryInfo]] = OrderedDict()
+        self._generation = 0
+        self._lock = Lock()
+
+    def read(self, path: str, *, fresh=False, transient=False) -> list[EntryInfo]:
+        path = os.path.normpath(path) if path else ''  # preserve the drive-list sentinel
+        if fresh:  # one-off completion/child discovery, not a change notification
+            return _do_scandir(path)
+        key = os.path.normcase(path)
+        with self._lock:
+            if key in self._directories:
+                if not transient:
+                    self._directories.move_to_end(key)
+                return self._directories[key]
+            generation = self._generation
+        rows = _do_scandir(path)
+        if not transient:
+            with self._lock:
+                # Don't publish a scan that raced with invalidation.
+                if generation == self._generation:
+                    self._directories[key] = rows
+                    if len(self._directories) > 64:
+                        self._directories.popitem(last=False)
+        return rows
+
+    def invalidate(self, path, *, subtree=False):
+        key = os.path.normcase(os.path.normpath(path)) if path else ''
+        with self._lock:
+            self._generation += 1
+            self._directories.pop(key, None)
+            if subtree and key:
+                prefix = os.path.join(key, '')
+                for child in tuple(self._directories):
+                    if child.startswith(prefix):
+                        del self._directories[child]
+
+
+listings = DirectoryListings()
+
+
+def _do_scandir(path: str) -> list[EntryInfo]:
     if not path:
-        entries = [
-            EntryInfo(f"{drive}:", f"{drive}:{os.sep}", True, None, None)
+        return [
+            EntryInfo(f"{drive}:", True, None, None)
             for drive in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             if isdir(f"{drive}:")
         ]
-        entries.sort(key=lambda info: natural_sort_key(info.name))
-        return entries
 
     items: list[EntryInfo] = []
     with os.scandir(path) as iterator:
@@ -887,34 +966,16 @@ def _do_scandir(
             except OSError:
                 stat_res = None
 
-            if any(fnmatch.fnmatch(name, pattern) for pattern in exclude_patterns):
-                continue
-            if NT and stat_res:
-                try:
-                    attrs = stat_res.st_file_attributes
-                except AttributeError:
-                    pass
-                else:
-                    if not show_hidden and attrs & FILE_ATTRIBUTE_HIDDEN \
-                    or not show_system and attrs & FILE_ATTRIBUTE_SYSTEM:
-                        continue
-
             try:
                 is_directory = entry.is_dir()
             except OSError:
                 is_directory = False
 
-            if is_directory and name in dir_patterns:
-                continue
-
             size = stat_res.st_size if stat_res and not is_directory else None
             mtime = stat_res.st_mtime if stat_res else None
-            full_path = entry.path
-            if is_directory and not full_path.endswith(os.sep):
-                full_path += os.sep
-            items.append(EntryInfo(name, full_path, is_directory, size, mtime))
+            attrs = getattr(stat_res, 'st_file_attributes', 0)
+            items.append(EntryInfo(name, is_directory, size, mtime, attrs))
 
-    items.sort(key=sortfunc)
     return items
 
 

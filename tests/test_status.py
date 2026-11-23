@@ -236,7 +236,7 @@ class StatusIntegrationTest(DeferrableViewTestCase):
 
         with open(self.first, 'ab') as f:
             f.write(b'x' * 1024)
-        self.view.run_command('dired_refresh')
+        self.view.run_command('dired_rescan')
         yield lambda: 'marked(2; 4kB)' in self.view.get_status('__FileBrowser__')
 
         self.view.run_command('dired_mark', {'mark': False, 'markall': True})

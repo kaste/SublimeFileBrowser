@@ -50,10 +50,10 @@ class AutorefreshSettingsTest(unittest.TestCase):
             self.callback()
 
         self.assertEqual(self.emit_event.call_args_list, [
-            mock.call('toggle_watch_all', False),
-            mock.call('toggle_watch_all', True),
-            mock.call('toggle_watch_all', None),
-            mock.call('toggle_watch_all', False),
+            mock.call('stop_watch', 42),
+            mock.call('set_paths', (42, ['/audit/sub/', '/audit/'])),
+            mock.call('set_paths', (42, ['/audit/sub/', '/audit/'])),
+            mock.call('stop_watch', 42),
         ])
 
     def test_reentrant_notification_does_not_repeat_the_toggle(self):
@@ -65,7 +65,7 @@ class AutorefreshSettingsTest(unittest.TestCase):
         self.values['dired_autorefresh'] = False
         self.callback()
 
-        self.emit_event.assert_called_once_with('toggle_watch_all', False)
+        self.emit_event.assert_called_once_with('stop_watch', 42)
 
     def setUp(self):
         self.values = {'dired_autorefresh': True}
@@ -75,11 +75,20 @@ class AutorefreshSettingsTest(unittest.TestCase):
         api.windows.return_value = []
         settings = api.load_settings.return_value
         settings.get.side_effect = self.values.get
-        emit_patcher = mock.patch.object(dired, 'emit_event')
+        emit_patcher = mock.patch.object(common, 'emit_event')
         self.addCleanup(emit_patcher.stop)
         self.emit_event = emit_patcher.start()
 
         dired.plugin_loaded()
+
+        view = mock.Mock()
+        view.id.return_value = 42
+        window = mock.Mock()
+        window.views.return_value = [view]
+        api.windows.return_value = [window]
+        self.values.update(dired_path='/audit/', dired_expanded_paths=['/audit/sub/'])
+        view.settings.return_value.get.side_effect = self.values.get
+        self.addCleanup(view.run_command.assert_not_called)
 
         tag, self.callback = settings.add_on_change.call_args.args
         self.assertEqual(tag, 'dired_autorefresh')

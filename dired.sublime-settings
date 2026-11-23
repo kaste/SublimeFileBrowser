@@ -84,7 +84,8 @@
   //                  then value will be treated as 0.9
   "dired_width": [0.25, 0.5],
 
-  // Automatically refresh view(s) in case of any changes in open directories
+  // Watch open directories for changes. If the watcher is unavailable,
+  // refresh when the FileBrowser view gains focus instead.
   "dired_autorefresh": true,
 
   // String to place between file name and generic number in case of conflicting

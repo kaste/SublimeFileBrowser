@@ -12,7 +12,7 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
-    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match)
+    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match, listings, sync_view_watches, filter_snapshots)
 from . import prompt
 from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
@@ -40,7 +40,7 @@ def plugin_loaded():
     dfsobserver = 'FileBrowser.0_dired_fs_observer'
     if dfsobserver not in sys.modules or sys.modules[dfsobserver].Observer is None:
         print(dedent('''
-            FileBrowser: watchdog module is not importable, hence auto-refresh will not work.
+            FileBrowser: watchdog is not importable; filesystem changes will not trigger refreshes.
             You can still manually refresh a dired view with `[r]`.
              • If you installed via Package Control, make sure to restart Sublime Text often enough
                to give it a chance to install the required dependencies.
@@ -55,7 +55,13 @@ def plugin_loaded():
         current = settings.get('dired_autorefresh', None)
         if current != autorefresh:
             autorefresh = current
-            emit_event('toggle_watch_all', current)
+            for window in sublime.windows():
+                for view in window.views():
+                    view_settings = view.settings()
+                    if view_settings.get('dired_path'):
+                        if current is False and view_settings.get('dired_autorefresh'):
+                            view_settings.erase('dired_autorefresh')
+                        sync_view_watches(view)
 
     # The tag identifies this callback; it does not filter which setting changed.
     settings.add_on_change('dired_autorefresh', on_settings_change)
@@ -196,6 +202,18 @@ class dired_render_status(TextCommand, DiredBaseCommand):
         self.set_status()
 
 
+class dired_rescan(TextCommand, DiredBaseCommand):
+    """Reread the current tree, e.g. when the user presses r."""
+    def run(self, edit, **args):
+        path = self.get_path()
+        if path is not None:
+            listings.invalidate(path, subtree=True)
+            snapshot = filter_snapshots.get(self.view.id())
+            if snapshot:
+                snapshot.clear()
+            self.view.run_command('dired_refresh', args)
+
+
 class dired_refresh(TextCommand, DiredBaseCommand):
     """
     Populates or repopulates a dired view.
@@ -273,13 +291,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             self.sels = None
         self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand)
 
-        if self.view.settings().get('dired_autorefresh', True):
-            emit_event(
-                'set_paths',
-                (self.view.id(), self.expanded + ([path] if path else []))
-            )
-        else:
-            emit_event('stop_watch', self.view.id())
+        sync_view_watches(self.view)
 
     def expand_goto(self, to_expand, goto):
         '''e.g. goto = "a/b/c/d", then to put cursor onto d, it should be
@@ -305,7 +317,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             goto = parent
         return list(dict.fromkeys(to_expand))
 
-    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand=0):
+    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
         # `expanded` already contains absolute paths collected from settings
@@ -317,7 +329,11 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.expanded = expanded = existing_directories(expanded)
 
         # Phase 1: build the tree
-        entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
+        snapshot = filter_snapshots.get(self.view.id())
+        if snapshot:
+            entries, err = snapshot.walk(self.walkdir, root, expanded)
+        else:
+            entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
         if err:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)
@@ -720,6 +736,18 @@ def when_loaded(view, handler):
         views_yet_to_get_loaded[view.id()].append(handler)
     else:
         handler()
+
+
+class DiredRefreshOnFocus(EventListener):
+    def on_activated(self, view):
+        settings = view.settings()
+        if not settings.get('dired_path') or settings.get('dired_rename_mode'):
+            return
+        if not settings.get('dired_autorefresh', True):
+            return
+        module = sys.modules.get(f'{__package__}.0_dired_fs_observer')
+        if not getattr(module, 'observer', None):
+            view.run_command('dired_rescan')
 
 
 class PreviewViewHandler(EventListener):

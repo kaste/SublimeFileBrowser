@@ -114,7 +114,7 @@
   },
   {
       "keys": ["r"],
-      "command": "dired_refresh",
+      "command": "dired_rescan",
       "context": [
         { "key": "selector", "operator": "equal", "operand": "text.dired" },
         { "key": "setting.dired_rename_mode", "operand": false }

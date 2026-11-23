@@ -22,7 +22,7 @@ from sublime_plugin import TextCommand, EventListener
 
 from .common import (
     DiredBaseCommand, hijack_window, get_group, emit_event,
-    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely)
+    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely, sync_view_watches, FilterSnapshot, filter_snapshots)
 
 
 STARTUPINFO = None
@@ -269,7 +269,7 @@ class dired_toggle_auto_refresh(TextCommand):
         s = self.view.settings()
         ar = s.get('dired_autorefresh', True)
         s.set('dired_autorefresh', not ar)
-        self.view.run_command('dired_refresh')
+        sync_view_watches(self.view)
 
 
 
@@ -291,7 +291,8 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
         initial_sels = (self.get_selected(), [Region(r.a, r.b) for r in self.view.sel()])
         initial_viewport = self.view.viewport_position()
         initial_expanded_folders: list[str] = self.view.settings().get('dired_expanded_paths', [])
-        auto_expand = 0
+        vid = self.view.id()
+        snapshot = filter_snapshots[vid] = FilterSnapshot()
         auto_expand_trigger = ''
 
         def apply_filter(text: str):
@@ -299,15 +300,17 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
                 self.view.settings().set('dired_filter', text.strip())
             else:
                 self.view.settings().erase('dired_filter')
-            self.view.run_command('dired_refresh', {'auto_expand': auto_expand})
+            self.view.run_command('dired_refresh', {'auto_expand': snapshot.depth})
 
         def on_done(text: str):
+            snapshot.release()
+            filter_snapshots.pop(vid, None)
             self.view.settings().set('dired_filter_live', False)
             self.recreate_dired_expanded_paths_from_view()
             apply_filter(text)
 
         def on_change(text: str):
-            nonlocal auto_expand, auto_expand_trigger
+            nonlocal auto_expand_trigger
 
             text = text.strip()
 
@@ -320,7 +323,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
 
             # Reset auto expansion state whenever the term diverges from the
             # previous trigger (including backspacing below it).
-            auto_expand = 0
+            snapshot.depth = 0
             auto_expand_trigger = ''
 
             # First try without auto expansion.
@@ -329,11 +332,13 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             # If live fuzzy filtering yields no matches at the current depth,
             # enable auto expansion up to three levels and try again.
             if self.view.settings().get('dired_count', 0) == 0:
-                auto_expand = 3
+                snapshot.depth = 3
                 auto_expand_trigger = text
                 apply_filter(text)
 
         def on_cancel():
+            snapshot.release()
+            filter_snapshots.pop(vid, None)
             self.view.settings().set('dired_filter_live', False)
             if current:
                 self.view.settings().set('dired_filter', current)
@@ -343,10 +348,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_filter_extension', filter_extension)
             self.view.settings().set('dired_expanded_paths', initial_expanded_folders)
             self.view.run_command('dired_refresh')
-            # After a `dired_refresh` we need to refresh `self.index` by calling
-            # `load_index()`.  Even when we intend to to "just" revert to the
-            # exact same state from before, `dired_refresh` still calls `listdir`
-            # et.al. and hence has a fresh view of the state of the filesystem.
+            # Selection restoration needs the index from the refreshed view.
             self.load_index()
             self.restore_sels(initial_sels)
             self.view.set_viewport_position(initial_viewport, False)
@@ -358,9 +360,35 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
 
         pv = window.show_input_panel('Filter:', current if enabled else "", on_done, on_change, on_cancel)
         pv.settings().set('dired_input_panel', True)
-        pv.settings().set('dired_target_view_id', self.view.id())
+        pv.settings().set('dired_target_view_id', vid)
+        self.view.run_command('dired_refresh')
         if enabled:
             pv.run_command('select_all')
+
+
+class DiredFilterPanelFocus(EventListener):
+    def on_deactivated(self, panel):
+        vid = panel.settings().get('dired_target_view_id')
+        snapshot = filter_snapshots.get(vid)
+        if snapshot and snapshot.focused:
+            snapshot.release()
+            # Accepting/cancelling also deactivates the panel. Let those
+            # callbacks do their own refresh after restoring the view state.
+            def refresh_if_blurred():
+                if filter_snapshots.get(vid) is snapshot and not snapshot.focused:
+                    sublime.View(vid).run_command('dired_refresh')
+            sublime.set_timeout(refresh_if_blurred)
+
+    def on_activated(self, panel):
+        vid = panel.settings().get('dired_target_view_id')
+        snapshot = filter_snapshots.get(vid)
+        if snapshot and not snapshot.focused:
+            snapshot.focused = True
+            sublime.View(vid).run_command('dired_refresh')
+
+    def on_close(self, view):
+        if snapshot := filter_snapshots.pop(view.id(), None):
+            snapshot.release()
 
 
 class dired_toggle_filter(TextCommand, DiredBaseCommand):

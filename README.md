@@ -424,7 +424,20 @@ Auto-refresh can be disabled globally in user settings file
 { "dired_autorefresh": false }
 ```
 
-And, regardless of global setting, can be toggled per view via context menu.
+Auto-refresh can also be toggled per view via the context menu.
+
+Directory listings are shared across views. Closing a view or collapsing a
+folder keeps the cached listing if another view still watches that folder.
+When its last watch stops, the listing is discarded; the next read scans the
+folder again. Press <kbd>r</kbd> to reread the current tree at any time.
+
+While the fuzzy filter input has focus, edits search a snapshot of the
+listing. Filesystem changes do not move the results under your cursor.
+Accepting, cancelling, or leaving the input releases that snapshot.
+
+If auto-refresh is enabled but the filesystem observer is unavailable,
+FileBrowser rereads the current tree when the view gains focus instead.
+Disabling auto-refresh disables this fallback too.
 
 
 ## Tweaking Look and Feel

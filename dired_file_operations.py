@@ -67,7 +67,7 @@ class dired_create(TextCommand, DiredBaseCommand):
                 pass
         if self.refresh:  # user press enter
             emit_event('watch_view', self.view.id())
-            self.view.run_command('dired_refresh', {'goto': fqn})
+            self.view.run_command('dired_rescan', {'goto': fqn})
 
         # user press ctrl+enter, no refresh
         return fqn
@@ -99,7 +99,7 @@ class dired_create_and_open(dired_create):
             sublime.active_window().open_file(fqn)
         if self.refresh:
             emit_event('watch_view', dired_view.id())
-            dired_view.run_command('dired_refresh', {'goto': fqn})
+            dired_view.run_command('dired_rescan', {'goto': fqn})
 
 
 class dired_delete(TextCommand, DiredBaseCommand):
@@ -138,7 +138,7 @@ class dired_delete(TextCommand, DiredBaseCommand):
             window.run_command("delete_folder", {"dirs": directories_, "prompt": False})
 
         emit_event('watch_view', view.id())
-        view.run_command('dired_refresh')
+        view.run_command('dired_rescan')
 
 
 class dired_rename(TextCommand, DiredBaseCommand):
@@ -210,7 +210,7 @@ class dired_rename_commit(TextCommand, DiredBaseCommand):
         self.view.settings().erase('rename')
         self.view.settings().set('dired_rename_mode', False)
         emit_event('watch_view', self.view.id())
-        self.view.run_command('dired_refresh', {'to_expand': self.re_expand_new_names()})
+        self.view.run_command('dired_rescan', {'to_expand': self.re_expand_new_names()})
 
     def get_after(self):
         '''Return list of all filenames in the view'''
@@ -517,7 +517,7 @@ class dired_clear_copy_cut_list(TextCommand):
         # Also clear visual highlights for copied/cut items
         self.view.erase_regions('copied')
         self.view.erase_regions('cut')
-        self.view.run_command('dired_refresh')
+        self.view.run_command('dired_rescan')
 
 
 def _dups(sources_copy, destination):
@@ -607,7 +607,7 @@ class call_SHFileOperationW(object):
                 for s in sources:
                     retarget(s, join(destination, basename(s)))
         else:  # probably user cancel op., or sth went wrong; keep settings
-            sublime.set_timeout(lambda: self.view.run_command('dired_refresh'), 1)
+            sublime.set_timeout(lambda: self.view.run_command('dired_rescan'), 1)
 
 
 class call_SystemAgnosticFileOperation(object):
