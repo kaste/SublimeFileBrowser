@@ -523,15 +523,6 @@ class DiredBaseCommand:
             )
         return message
 
-    def _filter_entries(self, entries, settings):
-        enabled = settings.get('dired_filter_enabled', True)
-        if enabled:
-            if ext_filter := settings.get('dired_filter_extension', '').lower():
-                entries = [e for e in entries if os.path.splitext(e.name)[1].lower() == ext_filter]
-            if flt := settings.get('dired_filter'):
-                entries = [e for e in entries if fuzzy_match(flt, e.name)]
-        return entries
-
     def walkdir(
         self,
         dir_path: str,
@@ -807,21 +798,18 @@ class DiredBaseCommand:
         """
         key = 'dired_filter_hits'
         s = self.view.settings()
-        enabled = s.get('dired_filter_enabled', True)
-        flt = s.get('dired_filter')
-        filter_extension = s.get('dired_filter_extension')
-        if not enabled or (not flt and not filter_extension):
+        flt, ext = active_filter_query(s)
+        if not flt and not ext:
             self.view.erase_regions(key)
             return
 
         regions = []
         # Extension highlight
-        if filter_extension:
-            ext_l = filter_extension.lower()
+        if ext:
             for r in self.view.find_by_selector('text.dired string.name.file.dired'):
                 name = self.view.substr(r)
-                if len(name) >= len(ext_l) and name.lower().endswith(ext_l):
-                    start = r.b - len(ext_l)
+                if len(name) >= len(ext) and name.lower().endswith(ext):
+                    start = r.b - len(ext)
                     regions.append(Region(start, r.b))
         # Name fuzzy highlight
         if flt:
@@ -997,6 +985,28 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
         else:
             prev.b = r.b
     return rv
+
+
+def filter_entries(entries: list[ListingItem], term: str, extension: str) -> list[ListingItem]:
+    """Keep matching entries and their ancestors in tree order."""
+    if not term and not extension:
+        return entries
+
+    kept: list[ListingItem] = []
+    for e in reversed(entries):
+        if e.is_dir and kept and kept[-1].full_path.startswith(e.full_path):
+            kept.append(e)
+        elif ((not extension or not e.is_dir and os.path.splitext(e.name)[1].lower() == extension)
+              and (not term or fuzzy_match(term, e.name))):
+            kept.append(e)
+    kept.reverse()
+    return kept
+
+
+def active_filter_query(settings) -> tuple[str, str]:
+    if not settings.get('dired_filter_enabled', True):
+        return '', ''
+    return settings.get('dired_filter', '').strip(), settings.get('dired_filter_extension', '').lower()
 
 
 @lru_cache(maxsize=8192)

@@ -12,7 +12,8 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
-    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match, listings, sync_view_watches, filter_snapshots)
+    history_replace, set_proper_scheme, NT, PARENT_SYM, active_filter_query, filter_entries,
+    listings, sync_view_watches, filter_snapshots)
 from . import prompt
 from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
@@ -347,25 +348,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
 
         # Phase 2: filter bottom-up
         s = self.view.settings()
-        enabled = s.get('dired_filter_enabled', True)
-        ext = s.get('dired_filter_extension', '').lower()
-        flt = s.get('dired_filter', '').strip()
-
-        filtered_entries: list[ListingItem] = []
-        for e in reversed(entries):
-            ok_name = not enabled or not flt or fuzzy_match(flt, e.name)
-            if e.is_dir:
-                children_present = (
-                    filtered_entries and filtered_entries[-1].full_path.startswith(e.full_path))
-                ok_ext = not enabled or not ext
-                keep_dir = ok_ext and ok_name or children_present
-                if keep_dir:
-                    filtered_entries.append(e)
-            else:
-                ok_ext = not enabled or not ext or os.path.splitext(e.name)[1].lower() == ext
-                keep_file = ok_ext and ok_name
-                if keep_file:
-                    filtered_entries.append(e)
+        term, extension = active_filter_query(s)
+        filtered_entries = filter_entries(entries, term, extension)
 
         # Phase 3: render and build index
         show_stats = s.get('dired_show_stats', False)
@@ -376,7 +360,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             tab_size = 4
 
         rendered, new_index = format_items(
-            reversed(filtered_entries),
+            filtered_entries,
             show_stats,
             tab_size,
             dir_sep=_display_path_separator(s),
@@ -983,7 +967,8 @@ class dired_expand(TextCommand, DiredBaseCommand):
             expanded=True,
             note=err or ('empty' if not entries else '')
         )
-        entries = self._filter_entries(entries, settings)
+        term, extension = active_filter_query(settings)
+        entries = filter_entries(entries, term, extension)
         entries = [root_entry] + entries
         rendered, new_index = format_items(
             entries,
