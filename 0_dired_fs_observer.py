@@ -64,24 +64,11 @@ def plugin_unloaded():
         observer = None
 
 
-def refresh(views, erase_settings=False):
-    '''
-    views
-        list of integers which are view.id(), can be empty
-    erase_settings
-        boolean, can be True after change of global setting dired_autorefresh
-    '''
-    if not views and not erase_settings:
-        def is_dired(view): return view.settings().get("dired_path")
-    else:
-        def is_dired(view): return False
-
-    for w in sublime.windows():
-        for v in w.views():
-            if v.id() in views or is_dired(v):
-                if erase_settings:
-                    v.settings().erase('dired_autorefresh')
-                v.run_command('dired_refresh')
+def refresh(views):
+    for window in sublime.windows():
+        for view in window.views():
+            if view.id() in views:
+                view.run_command('dired_refresh')
 
 
 class ObservePaths(object):
@@ -197,13 +184,6 @@ class ObservePaths(object):
                     for vid, view_paths in self.paths.items()
                 }
 
-        def toggle_watch_all(watch):
-            '''watch is boolean or None, global setting dired_autorefresh'''
-            views = self.paths.keys()
-            if not watch:
-                self.paths = {}
-            sublime.set_timeout(lambda: refresh(views, erase_settings=(not watch)), 1)
-
         def ignore_view(vid: sublime.ViewId):
             self.event_handler.ignored_views.add(vid)
 
@@ -216,7 +196,6 @@ class ObservePaths(object):
             'remove_path': lambda: remove_path(*payload),
             'view_closed': lambda: stop_watch(payload),
             'stop_watch': lambda: stop_watch(payload),
-            'toggle_watch_all': lambda: toggle_watch_all(payload),
             'ignore_view': lambda: ignore_view(payload),
             'watch_view': lambda: unignore_view(payload),
         }

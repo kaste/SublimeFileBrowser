@@ -22,7 +22,7 @@ from sublime_plugin import TextCommand, EventListener
 
 from .common import (
     DiredBaseCommand, hijack_window, get_group, emit_event,
-    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely)
+    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely, sync_view_watches)
 
 
 STARTUPINFO = None
@@ -269,7 +269,7 @@ class dired_toggle_auto_refresh(TextCommand):
         s = self.view.settings()
         ar = s.get('dired_autorefresh', True)
         s.set('dired_autorefresh', not ar)
-        self.view.run_command('dired_refresh')
+        sync_view_watches(self.view)
 
 
 

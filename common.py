@@ -210,6 +210,18 @@ def emit_event(event_type: str, payload: object):
         observer.post(event_type, payload)
 
 
+def sync_view_watches(view):
+    settings = view.settings()
+    root = settings.get('dired_path')
+    if not root:
+        return
+    if settings.get('dired_autorefresh', True):
+        paths = settings.get('dired_expanded_paths') or []
+        emit_event('set_paths', (view.id(), paths + ([root] if root != 'ThisPC\\' else [])))
+    else:
+        emit_event('stop_watch', view.id())
+
+
 class DiredBaseCommand:
     """
     Convenience functions for dired TextCommands

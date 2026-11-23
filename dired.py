@@ -12,7 +12,7 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
-    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match)
+    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match, sync_view_watches)
 from . import prompt
 from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
@@ -55,7 +55,13 @@ def plugin_loaded():
         current = settings.get('dired_autorefresh', None)
         if current != autorefresh:
             autorefresh = current
-            emit_event('toggle_watch_all', current)
+            for window in sublime.windows():
+                for view in window.views():
+                    view_settings = view.settings()
+                    if view_settings.get('dired_path'):
+                        if current is False and view_settings.get('dired_autorefresh'):
+                            view_settings.erase('dired_autorefresh')
+                        sync_view_watches(view)
 
     # The tag identifies this callback; it does not filter which setting changed.
     settings.add_on_change('dired_autorefresh', on_settings_change)
@@ -273,13 +279,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             self.sels = None
         self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand)
 
-        if self.view.settings().get('dired_autorefresh', True):
-            emit_event(
-                'set_paths',
-                (self.view.id(), self.expanded + ([path] if path else []))
-            )
-        else:
-            emit_event('stop_watch', self.view.id())
+        sync_view_watches(self.view)
 
     def expand_goto(self, to_expand, goto):
         '''e.g. goto = "a/b/c/d", then to put cursor onto d, it should be
