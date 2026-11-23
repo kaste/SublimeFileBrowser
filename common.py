@@ -530,6 +530,7 @@ class DiredBaseCommand:
         expanded: set[str] | None = None,
         auto_expand: int = 0,
         depth: int = 0,
+        directory_prefix: tuple[str, ...] = (),
         sortfunc=NATURAL_SORT,
         transient=False,
     ) -> tuple[list[ListingItem], str]:
@@ -543,11 +544,14 @@ class DiredBaseCommand:
 
         entries: list[ListingItem] = []
         for info in infos:
+            # Follow the literal directory prefix before searching names.
+            if depth < len(directory_prefix) and (not info.is_dir or os.path.normcase(info.name) != directory_prefix[depth]):
+                continue
             full_path = join(dir_path, info.name) + (os.sep if info.is_dir else '')
-            if info.is_dir and (depth < auto_expand or full_path in expanded):
+            if info.is_dir and (depth < len(directory_prefix) + auto_expand or full_path in expanded):
                 sub_entries, sub_err = self.walkdir(
                     full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1,
-                    sortfunc=sortfunc, transient=transient)
+                    directory_prefix=directory_prefix, sortfunc=sortfunc, transient=transient)
                 note = sub_err or ('empty' if not sub_entries else '')
                 entries.append(ListingItem(info.name, full_path, True, info.size, info.mtime, depth, True, note))
                 entries.extend(sub_entries)
@@ -798,7 +802,7 @@ class DiredBaseCommand:
         """
         key = 'dired_filter_hits'
         s = self.view.settings()
-        flt, ext = active_filter_query(s)
+        directory_prefix, flt, ext = active_filter_query(s)
         if not flt and not ext:
             self.view.erase_regions(key)
             return
@@ -818,6 +822,8 @@ class DiredBaseCommand:
                 + self.view.find_by_selector('text.dired string.name.directory.dired')
             ):
                 name = self.view.substr(r)
+                if directory_prefix and self.view.indentation_level(r.a) < len(directory_prefix):
+                    continue
                 if pos := fuzzy_match(flt, name):
                     regions.extend(Region(r.a + p, r.a + p + 1) for p in pos)
 
@@ -873,11 +879,11 @@ class FilterSnapshot:
         self.focused = True
         self._trees = {}
 
-    def walk(self, walkdir, root, expanded):
-        key = (root, self.depth)
+    def walk(self, walkdir, root, expanded, directory_prefix):
+        key = (root, directory_prefix, self.depth)
         if key in self._trees:
             return self._trees[key]
-        result = walkdir(root, expanded=set(expanded), auto_expand=self.depth, transient=True)
+        result = walkdir(root, expanded=set(expanded), auto_expand=self.depth, directory_prefix=directory_prefix, transient=True)
         if self.focused and not result[1]:
             self._trees[key] = result
         return result
@@ -987,26 +993,36 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
     return rv
 
 
-def filter_entries(entries: list[ListingItem], term: str, extension: str) -> list[ListingItem]:
-    """Keep matching entries and their ancestors in tree order."""
-    if not term and not extension:
+def filter_entries(
+    entries: list[ListingItem], term: str, extension: str, *, first_match_depth: int
+) -> list[ListingItem]:
+    """Keep matches in tree order. Shallower rows survive only as ancestors of matches."""
+    if not first_match_depth and not term and not extension:
         return entries
 
     kept: list[ListingItem] = []
     for e in reversed(entries):
         if e.is_dir and kept and kept[-1].full_path.startswith(e.full_path):
             kept.append(e)
-        elif ((not extension or not e.is_dir and os.path.splitext(e.name)[1].lower() == extension)
+        elif (e.depth >= first_match_depth
+              and (not extension or not e.is_dir and os.path.splitext(e.name)[1].lower() == extension)
               and (not term or fuzzy_match(term, e.name))):
             kept.append(e)
     kept.reverse()
     return kept
 
 
-def active_filter_query(settings) -> tuple[str, str]:
+def active_filter_query(settings) -> tuple[tuple[str, ...], str, str]:
     if not settings.get('dired_filter_enabled', True):
-        return '', ''
-    return settings.get('dired_filter', '').strip(), settings.get('dired_filter_extension', '').lower()
+        return (), '', ''
+    directory_prefix, term = split_filter_query(settings.get('dired_filter') or '')
+    return directory_prefix, term, settings.get('dired_filter_extension', '').lower()
+
+
+def split_filter_query(query: str) -> tuple[tuple[str, ...], str]:
+    """Split a root-relative directory prefix from the fuzzy basename term."""
+    *dirs, term = query.strip().replace(os.sep, '/').split('/')
+    return tuple(os.path.normcase(d) for d in dirs), term
 
 
 @lru_cache(maxsize=8192)

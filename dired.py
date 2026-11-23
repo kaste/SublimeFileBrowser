@@ -329,12 +329,15 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             expanded.extend(to_expand or [])
         self.expanded = expanded = existing_directories(expanded)
 
+        s = self.view.settings()
+        directory_prefix, term, extension = active_filter_query(s)
+
         # Phase 1: build the tree
         snapshot = filter_snapshots.get(self.view.id())
         if snapshot:
-            entries, err = snapshot.walk(self.walkdir, root, expanded)
+            entries, err = snapshot.walk(self.walkdir, root, expanded, directory_prefix)
         else:
-            entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
+            entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand, directory_prefix=directory_prefix)
         if err:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)
@@ -347,9 +350,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             return
 
         # Phase 2: filter bottom-up
-        s = self.view.settings()
-        term, extension = active_filter_query(s)
-        filtered_entries = filter_entries(entries, term, extension)
+        filtered_entries = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
 
         # Phase 3: render and build index
         show_stats = s.get('dired_show_stats', False)
@@ -945,7 +946,8 @@ class dired_expand(TextCommand, DiredBaseCommand):
             tab_size = 4
         indentation_level = self.view.indentation_level(line.a)
 
-        entries, err = self.walkdir(path, depth=indentation_level + 1)
+        directory_prefix, term, extension = active_filter_query(settings)
+        entries, err = self.walkdir(path, depth=indentation_level + 1, directory_prefix=directory_prefix)
         _base_timestamp = None
         if SEPARATOR in line_content:
             stats_part = line_content.split(SEPARATOR, 1)[1].strip()
@@ -967,8 +969,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
             expanded=True,
             note=err or ('empty' if not entries else '')
         )
-        term, extension = active_filter_query(settings)
-        entries = filter_entries(entries, term, extension)
+        entries = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
         entries = [root_entry] + entries
         rendered, new_index = format_items(
             entries,

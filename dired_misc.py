@@ -22,7 +22,7 @@ from sublime_plugin import TextCommand, EventListener
 
 from .common import (
     DiredBaseCommand, hijack_window, get_group, emit_event,
-    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely, sync_view_watches, FilterSnapshot, filter_snapshots)
+    MARK_OPTIONS, NT, OSX, PARENT_SYM, sort_nicely, sync_view_watches, FilterSnapshot, filter_snapshots, split_filter_query)
 
 
 STARTUPINFO = None
@@ -317,7 +317,8 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             # If the current term still starts with the trigger that caused
             # auto expansion, keep the current auto_expand depth and just
             # re-apply the filter.
-            if auto_expand_trigger and text.startswith(auto_expand_trigger):
+            if (auto_expand_trigger and text.startswith(auto_expand_trigger)
+                    and split_filter_query(text)[0] == split_filter_query(auto_expand_trigger)[0]):
                 apply_filter(text)
                 return
 

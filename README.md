@@ -431,6 +431,12 @@ folder keeps the cached listing if another view still watches that folder.
 When its last watch stops, the listing is discarded; the next read scans the
 folder again. Press <kbd>r</kbd> to reread the current tree at any time.
 
+To search within a subdirectory, prefix the fuzzy term with its path relative
+to the view root. For example, `test/md` fuzzy-matches `md` in names under
+`test/` only; `test/fixtures/md` narrows the search to `test/fixtures/`.
+If there are no matches in the expanded tree, the live filter searches up to
+three levels deeper from the named directory.
+
 While the fuzzy filter input has focus, edits search a snapshot of the
 listing. Filesystem changes do not move the results under your cursor.
 Accepting, cancelling, or leaving the input releases that snapshot.

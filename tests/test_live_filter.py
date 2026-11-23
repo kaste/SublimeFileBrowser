@@ -108,6 +108,43 @@ class LiveFilterTest(DeferrableViewTestCase):
                 handler.on_activated(self.view)
                 self.assertIn(path, settings.get('dired_index'))
 
+    def test_directory_prefix_scopes_live_matches_and_highlights(self):
+        with tempfile.TemporaryDirectory() as root:
+            test = os.path.join(root, 'test')
+            tests = os.path.join(root, 'tests')
+            deep = os.path.join(test, 'a', 'b', 'c')
+            os.makedirs(deep)
+            os.mkdir(tests)
+            for folder in (root, test, tests, deep):
+                open(os.path.join(folder, 'readme.md'), 'w').close()
+            open(os.path.join(test, 'other.txt'), 'w').close()
+
+            self.view.assign_syntax('Packages/FileBrowser/dired.sublime-syntax')
+            settings = self.view.settings()
+            settings.set('dired_autorefresh', False)
+            retarget_dired_view(self.view, root)
+            with mock.patch.object(sublime.View, 'window') as window:
+                dired_fuzzy_search(self.view).run(None)
+            done, change = window.return_value.show_input_panel.call_args.args[2:4]
+
+            def paths():
+                return [p for p in settings.get('dired_index') if os.path.isabs(p)]
+
+            change('test/md')
+            self.assertEqual(paths(), [test + os.sep, os.path.join(test, 'readme.md')])
+            self.assertEqual([self.view.substr(r) for r in self.view.get_regions('dired_filter_hits')], ['md'])
+            change('tests/md')
+            self.assertEqual(paths(), [tests + os.sep, os.path.join(tests, 'readme.md')])
+            change('missing/md')
+            self.assertEqual(paths(), [])
+            change('test/')
+            self.assertIn(os.path.join(test, 'other.txt'), paths())
+            change('test/a/b/c/md')
+            done('test/a/b/c/md')
+            self.view.run_command('dired_refresh')
+            self.assertIn(os.path.join(deep, 'readme.md'), paths())
+            self.assertNotIn(os.path.join(test, 'readme.md'), paths())
+
     def test_focused_search_survives_watcher_refresh_and_thaws_on_blur(self):
         with tempfile.TemporaryDirectory() as root:
             child = os.path.join(root, 'project')
