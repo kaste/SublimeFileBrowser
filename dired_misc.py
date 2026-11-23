@@ -57,6 +57,11 @@ def get_dates(path):
     return created, accessed, modified
 
 
+class dired_noop(sublime_plugin.ApplicationCommand):
+    def run(self):
+        pass
+
+
 class dired_find_in_files(TextCommand, DiredBaseCommand):
     def run(self, edit):
         self.load_index()

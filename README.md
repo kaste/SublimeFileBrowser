@@ -28,9 +28,9 @@ it is an optional feature you may ignore it).
 
 ## Commands and Keybindings
 
-This plugin does not add any keybindings for opening a new tab in *Browse Mode*. Although, the
-commands to do that are available in *Command Palette* but it is recommended to bind <kbd>F1</kbd>
-to open the current file directory in *Browse Mode* with this piece of code (that you can add to
+This plugin does not add any keybindings for opening a directory browser tab. The commands
+are available under **FileBrowser:** in the *Command Palette*. You can bind <kbd>F1</kbd>
+to open the current file's directory with this piece of code (that you can add to
 your `Key Bindings - User` file):
 
 ``` json
@@ -71,14 +71,14 @@ e.g. to completely mimic sidebar, it would be:
 
 ### Commands
 
-| Commands                                 | Description                                                    |
-| :--------------------------------------- | :------------------------------------------------------------- |
-| **Browse Mode...**                       | Asks for a directory to open in browse mode                    |
-| **Browse Mode: Current file or project** | Opens the directory of current file or project in browse mode  |
-| **Browse Mode: Left Sidebar**            | Opens in browse mode as a sidebar on the left                  |
-| **Browse Mode: Right Sidebar**           | Opens in browse mode as a sidebar on the right                 |
-| **Browse Mode: Jump List**               | Shows the jump list view (see jump list section below)         |
-| **Browse Mode: Jump List Quick Panel**   | Shows the jump list in quick panel                             |
+| Commands                                                     | Description                                           |
+| :----------------------------------------------------------- | :---------------------------------------------------- |
+| **FileBrowser: Open Directory…**                              | Asks for a directory to open                           |
+| **FileBrowser: Open Current File’s Directory or Project**      | Opens the directory of the current file or project     |
+| **FileBrowser: Open Left Sidebar**                            | Opens a directory browser as a sidebar on the left     |
+| **FileBrowser: Open Right Sidebar**                           | Opens a directory browser as a sidebar on the right    |
+| **FileBrowser: Open Jump List**                               | Shows the jump list view (see jump list section below) |
+| **FileBrowser: Open Jump List Quick Panel**                   | Shows the jump list in a quick panel                   |
 
 ### Shortcuts
 ##### General Shortcuts
@@ -282,8 +282,7 @@ While in *Browse Mode*, you can press <kbd>p</kbd> to view the *Jump List* in a 
           particular location.
 
 ##### Jump List in a Quick Panel from anywhere
-Bring up *Command Palette* and search for `Browse Mode: Jump List Quick Panel` (typing `bmq` should
-find it for you).
+Bring up *Command Palette* and search for `FileBrowser: Open Jump List Quick Panel`.
 If you want to save some key stokes you can add the following code in your user key bindings file:
 
 ```json
@@ -306,8 +305,8 @@ You can change `f3` in the above code to your custom keyboard shortcut.
           and edit your user settings with `"dired_smart_jump": true`.
 
 ##### Jump List View
-Bring up *Command Palette* and search for `Browse Mode: Jump List` (typing `bmj` should find it for
-you). This command will open a *Jump List View* that looks like this:
+Bring up *Command Palette* and search for `FileBrowser: Open Jump List`.
+This command will open a *Jump List View* that looks like this:
 
 ![SublimeFileBrowser Jump List View](assets/5253230706d2e706e67.png)
 

@@ -16,25 +16,30 @@
   },
 
   {
-    "caption": "Browse Mode...",
+    "caption": "\"Browse Mode\" is now FileBrowser",
+    // "caption": "Browse Mode: Commands are now under FileBrowser",
+    "command": "dired_noop"
+  },
+  {
+    "caption": "FileBrowser: Open Directory…",
     "command": "dired"
   },
   {
-    "caption": "Browse Mode: Current file or project",
+    "caption": "FileBrowser: Open Current File’s Directory or Project",
     "command": "dired",
     "args": { "immediate": true }
   },
   {
-    "caption": "Browse Mode: Jump List",
+    "caption": "FileBrowser: Open Jump List",
     "command": "dired_jump_list"
   },
   {
-    "caption": "Browse Mode: Jump List Quick Panel",
+    "caption": "FileBrowser: Open Jump List Quick Panel",
     "command": "dired_jump",
     "args": { "new_window": "auto" }
   },
   {
-    "caption": "Browse Mode: Left Sidebar",
+    "caption": "FileBrowser: Open Left Sidebar",
     "command": "dired",
     "args": {
       "immediate": true,
@@ -44,7 +49,7 @@
     }
   },
   {
-    "caption": "Browse Mode: Right Sidebar",
+    "caption": "FileBrowser: Open Right Sidebar",
     "command": "dired",
     "args": {
       "immediate": true,
