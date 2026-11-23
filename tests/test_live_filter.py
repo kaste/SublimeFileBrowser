@@ -124,7 +124,10 @@ class LiveFilterTest(DeferrableViewTestCase):
             _, change, cancel = window.return_value.show_input_panel.call_args.args[2:]
             try:
                 change('dev/test/venv')
-                self.assertIn(env + os.sep, settings.get('dired_index'))
+                index = settings.get('dired_index')
+                self.assertIn(env + os.sep, index)
+                row, _ = self.view.rowcol(self.view.sel()[0].b)
+                self.assertEqual(index[row], env + os.sep)
                 self.assertNotIn(os.path.join(env, 'venv.cfg'), settings.get('dired_index'))
             finally:
                 cancel()

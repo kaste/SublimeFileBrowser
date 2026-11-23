@@ -994,21 +994,23 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
 
 def filter_entries(
     entries: list[ListingItem], term: str, extension: str, *, first_match_depth: int
-) -> list[ListingItem]:
-    """Keep matches in tree order. Shallower rows survive only as ancestors of matches."""
+) -> tuple[list[ListingItem], ListingItem | None]:
+    """Return visible rows and the first direct match (not a context-only ancestor)."""
     if not first_match_depth and not term and not extension:
-        return entries
+        return entries, None
 
     kept: list[ListingItem] = []
+    first_match = None
     for e in reversed(entries):
-        if e.is_dir and kept and kept[-1].full_path.startswith(e.full_path):
+        if (e.depth >= first_match_depth
+                and (not extension or not e.is_dir and os.path.splitext(e.name)[1].lower() == extension)
+                and (not term or fuzzy_match(term, e.name))):
+            first_match = e
             kept.append(e)
-        elif (e.depth >= first_match_depth
-              and (not extension or not e.is_dir and os.path.splitext(e.name)[1].lower() == extension)
-              and (not term or fuzzy_match(term, e.name))):
+        elif e.is_dir and kept and kept[-1].full_path.startswith(e.full_path):
             kept.append(e)
     kept.reverse()
-    return kept
+    return kept, first_match
 
 
 def active_filter_query(settings) -> tuple[tuple[str, ...], str, str]:

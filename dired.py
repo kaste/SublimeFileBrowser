@@ -232,7 +232,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     """
     sels: tuple[list[str] | None, list[Region] | None] | None
 
-    def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None, auto_expand=0):
+    def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None, auto_expand=0,
+            select_first_match=False):
         """
         goto
             Optional path to put the cursor on; can be relative or absolute.
@@ -290,7 +291,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             # When resetting, clear selections and initialize index
             self.index = []
             self.sels = None
-        self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand)
+        self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand, select_first_match)
 
         sync_view_watches(self.view)
 
@@ -318,7 +319,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             goto = parent
         return list(dict.fromkeys(to_expand))
 
-    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand):
+    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand, select_first_match):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
         # `expanded` already contains absolute paths collected from settings
@@ -350,7 +351,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             return
 
         # Phase 2: filter bottom-up
-        filtered_entries = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
+        filtered_entries, first_match = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
 
         # Phase 3: render and build index
         show_stats = s.get('dired_show_stats', False)
@@ -382,6 +383,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.index = new_index
         items = self.correcting_index(path, lines)
         self.write(edit, items)
+        if not goto and select_first_match and first_match:
+            goto = first_match.full_path
         self.restore_selections(path, goto)
         self.refresh_mark_highlights()
         self.refresh_clipboard_highlights()
@@ -969,7 +972,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
             expanded=True,
             note=err or ('empty' if not entries else '')
         )
-        entries = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
+        entries, _ = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
         entries = [root_entry] + entries
         rendered, new_index = format_items(
             entries,

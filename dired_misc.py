@@ -295,19 +295,21 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
         snapshot = filter_snapshots[vid] = FilterSnapshot()
         auto_expand_trigger = ''
 
-        def apply_filter(text: str):
+        def apply_filter(text: str, *, select_first_match: bool):
             if text:
                 self.view.settings().set('dired_filter', text.strip())
             else:
                 self.view.settings().erase('dired_filter')
-            self.view.run_command('dired_refresh', {'auto_expand': snapshot.depth})
+            self.view.run_command('dired_refresh', {
+                'auto_expand': snapshot.depth, 'select_first_match': select_first_match,
+            })
 
         def on_done(text: str):
             snapshot.release()
             filter_snapshots.pop(vid, None)
             self.view.settings().set('dired_filter_live', False)
             self.recreate_dired_expanded_paths_from_view()
-            apply_filter(text)
+            apply_filter(text, select_first_match=False)
 
         def on_change(text: str):
             nonlocal auto_expand_trigger
@@ -319,7 +321,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             # re-apply the filter.
             if (auto_expand_trigger and text.startswith(auto_expand_trigger)
                     and split_filter_query(text)[0] == split_filter_query(auto_expand_trigger)[0]):
-                apply_filter(text)
+                apply_filter(text, select_first_match=True)
                 return
 
             # Reset auto expansion state whenever the term diverges from the
@@ -328,14 +330,14 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             auto_expand_trigger = ''
 
             # First try without auto expansion.
-            apply_filter(text)
+            apply_filter(text, select_first_match=True)
 
             # If live fuzzy filtering yields no matches at the current depth,
             # enable auto expansion up to three levels and try again.
             if self.view.settings().get('dired_count', 0) == 0:
                 snapshot.depth = 3
                 auto_expand_trigger = text
-                apply_filter(text)
+                apply_filter(text, select_first_match=True)
 
         def on_cancel():
             snapshot.release()
