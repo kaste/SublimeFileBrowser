@@ -952,8 +952,11 @@ def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
         match = _fuzzy_pattern(term).search(text)
         return tuple(match.start(i) for i in range(1, len(term) + 1)) if match else ()
 
-    term = term.lower() if term.isascii() else term.translate(_FUZZY_ASCII_FOLD)
+    ascii_term = term.isascii()
+    term = term.lower() if ascii_term else term.translate(_FUZZY_ASCII_FOLD)
     folded = text.lower() if text.isascii() else text.translate(_FUZZY_ASCII_FOLD)
+    if ascii_term and (term[0] not in folded or term[-1] not in folded):
+        return ()
     if term[0] != '.' and folded.startswith(term):
         return tuple(range(len(term)))
 
