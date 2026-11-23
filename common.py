@@ -947,13 +947,14 @@ def rx_fuzzy_match(term: str, text: str) -> list[int]:
 def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
     if not term or len(term) > len(text):
         return ()
-    if not term.isascii() or not text.isascii() or '\n' in text:
-        # Preserve IGNORECASE's single-codepoint equivalences and dot's newline rules.
+    if '\n' in text:
+        # A regex gap can't consume past a newline with `.*`.
         match = _fuzzy_pattern(term).search(text)
         return tuple(match.start(i) for i in range(1, len(term) + 1)) if match else ()
 
-    term, text = term.lower(), text.lower()
-    if term[0] != '.' and text.startswith(term):
+    term = term.lower() if term.isascii() else term.translate(_FUZZY_ASCII_FOLD)
+    folded = text.lower() if text.isascii() else text.translate(_FUZZY_ASCII_FOLD)
+    if term[0] != '.' and folded.startswith(term):
         return tuple(range(len(term)))
 
     # Work backwards: each entry points to the preferred *completable* suffix.
@@ -964,15 +965,13 @@ def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
     for ch in reversed(term):
         links: dict[int, int] = {}
         next_boundary = -1
-        pos = text.rfind(ch)
-        while pos != -1:
+        for pos in _fuzzy_positions(ch, folded):
             if not layers or pos + 1 in suffix or pos < boundary:
                 links[pos] = pos + 1 if pos + 1 in suffix else boundary
-                if next_boundary == -1 and pos:
+                if pos:
                     prev = text[pos - 1]
                     if not (prev.isalnum() or prev == '_'):
                         next_boundary = pos
-            pos = text.rfind(ch, 0, pos)
         if not links:
             return ()
         layers.append(links)
@@ -991,6 +990,25 @@ def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
         indices.append(pos)
         pos = links[pos]
     return tuple(indices)
+
+
+# IGNORECASE equates these four non-ASCII letters to ASCII ones. Fold only
+# these classes, one code point at a time, so filename offsets never move.
+_FUZZY_ASCII_FOLD = str.maketrans(
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + 'İıſK',
+    'abcdefghijklmnopqrstuvwxyz' + 'iisk',
+)
+
+
+def _fuzzy_positions(ch: str, folded: str) -> Iterable[int]:
+    if ch.isascii():
+        pos = folded.find(ch)
+        while pos != -1:
+            yield pos
+            pos = folded.find(ch, pos + 1)
+    else:
+        for match in re.finditer(re.escape(ch), folded, re.IGNORECASE):
+            yield match.start()
 
 
 @lru_cache(maxsize=128)

@@ -19,6 +19,10 @@ class FuzzyMatchTest(unittest.TestCase):
             ('ab', 'a_b', []),
             ('.py', 'x.py.py', [4, 5, 6]),
             ('ki', 'Kİ', [0, 1]),
+            ('.txt', 'İ.txt', [1, 2, 3, 4]),
+            ('sék', 'x-ſ-É-K', [2, 4, 6]),
+            ('aΣb', 'a-ς-b', [0, 2, 4]),
+            ('ß', 'ss', []),
             ('ab', 'a\nx-b', []),
         ]:
             with self.subTest(term=term, name=name):
