@@ -28,6 +28,7 @@ import warnings
 
 import sublime
 
+
 try:  # unavailable dependencies shall not break basic functionality
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', 'Failed to import fsevents')
@@ -104,6 +105,8 @@ class ObservePaths(object):
                 traceback.print_exc()
         self.observer.stop()
         self.observer.join()
+        for path in self.watches:
+            self.event_handler.forget(path)
 
     def dired_event_handler(self, event, payload):
         def stop_watch(vid: sublime.ViewId):
@@ -242,12 +245,21 @@ class ReportEvent(FileSystemEventHandler):
             # reports that as a modification too.  Ignore it if nothing we render changed.
             return
 
-        src_path = event.src_path
-        path = os.path.dirname(src_path)
+        # common may have been reloaded since the observer started.
+        from .common import listings
+        affected = set()
+        for path in (event.src_path, getattr(event, 'dest_path', '')):
+            if not path:
+                continue
+            parent = os.path.dirname(path)
+            listings.invalidate(parent)
+            if event.is_directory:
+                listings.invalidate(path, subtree=True)
+            affected.update((os.path.normcase(path), os.path.normcase(parent)))
         for vid, paths in self.paths.items():
             if vid in self.ignored_views:
                 continue
-            if any(candidate in paths for candidate in (src_path, path)):
+            if any(os.path.normcase(p) in affected for p in paths):
                 self.schedule_refresh(vid)
 
     def schedule_refresh(self, view):
@@ -290,6 +302,8 @@ class ReportEvent(FileSystemEventHandler):
             self.signatures[directory] = known
 
     def forget(self, directory: str):
+        from .common import listings
+        listings.invalidate(directory)
         with self.lock:
             self.signatures.pop(directory, None)
 

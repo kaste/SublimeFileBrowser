@@ -8,12 +8,12 @@ from unittest import TestCase, mock, skipIf
 
 from unittesting import DeferrableTestCase
 
-from FileBrowser.common import emit_event
+from FileBrowser.common import emit_event, listings, NATURAL_SORT
 
 fs_observer = importlib.import_module('FileBrowser.0_dired_fs_observer')
 
 if fs_observer.Observer:
-    from watchdog.events import DirModifiedEvent, FileCreatedEvent, FileModifiedEvent
+    from watchdog.events import DirModifiedEvent, FileCreatedEvent, FileModifiedEvent, FileMovedEvent
 
 
 @skipIf(fs_observer.Observer is None, 'watchdog is not importable')
@@ -64,6 +64,25 @@ class RewatchTest(DeferrableTestCase):
         self.send('view_closed', 1)
 
         self.assertEqual(self.watched(), {b})
+
+    def test_only_the_last_watch_release_discards_the_listing(self):
+        a, b = self.make_dirs('a', 'b')
+        self.send('set_paths', (1, [a, b]))
+        self.send('set_paths', (2, [a]))
+
+        def read(path):
+            return listings.read(path, True, True, (), (), NATURAL_SORT)
+
+        shared = read(a)
+        self.assertEqual(read(b), [])
+        self.send('view_closed', 1)
+        self.assertIs(read(a), shared)
+        open(os.path.join(b, 'after-close'), 'w').close()
+        self.assertEqual([e.name for e in read(b)], ['after-close'])
+
+        self.send('remove_path', (2, a))
+        open(os.path.join(a, 'after-fold'), 'w').close()
+        self.assertEqual([e.name for e in read(a)], ['after-fold'])
 
     def test_restarts_stopped_watches(self):
         a, = self.make_dirs('a')
@@ -341,6 +360,25 @@ class ReportEventTest(TestCase):
         self.handler.process_event(FileModifiedEvent(self.file))
 
         self.assertEqual(self.handler.scheduled_views, {})
+
+    def test_move_refreshes_both_listings_but_leaves_other_directories_cached(self):
+        with tempfile.TemporaryDirectory() as dest, tempfile.TemporaryDirectory() as other:
+            def names(path):
+                return [e.name for e in listings.read(path, True, True, (), (), NATURAL_SORT)]
+
+            for path in (self.root, dest, other):
+                names(path)
+            target = os.path.join(dest, 'moved')
+            os.rename(self.file, target)
+            self.handler.paths[2] = [dest]
+            self.handler.process_event(FileMovedEvent(self.file, target))
+
+            self.assertEqual(set(self.handler.scheduled_views), {1, 2})
+            self.assertEqual(names(self.root), [])
+            self.assertEqual(names(dest), ['moved'])
+            with mock.patch.object(os, 'scandir', wraps=os.scandir) as scan:
+                self.assertEqual(names(other), [])
+                scan.assert_not_called()
 
     def test_refreshes_on_content_change(self):
         with open(self.file, 'a') as f:

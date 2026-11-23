@@ -343,10 +343,7 @@ class dired_fuzzy_search(TextCommand, DiredBaseCommand):
             self.view.settings().set('dired_filter_extension', filter_extension)
             self.view.settings().set('dired_expanded_paths', initial_expanded_folders)
             self.view.run_command('dired_refresh')
-            # After a `dired_refresh` we need to refresh `self.index` by calling
-            # `load_index()`.  Even when we intend to to "just" revert to the
-            # exact same state from before, `dired_refresh` still calls `listdir`
-            # et.al. and hence has a fresh view of the state of the filesystem.
+            # Selection restoration needs the index from the refreshed view.
             self.load_index()
             self.restore_sels(initial_sels)
             self.view.set_viewport_position(initial_viewport, False)

@@ -5,7 +5,9 @@ import os
 import sys
 from os.path import isdir, join, basename
 import fnmatch
+from collections import OrderedDict
 from itertools import chain
+from threading import Lock
 from functools import lru_cache
 from typing import Iterable, NamedTuple
 from typing_extensions import TypeAlias
@@ -494,7 +496,7 @@ class DiredBaseCommand:
         '''List entries in a directory or return an error.
         Respects hidden-file setting and returns sorted names.'''
         try:
-            entries = self._our_scandir(path)
+            entries = self._our_scandir(path, fresh=True)
             items = [info.name for info in entries]
             error = ''
         except OSError as e:
@@ -537,19 +539,12 @@ class DiredBaseCommand:
         expanded: set[str] | None = None,
         auto_expand: int = 0,
         depth: int = 0,
-        sortfunc=NATURAL_SORT
+        sortfunc=NATURAL_SORT,
     ) -> tuple[list[ListingItem], str]:
         """Return a flattened tree of ListingItem objects for the given root."""
         expanded = expanded or set()
-        # Do not strip the separator for drive roots like "C:\", because turning that
-        # into "C:" makes path resolution relative to the drive's CWD.
-        if dir_path:
-            drive, tail = os.path.splitdrive(dir_path)
-            target = dir_path.rstrip(os.sep) if tail not in (os.sep, '') else dir_path
-        else:
-            target = dir_path
         try:
-            infos = self._our_scandir(target, sortfunc=sortfunc, in_search=auto_expand != 0)
+            infos = self._our_scandir(dir_path, sortfunc=sortfunc, in_search=auto_expand != 0)
         except OSError as error:
             return [], self._format_os_error(error)
 
@@ -566,7 +561,7 @@ class DiredBaseCommand:
 
         return entries, ''
 
-    def _our_scandir(self, path: str, sortfunc=NATURAL_SORT, in_search=False) -> list[EntryInfo]:
+    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, in_search=False, fresh=False) -> list[EntryInfo]:
         """Return EntryInfo objects for the given directory, respecting hidden settings."""
         show_hidden = getattr(self, 'show_hidden', self.view.settings().get('dired_show_hidden_files', True))
         show_system = getattr(self, 'show_system', self.view.settings().get('dired_show_system_files', True))
@@ -586,10 +581,8 @@ class DiredBaseCommand:
                 if p.endswith('/*'):
                     dir_patterns.append(p[:-2])
 
-        if not in_search:
-            _do_scandir.cache_clear()
-        return _do_scandir(path, show_hidden, show_system,
-                           tuple(exclude_patterns), tuple(dir_patterns), sortfunc)
+        return listings.read(path, show_hidden, show_system, tuple(exclude_patterns), tuple(dir_patterns),
+                             sortfunc, fresh=fresh)
 
     def recreate_dired_expanded_paths_from_view(self):
         # Update persisted expanded paths based on current view state
@@ -872,7 +865,44 @@ def format_size_short(num_bytes: int) -> str:
     return f'{int(size + 0.5)}{units[unit]}'
 
 
-@lru_cache(maxsize=256)
+class DirectoryListings:
+    """Share directory scans across views until invalidated or evicted."""
+
+    def __init__(self):
+        self._directories = OrderedDict()
+        self._lock = Lock()
+
+    def read(self, path, *options, fresh=False):
+        path = os.path.normpath(path) if path else ''  # preserve the drive-list sentinel
+        if fresh:  # one-off completion/child discovery, not a change notification
+            return _do_scandir(path, *options)
+        key = os.path.normcase(path)
+        with self._lock:
+            if key in self._directories:
+                self._directories.move_to_end(key)
+            else:
+                self._directories[key] = lru_cache(maxsize=8)(_do_scandir)
+                if len(self._directories) > 256:
+                    self._directories.popitem(last=False)
+            scan = self._directories[key]
+        # Don't hold the lock over I/O. Invalidation drops the whole bucket,
+        # so even an in-flight scan cannot repopulate an invalidated listing.
+        return scan(path, *options)
+
+    def invalidate(self, path, *, subtree=False):
+        key = os.path.normcase(os.path.normpath(path)) if path else ''
+        with self._lock:
+            self._directories.pop(key, None)
+            if subtree and key:
+                prefix = os.path.join(key, '')
+                for child in tuple(self._directories):
+                    if child.startswith(prefix):
+                        del self._directories[child]
+
+
+listings = DirectoryListings()
+
+
 def _do_scandir(
     path: str,
     show_hidden: bool,
