@@ -5,7 +5,7 @@ import os
 import sys
 from os.path import isdir, join, basename
 import fnmatch
-from itertools import chain, repeat
+from itertools import chain
 from functools import lru_cache
 from typing import Iterable, NamedTuple
 from typing_extensions import TypeAlias
@@ -939,29 +939,65 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
 
 
 def rx_fuzzy_match(term: str, text: str) -> list[int]:
-    R""" Boundary-only fuzzy match with non-greedy gaps.
+    """Return highlight indices, preferring adjacency, then the rightmost boundary."""
+    return list(_fuzzy_indices(term, text))
 
-    Pattern inserts a non-greedy, non-word-terminated gap between characters.
-    Example term "abc" → (?:^|\W)(a)(?:.*\W)??(b)(?:.*\W)??(c)
-    If term starts with '.', we do not anchor the first char to a word-boundary
-    so that extensions like ".txt" match naturally.
 
-    Returns start indices for each matched character or the falsy [].
-    """
-    if not term:
-        return []
+@lru_cache(maxsize=8192)
+def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
+    if not term or len(term) > len(text):
+        return ()
+    if not term.isascii() or not text.isascii() or '\n' in text:
+        # Preserve IGNORECASE's single-codepoint equivalences and dot's newline rules.
+        match = _fuzzy_pattern(term).search(text)
+        return tuple(match.start(i) for i in range(1, len(term) + 1)) if match else ()
 
-    parts = zip(
-        chain(
-            ['(?:.*)'] if term[0] == "." else [],
-            repeat(r'(?:.*\W)??')
-        ),
-        [f'({re.escape(ch)})' for ch in term]
-    )
-    pattern = ''.join(flatten(parts))
-    if m := re.search(pattern, text, re.IGNORECASE):
-        return [m.start(i + 1) for i in range(len(term))]
-    return []
+    term, text = term.lower(), text.lower()
+    if term[0] != '.' and text.startswith(term):
+        return tuple(range(len(term)))
+
+    # Work backwards: each entry points to the preferred *completable* suffix.
+    # Only the rightmost viable boundary matters if adjacency fails.
+    layers: list[dict[int, int]] = []
+    suffix: dict[int, int] = {}
+    boundary = -1
+    for ch in reversed(term):
+        links: dict[int, int] = {}
+        next_boundary = -1
+        pos = text.rfind(ch)
+        while pos != -1:
+            if not layers or pos + 1 in suffix or pos < boundary:
+                links[pos] = pos + 1 if pos + 1 in suffix else boundary
+                if next_boundary == -1 and pos:
+                    prev = text[pos - 1]
+                    if not (prev.isalnum() or prev == '_'):
+                        next_boundary = pos
+            pos = text.rfind(ch, 0, pos)
+        if not links:
+            return ()
+        layers.append(links)
+        suffix, boundary = links, next_boundary
+
+    # A leading dot prefers the last viable start (extension search). Otherwise
+    # try offset zero, then a boundary, then the leftmost interior match.
+    if term[0] == '.':
+        pos = max(suffix)
+    elif 0 in suffix:
+        pos = 0
+    else:
+        pos = boundary if boundary != -1 else min(suffix)
+    indices = []
+    for links in reversed(layers):
+        indices.append(pos)
+        pos = links[pos]
+    return tuple(indices)
+
+
+@lru_cache(maxsize=128)
+def _fuzzy_pattern(term: str) -> re.Pattern:
+    gap = r'(?:.*\W)??'
+    prefix = '.*' if term.startswith('.') else gap
+    return re.compile(prefix + gap.join(f'({re.escape(ch)})' for ch in term), re.IGNORECASE)
 
 
 def get_index(view: sublime.View) -> list[str]:

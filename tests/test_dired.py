@@ -7,6 +7,28 @@ from FileBrowser import common, dired
 from FileBrowser.dired import existing_directories
 
 
+class FuzzyMatchTest(unittest.TestCase):
+    def test_highlight_indices(self):
+        for term, name, expected in [
+            ('', 'file', []),
+            ('AB', 'cab', [1, 2]),
+            ('ab', 'cab-ab-ab', [7, 8]),
+            ('ab', 'ab-ab', [0, 1]),
+            ('ab', 'a-b-b', [0, 4]),
+            ('abc', 'a-bc-b', [0, 2, 3]),
+            ('ab', 'a_b', []),
+            ('.py', 'x.py.py', [4, 5, 6]),
+            ('ki', 'Kİ', [0, 1]),
+            ('ab', 'a\nx-b', []),
+        ]:
+            with self.subTest(term=term, name=name):
+                self.assertEqual(common.rx_fuzzy_match(term, name), expected)
+
+    def test_callers_cannot_mutate_cached_indices(self):
+        common.rx_fuzzy_match('ab', 'a-b').clear()
+        self.assertEqual(common.rx_fuzzy_match('ab', 'a-b'), [0, 2])
+
+
 class AutorefreshSettingsTest(unittest.TestCase):
     def test_unrelated_settings_changes_do_not_toggle_watches(self):
         self.values['dired_to_copy'] = ['/audit/file']
