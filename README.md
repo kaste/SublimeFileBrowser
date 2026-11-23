@@ -190,8 +190,21 @@ You can expand or collapse selected directories using <kbd>l</kbd>/<kbd>→</kbd
 expand and <kbd>h</kbd>/<kbd>←</kbd> to collapse.
 
 ### Search
-Besides incremental search available by <kbd>/</kbd>, you also may use build-in "Goto Symbol…"
-(<kbd>⌘+r</kbd> or <kbd>ctrl + r</kbd>) for fuzzy search.
+Besides incremental search available by <kbd>i</kbd> and <kbd>/</kbd>, you also may use build-in "Goto Symbol…" (<kbd>⌘+r</kbd> or <kbd>ctrl + r</kbd>).
+
+The incremental search is also a fuzzy search but expands into sub-directories
+if there aren't any results in the current tree.
+
+You can also prefix the fuzzy term with its path relative
+to the view root. For example, `test/md` fuzzy-matches `md` in names under
+`test/` only; `test/fixtures/md` narrows the search to `test/fixtures/`.
+
+Pressing <kbd>Backspace</kbd> when the input is already empty cancels the
+filter input.
+
+Note that the file listing will be frozen while the search input has focus
+and will not see file changes when notified from the fs watcher.
+
 
 ### "Find in Files…" integration
 Press <kbd>s</kbd> to summon "Find in Files…" panel — if you've marked some files they will fill
@@ -426,28 +439,9 @@ Auto-refresh can be disabled globally in user settings file
 
 Auto-refresh can also be toggled per view via the context menu.
 
-Directory listings are shared across views. Closing a view or collapsing a
-folder keeps the cached listing if another view still watches that folder.
-When its last watch stops, the listing is discarded; the next read scans the
-folder again. Press <kbd>r</kbd> to reread the current tree at any time.
-
-To search within a subdirectory, prefix the fuzzy term with its path relative
-to the view root. For example, `test/md` fuzzy-matches `md` in names under
-`test/` only; `test/fixtures/md` narrows the search to `test/fixtures/`.
-If there are no matches in the expanded tree, the live filter searches up to
-three levels deeper from the named directory. A pattern like `.venv/*` in
-`binary_file_patterns` skips the directory’s contents, not its name.
-
-While the fuzzy filter input has focus, edits search a snapshot of the
-listing. Filesystem changes do not move the results under your cursor.
-Accepting, cancelling, or leaving the input releases that snapshot.
-Pressing <kbd>Backspace</kbd> when the input is already empty cancels the
-filter input and leaves the FileBrowser view open.
-
 If auto-refresh is enabled but the filesystem observer is unavailable,
 FileBrowser rereads the current tree when the view gains focus instead.
 Disabling auto-refresh disables this fallback too.
-
 
 ## Tweaking Look and Feel
 
