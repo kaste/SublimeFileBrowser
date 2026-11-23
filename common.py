@@ -952,23 +952,20 @@ def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
         match = _fuzzy_pattern(term).search(text)
         return tuple(match.start(i) for i in range(1, len(term) + 1)) if match else ()
 
-    ascii_term = term.isascii()
-    term = term.lower() if ascii_term else term.translate(_FUZZY_ASCII_FOLD)
+    term, ascii_term, positions = _prepare_fuzzy_term(term)
     folded = text.lower() if text.isascii() else text.translate(_FUZZY_ASCII_FOLD)
     if ascii_term and (term[0] not in folded or term[-1] not in folded):
         return ()
     if term[0] != '.' and folded.startswith(term):
         return tuple(range(len(term)))
 
-    # Work backwards: each entry points to the preferred *completable* suffix.
-    # Only the rightmost viable boundary matters if adjacency fails.
     layers: list[dict[int, int]] = []
     suffix: dict[int, int] = {}
     boundary = -1
-    for ch in reversed(term):
+    for ch, find_positions in positions:
         links: dict[int, int] = {}
         next_boundary = -1
-        for pos in _fuzzy_positions(ch, folded):
+        for pos in find_positions(ch, folded):
             if not layers or pos + 1 in suffix or pos < boundary:
                 links[pos] = pos + 1 if pos + 1 in suffix else boundary
                 if pos:
@@ -1003,15 +1000,33 @@ _FUZZY_ASCII_FOLD = str.maketrans(
 )
 
 
-def _fuzzy_positions(ch: str, folded: str) -> Iterable[int]:
-    if ch.isascii():
-        pos = folded.find(ch)
-        while pos != -1:
-            yield pos
-            pos = folded.find(ch, pos + 1)
+@lru_cache(maxsize=128)
+def _prepare_fuzzy_term(term: str):
+    """Choose each character's search once, not once per filename."""
+    if term.isascii():
+        term = term.lower()
+        ascii_term = True
     else:
-        for match in re.finditer(re.escape(ch), folded, re.IGNORECASE):
-            yield match.start()
+        term = term.translate(_FUZZY_ASCII_FOLD)
+        ascii_term = term.isascii()  # e.g. K folds to k
+    return term, ascii_term, tuple(
+        (ch, _literal_positions if ascii_term or ch.isascii() else _ignorecase_positions)
+        # Work backwards: each entry points to the preferred *completable* suffix.
+        # Only the rightmost viable boundary matters if adjacency fails.
+        for ch in reversed(term)
+    )
+
+
+def _literal_positions(ch: str, folded: str) -> Iterable[int]:
+    pos = folded.find(ch)
+    while pos != -1:
+        yield pos
+        pos = folded.find(ch, pos + 1)
+
+
+def _ignorecase_positions(ch: str, folded: str) -> Iterable[int]:
+    for match in re.finditer(re.escape(ch), folded, re.IGNORECASE):
+        yield match.start()
 
 
 @lru_cache(maxsize=128)
