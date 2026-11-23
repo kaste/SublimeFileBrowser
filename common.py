@@ -537,18 +537,21 @@ class DiredBaseCommand:
         """Return a flattened tree of ListingItem objects for the given root."""
         expanded = expanded or set()
         try:
-            infos = self._our_scandir(dir_path, sortfunc=sortfunc, in_search=auto_expand != 0,
-                                      transient=transient or auto_expand != 0)
+            infos = self._our_scandir(dir_path, sortfunc=sortfunc, transient=transient or auto_expand != 0)
         except OSError as error:
             return [], self._format_os_error(error)
 
+        # A binary pattern like '.venv/*' excludes the contents, not the directory name.
+        skip_contents = {p[:-2] for p in self.view.settings().get('binary_file_patterns', [])
+                         if p.endswith('/*')} if auto_expand else set()
         entries: list[ListingItem] = []
         for info in infos:
             # Follow the literal directory prefix before searching names.
             if depth < len(directory_prefix) and (not info.is_dir or os.path.normcase(info.name) != directory_prefix[depth]):
                 continue
             full_path = join(dir_path, info.name) + (os.sep if info.is_dir else '')
-            if info.is_dir and (depth < len(directory_prefix) + auto_expand or full_path in expanded):
+            descend = depth < len(directory_prefix) + auto_expand or full_path in expanded
+            if info.is_dir and descend and info.name not in skip_contents:
                 sub_entries, sub_err = self.walkdir(
                     full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1,
                     directory_prefix=directory_prefix, sortfunc=sortfunc, transient=transient)
@@ -560,7 +563,7 @@ class DiredBaseCommand:
 
         return entries, ''
 
-    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, in_search=False, fresh=False, transient=False) -> list[EntryInfo]:
+    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, fresh=False, transient=False) -> list[EntryInfo]:
         """Return EntryInfo objects for the given directory, respecting hidden settings."""
         entries = listings.read(path, fresh=fresh, transient=transient)
         if not path:  # drive listing
@@ -578,10 +581,6 @@ class DiredBaseCommand:
             for p in self.view.settings().get('folder_exclude_patterns', []):
                 if "/" not in p:
                     dir_patterns.append(p)
-        if in_search:
-            for p in self.view.settings().get('binary_file_patterns', []):
-                if p.endswith('/*'):
-                    dir_patterns.append(p[:-2])
 
         mask = (0 if show_hidden else FILE_ATTRIBUTE_HIDDEN) | (0 if show_system else FILE_ATTRIBUTE_SYSTEM)
         return sorted((

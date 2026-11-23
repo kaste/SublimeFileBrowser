@@ -108,6 +108,27 @@ class LiveFilterTest(DeferrableViewTestCase):
                 handler.on_activated(self.view)
                 self.assertIn(path, settings.get('dired_index'))
 
+    def test_scoped_search_finds_excluded_directory_but_not_its_contents(self):
+        with tempfile.TemporaryDirectory() as root:
+            env = os.path.join(root, 'dev', 'test', 'tmp', '.venv')
+            os.makedirs(env)
+            open(os.path.join(env, 'venv.cfg'), 'w').close()
+            self.view.assign_syntax('Packages/FileBrowser/dired.sublime-syntax')
+            settings = self.view.settings()
+            settings.set('dired_autorefresh', False)
+            settings.set('dired_show_hidden_files', True)
+            settings.set('binary_file_patterns', ['.venv/*'])
+            retarget_dired_view(self.view, root)
+            with mock.patch.object(sublime.View, 'window') as window:
+                dired_fuzzy_search(self.view).run(None)
+            _, change, cancel = window.return_value.show_input_panel.call_args.args[2:]
+            try:
+                change('dev/test/venv')
+                self.assertIn(env + os.sep, settings.get('dired_index'))
+                self.assertNotIn(os.path.join(env, 'venv.cfg'), settings.get('dired_index'))
+            finally:
+                cancel()
+
     def test_directory_prefix_scopes_live_matches_and_highlights(self):
         with tempfile.TemporaryDirectory() as root:
             test = os.path.join(root, 'test')

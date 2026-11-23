@@ -435,7 +435,8 @@ To search within a subdirectory, prefix the fuzzy term with its path relative
 to the view root. For example, `test/md` fuzzy-matches `md` in names under
 `test/` only; `test/fixtures/md` narrows the search to `test/fixtures/`.
 If there are no matches in the expanded tree, the live filter searches up to
-three levels deeper from the named directory.
+three levels deeper from the named directory. A pattern like `.venv/*` in
+`binary_file_patterns` skips the directory’s contents, not its name.
 
 While the fuzzy filter input has focus, edits search a snapshot of the
 listing. Filesystem changes do not move the results under your cursor.
