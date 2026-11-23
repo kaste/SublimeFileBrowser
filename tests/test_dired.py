@@ -28,11 +28,7 @@ class FuzzyMatchTest(unittest.TestCase):
             ('ab', 'a\nx-b', []),
         ]:
             with self.subTest(term=term, name=name):
-                self.assertEqual(common.rx_fuzzy_match(term, name), expected)
-
-    def test_callers_cannot_mutate_cached_indices(self):
-        common.rx_fuzzy_match('ab', 'a-b').clear()
-        self.assertEqual(common.rx_fuzzy_match('ab', 'a-b'), [0, 2])
+                self.assertEqual(common.fuzzy_match(term, name), tuple(expected))
 
 
 class AutorefreshSettingsTest(unittest.TestCase):

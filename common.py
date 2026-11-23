@@ -515,7 +515,7 @@ class DiredBaseCommand:
             if ext_filter := settings.get('dired_filter_extension', '').lower():
                 entries = [e for e in entries if os.path.splitext(e.name)[1].lower() == ext_filter]
             if flt := settings.get('dired_filter'):
-                entries = [e for e in entries if rx_fuzzy_match(flt, e.name)]
+                entries = [e for e in entries if fuzzy_match(flt, e.name)]
         return entries
 
     def walkdir(
@@ -813,7 +813,7 @@ class DiredBaseCommand:
                 + self.view.find_by_selector('text.dired string.name.directory.dired')
             ):
                 name = self.view.substr(r)
-                if pos := rx_fuzzy_match(flt, name):
+                if pos := fuzzy_match(flt, name):
                     regions.extend(Region(r.a + p, r.a + p + 1) for p in pos)
 
         # Subtle when not actively typing in the filter input panel
@@ -938,13 +938,9 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
     return rv
 
 
-def rx_fuzzy_match(term: str, text: str) -> list[int]:
-    """Return highlight indices, preferring adjacency, then the rightmost boundary."""
-    return list(_fuzzy_indices(term, text))
-
-
 @lru_cache(maxsize=8192)
-def _fuzzy_indices(term: str, text: str) -> tuple[int, ...]:
+def fuzzy_match(term: str, text: str) -> tuple[int, ...]:
+    """Return highlight indices, preferring adjacency, then the rightmost boundary."""
     if not term or len(term) > len(text):
         return ()
     if '\n' in text:
