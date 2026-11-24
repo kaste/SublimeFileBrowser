@@ -86,10 +86,16 @@ _FILEBROWSER_CLIPBOARD = _user32.RegisterClipboardFormatW(
     'FileBrowser Shell File Clipboard'
 )
 _last_written_sequence: int | None = None
+_cancelled_sequence: int | None = None
 
 
 def get_file_clipboard() -> FileClipboard | None:
-    """Return shell file clipboard contents, or ``None`` for a text clipboard."""
+    """Return pasteable shell files, ignoring a cut/copy cancelled by Ctrl+Space."""
+    if (
+        _cancelled_sequence is not None
+        and int(_user32.GetClipboardSequenceNumber()) == _cancelled_sequence
+    ):
+        return None
     _open_clipboard()
     try:
         if not _user32.IsClipboardFormatAvailable(CF_HDROP):
@@ -123,7 +129,7 @@ def get_file_clipboard() -> FileClipboard | None:
 
 def set_file_clipboard(paths: Sequence[str], cut: bool = False) -> None:
     """Publish paths for Explorer and as plain text for terminal pasting."""
-    global _last_written_sequence
+    global _last_written_sequence, _cancelled_sequence
 
     shell_paths = list(dict.fromkeys(_to_shell_path(path) for path in paths))
     if not shell_paths:
@@ -169,6 +175,7 @@ def set_file_clipboard(paths: Sequence[str], cut: bool = False) -> None:
                 raise ctypes.WinError(ctypes.get_last_error())
             transferred += 1
         _last_written_sequence = int(_user32.GetClipboardSequenceNumber())
+        _cancelled_sequence = None
     except Exception:
         for _, handle in handles[transferred:]:
             _kernel32.GlobalFree(handle)
@@ -205,11 +212,23 @@ def clear_file_clipboard(sequence_number: int | None = None) -> bool:
         _user32.CloseClipboard()
 
 
-def clear_our_file_clipboard() -> bool:
-    """Clear file data only if FileBrowser still owns the current clipboard."""
-    if _last_written_sequence is None:
-        return False
-    return clear_file_clipboard(_last_written_sequence)
+def clear_our_file_clipboard(run_async) -> None:
+    """Schedule a clear of the FileBrowser clipboard targeted by this command."""
+    global _cancelled_sequence
+    sequence = _last_written_sequence
+    if sequence is None:
+        return
+    _cancelled_sequence = sequence
+
+    # EmptyClipboard can wait for Sublime's window to handle an owner
+    # notification. Let the command return rather than waiting on that window.
+    def clear():
+        try:
+            clear_file_clipboard(sequence)
+        except OSError as error:
+            print('FileBrowser: could not clear Windows clipboard:', error)
+
+    run_async(clear)
 
 
 def _open_clipboard(owner=None) -> None:
