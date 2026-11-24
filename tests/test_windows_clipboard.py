@@ -5,10 +5,10 @@ import importlib.util
 import os
 from unittest import TestCase, mock
 
-from FileBrowser import common
+from FileBrowser import common, dired_file_operations as operations
 
 
-class ClipboardReadTest(TestCase):
+class WindowsClipboardTest(TestCase):
     def test_closes_before_path_classification_even_if_it_fails(self):
         clipboard = self.clipboard
 
@@ -67,6 +67,50 @@ class ClipboardReadTest(TestCase):
         clipboard._user32.OpenClipboard.assert_called_once_with(None)
         clipboard._user32.EmptyClipboard.assert_not_called()
         clipboard._kernel32.GlobalUnlock.assert_called_once()
+
+    def test_clear_command_releases_ui_before_emptying_cut_clipboard(self):
+        clipboard = self.clipboard
+        clipboard._last_written_sequence = 7  # the preceding cut
+        command = operations.dired_clear_copy_cut_list(mock.Mock())
+        with mock.patch.object(operations, 'NT', True), \
+                mock.patch.object(operations, 'sublime') as api, \
+                mock.patch.object(operations, 'clear_our_file_clipboard',
+                                  clipboard.clear_our_file_clipboard, create=True):
+            command.run(None)
+
+        clipboard._user32.EmptyClipboard.assert_not_called()
+        (finish_clear,), _ = api.set_timeout_async.call_args
+        finish_clear()
+        clipboard._user32.EmptyClipboard.assert_called_once_with()
+
+    def test_paste_ignores_only_the_cancelled_files_while_clear_is_pending(self):
+        clipboard = self.clipboard
+        clipboard._last_written_sequence = 7
+        queued = []
+        clipboard.clear_our_file_clipboard(queued.append)
+
+        with mock.patch.object(clipboard, '_read_drop_paths', return_value=['wrong.txt']) as paths, \
+                mock.patch.object(clipboard, '_read_drop_effect', return_value=clipboard.DROP_EFFECT_COPY):
+            self.assertIsNone(clipboard.get_file_clipboard())
+            clipboard._user32.OpenClipboard.assert_not_called()
+
+            paths.return_value = ['right.txt']
+            clipboard._user32.GetClipboardSequenceNumber.return_value = 8
+            self.assertEqual(clipboard.get_file_clipboard().paths, ['right.txt'])
+
+    def test_deferred_clear_preserves_a_newer_filebrowser_cut(self):
+        clipboard = self.clipboard
+        clipboard._last_written_sequence = 7
+        queued = []
+        clipboard.clear_our_file_clipboard(queued.append)
+
+        clipboard._last_written_sequence = 8
+        clipboard._user32.GetClipboardSequenceNumber.return_value = 8
+        clear, = queued
+        clear()
+
+        clipboard._user32.EmptyClipboard.assert_not_called()
+        self.assertEqual(clipboard._last_written_sequence, 8)
 
     def setUp(self):
         # Load an isolated copy, including on Linux: do not replace the live

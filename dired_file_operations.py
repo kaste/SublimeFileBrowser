@@ -510,10 +510,7 @@ class dired_clear_copy_cut_list(TextCommand):
         sublime.load_settings('dired.sublime-settings').set('dired_to_copy', [])
         sublime.save_settings('dired.sublime-settings')
         if NT and clear_system:
-            try:
-                clear_our_file_clipboard()
-            except OSError as error:
-                print('FileBrowser: could not clear Windows clipboard:', error)
+            clear_our_file_clipboard(sublime.set_timeout_async)
         # Also clear visual highlights for copied/cut items
         self.view.erase_regions('copied')
         self.view.erase_regions('cut')
