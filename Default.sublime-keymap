@@ -271,6 +271,15 @@
     ]
   },
   {
+    "keys": ["backspace"],
+    "command": "hide_panel",
+    "args": { "cancel": true },
+    "context": [
+      { "key": "setting.dired_input_panel" },
+      { "key": "dired_input_empty" }
+    ]
+  },
+  {
     "keys": ["I"] ,
     "command": "dired_toggle_filter",
     "context": [

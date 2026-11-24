@@ -8,11 +8,33 @@ from unittesting import DeferrableViewTestCase
 
 from FileBrowser.dired import DiredRefreshOnFocus
 from FileBrowser.common import DiredBaseCommand, listings
-from FileBrowser.dired_misc import DiredFilterPanelFocus, dired_fuzzy_search
+from FileBrowser.dired_misc import DiredContextProvider, DiredFilterPanelFocus, dired_fuzzy_search
 from FileBrowser.show import retarget_dired_view
 
 
 class LiveFilterTest(DeferrableViewTestCase):
+    def test_backspace_dismisses_empty_filter_without_closing_target(self):
+        target = self.window.new_file()
+        self.addCleanup(target.close)
+        self.addCleanup(self.window.run_command, 'hide_panel', {'cancel': True})
+        panel = self.window.show_input_panel('Filter:', 'x', None, None, None)
+        panel.settings().set('dired_input_panel', True)
+        panel.settings().set('dired_target_view_id', target.id())
+        query = DiredContextProvider().on_query_context
+
+        panel.run_command('select_all')
+        self.assertFalse(query(panel, 'dired_input_empty', sublime.OP_EQUAL, True, False))
+        panel.run_command('left_delete')
+        self.assertTrue(target.is_valid())
+        self.assertTrue(query(panel, 'dired_input_empty', sublime.OP_EQUAL, True, False))
+        bindings = sublime.decode_value(sublime.load_resource('Packages/FileBrowser/Default.sublime-keymap'))
+        binding, = (b for b in bindings if b['keys'] == ['backspace']
+                    and {'key': 'setting.dired_input_panel'} in b['context'])
+        self.assertIn({'key': 'dired_input_empty'}, binding['context'])
+        self.window.run_command(binding['command'], binding.get('args', {}))
+        yield lambda: self.window.active_panel() != 'input'
+        self.assertTrue(target.is_valid())
+
     def test_one_off_listings_are_fresh_without_evicting_a_cached_walk(self):
         command = DiredBaseCommand()
         command.view = self.view
@@ -85,6 +107,67 @@ class LiveFilterTest(DeferrableViewTestCase):
             with mock.patch.object(watcher, 'observer', None):
                 handler.on_activated(self.view)
                 self.assertIn(path, settings.get('dired_index'))
+
+    def test_scoped_search_finds_excluded_directory_but_not_its_contents(self):
+        with tempfile.TemporaryDirectory() as root:
+            env = os.path.join(root, 'dev', 'test', 'tmp', '.venv')
+            os.makedirs(env)
+            open(os.path.join(env, 'venv.cfg'), 'w').close()
+            self.view.assign_syntax('Packages/FileBrowser/dired.sublime-syntax')
+            settings = self.view.settings()
+            settings.set('dired_autorefresh', False)
+            settings.set('dired_show_hidden_files', True)
+            settings.set('binary_file_patterns', ['.venv/*'])
+            retarget_dired_view(self.view, root)
+            with mock.patch.object(sublime.View, 'window') as window:
+                dired_fuzzy_search(self.view).run(None)
+            _, change, cancel = window.return_value.show_input_panel.call_args.args[2:]
+            try:
+                change('dev/test/venv')
+                index = settings.get('dired_index')
+                self.assertIn(env + os.sep, index)
+                row, _ = self.view.rowcol(self.view.sel()[0].b)
+                self.assertEqual(index[row], env + os.sep)
+                self.assertNotIn(os.path.join(env, 'venv.cfg'), settings.get('dired_index'))
+            finally:
+                cancel()
+
+    def test_directory_prefix_scopes_live_matches_and_highlights(self):
+        with tempfile.TemporaryDirectory() as root:
+            test = os.path.join(root, 'test')
+            tests = os.path.join(root, 'tests')
+            deep = os.path.join(test, 'a', 'b', 'c')
+            os.makedirs(deep)
+            os.mkdir(tests)
+            for folder in (root, test, tests, deep):
+                open(os.path.join(folder, 'readme.md'), 'w').close()
+            open(os.path.join(test, 'other.txt'), 'w').close()
+
+            self.view.assign_syntax('Packages/FileBrowser/dired.sublime-syntax')
+            settings = self.view.settings()
+            settings.set('dired_autorefresh', False)
+            retarget_dired_view(self.view, root)
+            with mock.patch.object(sublime.View, 'window') as window:
+                dired_fuzzy_search(self.view).run(None)
+            done, change = window.return_value.show_input_panel.call_args.args[2:4]
+
+            def paths():
+                return [p for p in settings.get('dired_index') if os.path.isabs(p)]
+
+            change('test/md')
+            self.assertEqual(paths(), [test + os.sep, os.path.join(test, 'readme.md')])
+            self.assertEqual([self.view.substr(r) for r in self.view.get_regions('dired_filter_hits')], ['md'])
+            change('tests/md')
+            self.assertEqual(paths(), [tests + os.sep, os.path.join(tests, 'readme.md')])
+            change('missing/md')
+            self.assertEqual(paths(), [])
+            change('test/')
+            self.assertIn(os.path.join(test, 'other.txt'), paths())
+            change('test/a/b/c/md')
+            done('test/a/b/c/md')
+            self.view.run_command('dired_refresh')
+            self.assertIn(os.path.join(deep, 'readme.md'), paths())
+            self.assertNotIn(os.path.join(test, 'readme.md'), paths())
 
     def test_focused_search_survives_watcher_refresh_and_thaws_on_blur(self):
         with tempfile.TemporaryDirectory() as root:

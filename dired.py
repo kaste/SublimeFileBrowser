@@ -12,7 +12,8 @@ from sublime_plugin import EventListener, WindowCommand, TextCommand
 
 from .common import (
     DiredBaseCommand, ListingItem, calc_width, display_path, emit_event, get_group, hijack_window,
-    history_replace, set_proper_scheme, NT, PARENT_SYM, fuzzy_match, listings, sync_view_watches, filter_snapshots)
+    history_replace, set_proper_scheme, NT, PARENT_SYM, active_filter_query, filter_entries,
+    listings, sync_view_watches, filter_snapshots)
 from . import prompt
 from .show import show, create_dired_view, retarget_dired_view
 from .jumping import jump_names
@@ -231,7 +232,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
     """
     sels: tuple[list[str] | None, list[Region] | None] | None
 
-    def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None, auto_expand=0):
+    def run(self, edit, goto='', to_expand=None, toggle=None, reset_sels=None, auto_expand=0,
+            select_first_match=False):
         """
         goto
             Optional path to put the cursor on; can be relative or absolute.
@@ -289,7 +291,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             # When resetting, clear selections and initialize index
             self.index = []
             self.sels = None
-        self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand)
+        self.populate_view(edit, path, goto, expanded, to_expand, toggle, auto_expand, select_first_match)
 
         sync_view_watches(self.view)
 
@@ -317,7 +319,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             goto = parent
         return list(dict.fromkeys(to_expand))
 
-    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand):
+    def populate_view(self, edit, path, goto, expanded, to_expand, toggle, auto_expand, select_first_match):
         '''Called when we know that some directories were (or/and need to be) expanded'''
         root = path
         # `expanded` already contains absolute paths collected from settings
@@ -328,12 +330,15 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             expanded.extend(to_expand or [])
         self.expanded = expanded = existing_directories(expanded)
 
+        s = self.view.settings()
+        directory_prefix, term, extension = active_filter_query(s)
+
         # Phase 1: build the tree
         snapshot = filter_snapshots.get(self.view.id())
         if snapshot:
-            entries, err = snapshot.walk(self.walkdir, root, expanded)
+            entries, err = snapshot.walk(self.walkdir, root, expanded, directory_prefix)
         else:
-            entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand)
+            entries, err = self.walkdir(root, expanded=set(expanded), auto_expand=auto_expand, directory_prefix=directory_prefix)
         if err:
             self.view.run_command("dired_up")
             self.view.set_read_only(False)
@@ -346,26 +351,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             return
 
         # Phase 2: filter bottom-up
-        s = self.view.settings()
-        enabled = s.get('dired_filter_enabled', True)
-        ext = s.get('dired_filter_extension', '').lower()
-        flt = s.get('dired_filter', '').strip()
-
-        filtered_entries: list[ListingItem] = []
-        for e in reversed(entries):
-            ok_name = not enabled or not flt or fuzzy_match(flt, e.name)
-            if e.is_dir:
-                children_present = (
-                    filtered_entries and filtered_entries[-1].full_path.startswith(e.full_path))
-                ok_ext = not enabled or not ext
-                keep_dir = ok_ext and ok_name or children_present
-                if keep_dir:
-                    filtered_entries.append(e)
-            else:
-                ok_ext = not enabled or not ext or os.path.splitext(e.name)[1].lower() == ext
-                keep_file = ok_ext and ok_name
-                if keep_file:
-                    filtered_entries.append(e)
+        filtered_entries, first_match = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
 
         # Phase 3: render and build index
         show_stats = s.get('dired_show_stats', False)
@@ -376,7 +362,7 @@ class dired_refresh(TextCommand, DiredBaseCommand):
             tab_size = 4
 
         rendered, new_index = format_items(
-            reversed(filtered_entries),
+            filtered_entries,
             show_stats,
             tab_size,
             dir_sep=_display_path_separator(s),
@@ -397,6 +383,8 @@ class dired_refresh(TextCommand, DiredBaseCommand):
         self.index = new_index
         items = self.correcting_index(path, lines)
         self.write(edit, items)
+        if not goto and select_first_match and first_match:
+            goto = first_match.full_path
         self.restore_selections(path, goto)
         self.refresh_mark_highlights()
         self.refresh_clipboard_highlights()
@@ -961,7 +949,8 @@ class dired_expand(TextCommand, DiredBaseCommand):
             tab_size = 4
         indentation_level = self.view.indentation_level(line.a)
 
-        entries, err = self.walkdir(path, depth=indentation_level + 1)
+        directory_prefix, term, extension = active_filter_query(settings)
+        entries, err = self.walkdir(path, depth=indentation_level + 1, directory_prefix=directory_prefix)
         _base_timestamp = None
         if SEPARATOR in line_content:
             stats_part = line_content.split(SEPARATOR, 1)[1].strip()
@@ -983,7 +972,7 @@ class dired_expand(TextCommand, DiredBaseCommand):
             expanded=True,
             note=err or ('empty' if not entries else '')
         )
-        entries = self._filter_entries(entries, settings)
+        entries, _ = filter_entries(entries, term, extension, first_match_depth=len(directory_prefix))
         entries = [root_entry] + entries
         rendered, new_index = format_items(
             entries,

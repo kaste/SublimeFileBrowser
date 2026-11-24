@@ -523,15 +523,6 @@ class DiredBaseCommand:
             )
         return message
 
-    def _filter_entries(self, entries, settings):
-        enabled = settings.get('dired_filter_enabled', True)
-        if enabled:
-            if ext_filter := settings.get('dired_filter_extension', '').lower():
-                entries = [e for e in entries if os.path.splitext(e.name)[1].lower() == ext_filter]
-            if flt := settings.get('dired_filter'):
-                entries = [e for e in entries if fuzzy_match(flt, e.name)]
-        return entries
-
     def walkdir(
         self,
         dir_path: str,
@@ -539,24 +530,31 @@ class DiredBaseCommand:
         expanded: set[str] | None = None,
         auto_expand: int = 0,
         depth: int = 0,
+        directory_prefix: tuple[str, ...] = (),
         sortfunc=NATURAL_SORT,
         transient=False,
     ) -> tuple[list[ListingItem], str]:
         """Return a flattened tree of ListingItem objects for the given root."""
         expanded = expanded or set()
         try:
-            infos = self._our_scandir(dir_path, sortfunc=sortfunc, in_search=auto_expand != 0,
-                                      transient=transient or auto_expand != 0)
+            infos = self._our_scandir(dir_path, sortfunc=sortfunc, transient=transient or auto_expand != 0)
         except OSError as error:
             return [], self._format_os_error(error)
 
+        # A binary pattern like '.venv/*' excludes the contents, not the directory name.
+        skip_contents = {p[:-2] for p in self.view.settings().get('binary_file_patterns', [])
+                         if p.endswith('/*')} if auto_expand else set()
         entries: list[ListingItem] = []
         for info in infos:
+            # Follow the literal directory prefix before searching names.
+            if depth < len(directory_prefix) and (not info.is_dir or os.path.normcase(info.name) != directory_prefix[depth]):
+                continue
             full_path = join(dir_path, info.name) + (os.sep if info.is_dir else '')
-            if info.is_dir and (depth < auto_expand or full_path in expanded):
+            descend = depth < len(directory_prefix) + auto_expand or full_path in expanded
+            if info.is_dir and descend and info.name not in skip_contents:
                 sub_entries, sub_err = self.walkdir(
                     full_path, expanded=expanded, auto_expand=auto_expand, depth=depth + 1,
-                    sortfunc=sortfunc, transient=transient)
+                    directory_prefix=directory_prefix, sortfunc=sortfunc, transient=transient)
                 note = sub_err or ('empty' if not sub_entries else '')
                 entries.append(ListingItem(info.name, full_path, True, info.size, info.mtime, depth, True, note))
                 entries.extend(sub_entries)
@@ -565,7 +563,7 @@ class DiredBaseCommand:
 
         return entries, ''
 
-    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, in_search=False, fresh=False, transient=False) -> list[EntryInfo]:
+    def _our_scandir(self, path: str, *, sortfunc=NATURAL_SORT, fresh=False, transient=False) -> list[EntryInfo]:
         """Return EntryInfo objects for the given directory, respecting hidden settings."""
         entries = listings.read(path, fresh=fresh, transient=transient)
         if not path:  # drive listing
@@ -583,10 +581,6 @@ class DiredBaseCommand:
             for p in self.view.settings().get('folder_exclude_patterns', []):
                 if "/" not in p:
                     dir_patterns.append(p)
-        if in_search:
-            for p in self.view.settings().get('binary_file_patterns', []):
-                if p.endswith('/*'):
-                    dir_patterns.append(p[:-2])
 
         mask = (0 if show_hidden else FILE_ATTRIBUTE_HIDDEN) | (0 if show_system else FILE_ATTRIBUTE_SYSTEM)
         return sorted((
@@ -807,21 +801,18 @@ class DiredBaseCommand:
         """
         key = 'dired_filter_hits'
         s = self.view.settings()
-        enabled = s.get('dired_filter_enabled', True)
-        flt = s.get('dired_filter')
-        filter_extension = s.get('dired_filter_extension')
-        if not enabled or (not flt and not filter_extension):
+        directory_prefix, flt, ext = active_filter_query(s)
+        if not flt and not ext:
             self.view.erase_regions(key)
             return
 
         regions = []
         # Extension highlight
-        if filter_extension:
-            ext_l = filter_extension.lower()
+        if ext:
             for r in self.view.find_by_selector('text.dired string.name.file.dired'):
                 name = self.view.substr(r)
-                if len(name) >= len(ext_l) and name.lower().endswith(ext_l):
-                    start = r.b - len(ext_l)
+                if len(name) >= len(ext) and name.lower().endswith(ext):
+                    start = r.b - len(ext)
                     regions.append(Region(start, r.b))
         # Name fuzzy highlight
         if flt:
@@ -830,6 +821,8 @@ class DiredBaseCommand:
                 + self.view.find_by_selector('text.dired string.name.directory.dired')
             ):
                 name = self.view.substr(r)
+                if directory_prefix and self.view.indentation_level(r.a) < len(directory_prefix):
+                    continue
                 if pos := fuzzy_match(flt, name):
                     regions.extend(Region(r.a + p, r.a + p + 1) for p in pos)
 
@@ -885,11 +878,11 @@ class FilterSnapshot:
         self.focused = True
         self._trees = {}
 
-    def walk(self, walkdir, root, expanded):
-        key = (root, self.depth)
+    def walk(self, walkdir, root, expanded, directory_prefix):
+        key = (root, directory_prefix, self.depth)
         if key in self._trees:
             return self._trees[key]
-        result = walkdir(root, expanded=set(expanded), auto_expand=self.depth, transient=True)
+        result = walkdir(root, expanded=set(expanded), auto_expand=self.depth, directory_prefix=directory_prefix, transient=True)
         if self.focused and not result[1]:
             self._trees[key] = result
         return result
@@ -997,6 +990,40 @@ def combine_adjacent_regions(regions: Iterable[sublime.Region]) -> list[sublime.
         else:
             prev.b = r.b
     return rv
+
+
+def filter_entries(
+    entries: list[ListingItem], term: str, extension: str, *, first_match_depth: int
+) -> tuple[list[ListingItem], ListingItem | None]:
+    """Return visible rows and the first direct match (not a context-only ancestor)."""
+    if not first_match_depth and not term and not extension:
+        return entries, None
+
+    kept: list[ListingItem] = []
+    first_match = None
+    for e in reversed(entries):
+        if (e.depth >= first_match_depth
+                and (not extension or not e.is_dir and os.path.splitext(e.name)[1].lower() == extension)
+                and (not term or fuzzy_match(term, e.name))):
+            first_match = e
+            kept.append(e)
+        elif e.is_dir and kept and kept[-1].full_path.startswith(e.full_path):
+            kept.append(e)
+    kept.reverse()
+    return kept, first_match
+
+
+def active_filter_query(settings) -> tuple[tuple[str, ...], str, str]:
+    if not settings.get('dired_filter_enabled', True):
+        return (), '', ''
+    directory_prefix, term = split_filter_query(settings.get('dired_filter') or '')
+    return directory_prefix, term, settings.get('dired_filter_extension', '').lower()
+
+
+def split_filter_query(query: str) -> tuple[tuple[str, ...], str]:
+    """Split a root-relative directory prefix from the fuzzy basename term."""
+    *dirs, term = query.strip().replace(os.sep, '/').split('/')
+    return tuple(os.path.normcase(d) for d in dirs), term
 
 
 @lru_cache(maxsize=8192)
